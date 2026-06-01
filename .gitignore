@@ -30,3 +30,33 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Compiled binaries
+/bin/
+/dist/
+
+# Go test and coverage artifacts
+*.test
+*.out
+
+# Vendor directory
+/vendor/
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Air live-reload temp files
+/tmp/
+.air.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
