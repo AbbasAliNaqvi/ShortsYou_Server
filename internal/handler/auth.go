@@ -36,6 +36,7 @@ func NewAuthHandler(
 	}
 }
 
+// GoogleLogin redirects the browser to Google's OAuth2 consent screen.
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	state, err := generateState()
 	if err != nil {
@@ -62,6 +63,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// GoogleCallback handles the OAuth2 callback from Google.
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	// Verify OAuth state to prevent CSRF.
 	storedState, err := c.Cookie("oauth_state")
@@ -77,7 +79,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// State is single-use.
+	// OAuth state is single-use.
 	c.SetCookie(
 		"oauth_state",
 		"",
@@ -88,20 +90,20 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		true,
 	)
 
-	// Check that Google returned an authorization code.
+	// Check for OAuth errors first.
+	if oauthError := c.Query("error"); oauthError != "" {
+		response.BadRequest(c, "google authorization failed")
+		return
+	}
+
+	// Get authorization code.
 	code := c.Query("code")
 	if code == "" {
 		response.BadRequest(c, "authorization code missing")
 		return
 	}
 
-	// Check for OAuth errors returned by Google.
-	if oauthError := c.Query("error"); oauthError != "" {
-		response.BadRequest(c, "google authorization failed")
-		return
-	}
-
-	// Exchange the one-time authorization code for Google tokens.
+	// Exchange authorization code for Google tokens.
 	token, err := h.oauthCfg.Exchange(
 		c.Request.Context(),
 		code,
@@ -116,7 +118,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Fetch the Google user profile.
+	// Fetch Google user profile.
 	userInfo, err := fetchGoogleUser(
 		c.Request.Context(),
 		token.AccessToken,
@@ -126,7 +128,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Build the local user model.
+	// Build local user model.
 	user := models.User{
 		Name:           userInfo.Name,
 		Email:          userInfo.Email,
@@ -136,7 +138,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		RefreshToken:   token.RefreshToken,
 	}
 
-	// Create or update the user.
+	// Create or update user.
 	saved, err := h.userRepo.Upsert(
 		c.Request.Context(),
 		userInfo.Id,
@@ -147,7 +149,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Generate the ShortsYou JWT.
+	// Generate ShortsYou JWT.
 	jwtToken, err := auth.GenerateToken(
 		saved.ID.Hex(),
 		saved.Email,
@@ -165,17 +167,17 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	})
 }
 
-
+// Me returns the authenticated user's profile.
 func (h *AuthHandler) Me(c *gin.Context) {
 	value, exists := c.Get("userID")
 	if !exists {
-		response.Unauthorized(c, "authentication required")
+		response.Unauthorized(c)
 		return
 	}
 
 	userID, ok := value.(string)
 	if !ok || userID == "" {
-		response.Unauthorized(c, "invalid authentication context")
+		response.Unauthorized(c)
 		return
 	}
 
@@ -196,6 +198,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	response.OK(c, user)
 }
 
+// fetchGoogleUser calls Google's userinfo API.
 func fetchGoogleUser(
 	ctx context.Context,
 	accessToken string,
@@ -217,7 +220,8 @@ func fetchGoogleUser(
 	return svc.Userinfo.Get().Do()
 }
 
-
+// generateState creates a cryptographically secure random
+// value used for OAuth CSRF protection.
 func generateState() (string, error) {
 	b := make([]byte, 32)
 

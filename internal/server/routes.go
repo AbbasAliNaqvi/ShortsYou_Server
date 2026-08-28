@@ -13,10 +13,19 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.Use(middleware.CORS(s.cfg.AllowedOrigins))
 	r.Use(middleware.RateLimit(100))
 
+	// System
 	h := handler.NewHealth(s.mongo, s.redis)
 	r.GET("/health",  h.Check)
 	r.GET("/version", handler.Version)
 
-	v1 := r.Group("/api/v1")
-	_ = v1
+	// Auth — public endpoints, no JWT required
+	authHandler := handler.NewAuthHandler(s.cfg, s.oauthCfg, s.userRepo)
+	r.GET("/api/v1/auth/google",          authHandler.GoogleLogin)
+	r.GET("/api/v1/auth/google/callback", authHandler.GoogleCallback)
+
+	protected := r.Group("/api/v1")
+	protected.Use(middleware.JWTAuth(s.cfg.JWTSecret))
+	{
+		protected.GET("/auth/me", authHandler.Me)
+	}
 }

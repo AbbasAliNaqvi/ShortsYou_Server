@@ -2,63 +2,72 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/auth"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/server"
-	"github.com/rs/zerolog"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/logger"
 )
 
-func main() {
-	log := zerolog.New(os.Stdout).With().
-		Timestamp().
-		Logger()
+const version = "0.1.0"
 
+func main() {
 	// Load configuration.
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to load configuration")
+		os.Stderr.WriteString(
+			"[shortsyou] config error: " + err.Error() + "\n",
+		)
+		os.Exit(1)
 	}
 
+	// Initialize logger.
+	log := logger.New(cfg.Env)
+
+	log.Info().
+		Str("version", version).
+		Str("env", cfg.Env).
+		Msg("ShortsYou_Server starting")
+
 	// Connect to MongoDB.
-	mongoDB, err := database.NewMongo(
+	log.Info().
+		Msg("connecting to mongodb")
+
+	mongo, err := database.NewMongo(
 		cfg.MongoURI,
 		cfg.MongoDBName,
 	)
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Msg("failed to connect to MongoDB")
+			Msg("mongodb connection failed")
 	}
 
 	defer func() {
-		if err := mongoDB.Disconnect(context.Background()); err != nil {
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+
+		if err := mongo.Disconnect(ctx); err != nil {
 			log.Error().
 				Err(err).
-				Msg("failed to disconnect from MongoDB")
-		}
-	}()
+				Msg("mongodb disconnect error")
 
-	// Connect to Redis.
-	redisClient, err := database.NewRedis(cfg.RedisURL)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to connect to Redis")
-	}
-
-	defer func() {
-		if err := redisClient.Close(); err != nil {
-			log.Error().
-				Err(err).
-				Msg("failed to close Redis")
+			return
 		}
+
+		log.Info().
+			Msg("mongodb disconnected")
 	}()
 
 	// Create MongoDB indexes.
@@ -67,70 +76,106 @@ func main() {
 		30*time.Second,
 	)
 
-	if err := mongoDB.CreateIndexes(ctx); err != nil {
+	if err := mongo.CreateIndexes(ctx); err != nil {
 		cancel()
 
 		log.Fatal().
 			Err(err).
-			Msg("failed to create MongoDB indexes")
+			Msg("mongodb index creation failed")
 	}
 
 	cancel()
+
+	log.Info().
+		Str("db", cfg.MongoDBName).
+		Msg("mongodb ready")
+
+	// Connect to Redis.
+	log.Info().
+		Msg("connecting to redis")
+
+	redis, err := database.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("redis connection failed")
+	}
+
+	defer func() {
+		if err := redis.Close(); err != nil {
+			log.Error().
+				Err(err).
+				Msg("redis close error")
+
+			return
+		}
+
+		log.Info().
+			Msg("redis disconnected")
+	}()
+
+	log.Info().
+		Msg("redis ready")
+
+	// Configure Google OAuth.
+	oauthCfg := auth.NewOAuthConfig(cfg)
+
+	// Create user repository.
+	userRepo := repository.NewUserRepository(mongo)
 
 	// Create HTTP server.
 	srv := server.New(
 		cfg,
 		log,
-		mongoDB,
-		redisClient,
+		mongo,
+		redis,
+		oauthCfg,
+		userRepo,
 	)
 
-	// Start HTTP server in background.
-	serverErr := make(chan error, 1)
-
+	// Start HTTP server.
 	go func() {
-		serverErr <- srv.Start()
+		if err := srv.Start(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			log.Error().
+				Err(err).
+				Msg("server stopped unexpectedly")
+
+			os.Exit(1)
+		}
 	}()
 
 	log.Info().
-		Str("addr", ":"+cfg.Port).
-		Msg("ShortsYou server started")
+		Str("port", cfg.Port).
+		Msg("HTTP server started")
 
-	// Wait for Ctrl+C / termination signal.
-	sigChan := make(chan os.Signal, 1)
+	// Wait for termination signal.
+	quit := make(chan os.Signal, 1)
+
 	signal.Notify(
-		sigChan,
+		quit,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
 
-	select {
-	case err := <-serverErr:
-		if err != nil {
-			log.Error().
-				Err(err).
-				Msg("server stopped")
-		}
+	<-quit
 
-	case sig := <-sigChan:
-		log.Info().
-			Str("signal", sig.String()).
-			Msg("shutdown signal received")
-	}
+	log.Info().
+		Msg("shutdown signal received")
 
-	// Graceful shutdown.
+	// Gracefully shut down HTTP server.
 	shutdownCtx, shutdownCancel := context.WithTimeout(
 		context.Background(),
-		10*time.Second,
+		30*time.Second,
 	)
 	defer shutdownCancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error().
 			Err(err).
-			Msg("server shutdown failed")
-	} else {
-		log.Info().
-			Msg("server shutdown complete")
+			Msg("server shutdown error")
 	}
+
+	log.Info().
+		Msg("server stopped cleanly")
 }
