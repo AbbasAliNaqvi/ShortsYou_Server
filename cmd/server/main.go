@@ -81,17 +81,25 @@ func main() {
 		log.Fatal().Err(err).Msg("queue worker init failed")
 	}
 
+	// Repositories
+	userRepo    := repository.NewUserRepository(mongo)
+	videoRepo   := repository.NewVideoRepository(mongo)
+	clipRepo    := repository.NewClipRepository(mongo)
+	fmRepo      := repository.NewFeatureMatrixRepository(mongo)
+	dnaRepo     := repository.NewCreatorDNARepository(mongo)
+	personaRepo := repository.NewPersonaRepository(mongo)
+	trendRepo   := repository.NewTrendForecastRepository(mongo)
+	abRepo      := repository.NewABExperimentRepository(mongo)
+
+	// Services
 	oauthCfg   := auth.NewOAuthConfig(cfg)
-	userRepo   := repository.NewUserRepository(mongo)
-	videoRepo  := repository.NewVideoRepository(mongo)
-	clipRepo   := repository.NewClipRepository(mongo)
-	fmRepo     := repository.NewFeatureMatrixRepository(mongo)
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
 	mlClient   := ml.NewClient(cfg.MLNLPServiceURL, cfg.MLAudioServiceURL)
 	supabase   := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
 
 	taskHandlers := queue.NewTaskHandlers(
-		log, videoRepo, clipRepo, fmRepo, mlClient, supabase, llmRotator,
+		log, videoRepo, clipRepo, fmRepo, userRepo,
+		mlClient, supabase, llmRotator, queueClient,
 	)
 	worker.Register(queue.TypeProcessVideo,     taskHandlers.HandleProcessVideo)
 	worker.Register(queue.TypeExportClip,       taskHandlers.HandleExportClip)
@@ -109,6 +117,7 @@ func main() {
 		cfg, log, mongo, redis,
 		oauthCfg,
 		userRepo, videoRepo, clipRepo, fmRepo,
+		dnaRepo, personaRepo, trendRepo, abRepo,
 		queueClient,
 		llmRotator,
 	)

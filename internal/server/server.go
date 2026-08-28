@@ -28,6 +28,10 @@ type Server struct {
 	videoRepo   *repository.VideoRepository
 	clipRepo    *repository.ClipRepository
 	fmRepo      *repository.FeatureMatrixRepository
+	dnaRepo     *repository.CreatorDNARepository
+	personaRepo *repository.PersonaRepository
+	trendRepo   *repository.TrendForecastRepository
+	abRepo      *repository.ABExperimentRepository
 	queueClient *queue.Client
 	llmRotator  *llm.Rotator
 }
@@ -42,6 +46,10 @@ func New(
 	videoRepo   *repository.VideoRepository,
 	clipRepo    *repository.ClipRepository,
 	fmRepo      *repository.FeatureMatrixRepository,
+	dnaRepo     *repository.CreatorDNARepository,
+	personaRepo *repository.PersonaRepository,
+	trendRepo   *repository.TrendForecastRepository,
+	abRepo      *repository.ABExperimentRepository,
 	queueClient *queue.Client,
 	llmRotator  *llm.Rotator,
 ) *Server {
@@ -62,6 +70,10 @@ func New(
 		videoRepo:   videoRepo,
 		clipRepo:    clipRepo,
 		fmRepo:      fmRepo,
+		dnaRepo:     dnaRepo,
+		personaRepo: personaRepo,
+		trendRepo:   trendRepo,
+		abRepo:      abRepo,
 		queueClient: queueClient,
 		llmRotator:  llmRotator,
 	}

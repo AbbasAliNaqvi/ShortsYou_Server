@@ -73,3 +73,20 @@ func (r *FeatureMatrixRepository) CountLabeledForUser(ctx context.Context, userI
 	}
 	return n, nil
 }
+
+func (r *FeatureMatrixRepository) FindLabeledByUserID(ctx context.Context, userID primitive.ObjectID) ([]models.FeatureMatrix, error) {
+	cursor, err := r.col.Find(ctx, bson.M{
+		"userId":          userID,
+		"performanceBand": bson.M{"$exists": true, "$ne": ""},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FindLabeledByUserID: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var rows []models.FeatureMatrix
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	return rows, nil
+}

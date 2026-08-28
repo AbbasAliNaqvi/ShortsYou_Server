@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/youtube"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/downloader"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/ml"
@@ -24,28 +26,34 @@ type TaskHandlers struct {
 	videoRepo  *repository.VideoRepository
 	clipRepo   *repository.ClipRepository
 	fmRepo     *repository.FeatureMatrixRepository
+	userRepo   *repository.UserRepository
 	mlClient   *ml.Client
 	storage    *storage.SupabaseClient
 	llmRotator *llm.Rotator
+	queue      *Client
 }
 
 func NewTaskHandlers(
-	log zerolog.Logger,
-	videoRepo *repository.VideoRepository,
-	clipRepo *repository.ClipRepository,
-	fmRepo *repository.FeatureMatrixRepository,
-	mlClient *ml.Client,
-	supabase *storage.SupabaseClient,
+	log        zerolog.Logger,
+	videoRepo  *repository.VideoRepository,
+	clipRepo   *repository.ClipRepository,
+	fmRepo     *repository.FeatureMatrixRepository,
+	userRepo   *repository.UserRepository,
+	mlClient   *ml.Client,
+	supabase   *storage.SupabaseClient,
 	llmRotator *llm.Rotator,
+	queue      *Client,
 ) *TaskHandlers {
 	return &TaskHandlers{
 		log:        log,
 		videoRepo:  videoRepo,
 		clipRepo:   clipRepo,
 		fmRepo:     fmRepo,
+		userRepo:   userRepo,
 		mlClient:   mlClient,
 		storage:    supabase,
 		llmRotator: llmRotator,
+		queue:      queue,
 	}
 }
 
@@ -285,11 +293,7 @@ func (h *TaskHandlers) HandleCollectAnalytics(ctx context.Context, t *asynq.Task
 		return fmt.Errorf("decode payload: %w", err)
 	}
 
-	log := h.log.With().
-		Str("clipId", p.ClipID).
-		Str("userId", p.UserID).
-		Logger()
-
+	log := h.log.With().Str("clipId", p.ClipID).Str("userId", p.UserID).Logger()
 	log.Info().Msg("collecting youtube analytics for clip")
 
 	clipID, err := primitive.ObjectIDFromHex(p.ClipID)
@@ -301,32 +305,65 @@ func (h *TaskHandlers) HandleCollectAnalytics(ctx context.Context, t *asynq.Task
 		return fmt.Errorf("invalid userId: %w", err)
 	}
 
-	views := int64(0)
-	ctr := 0.0
-	avgWatch := 0.0
-	band := scoring.PerformanceBand(views)
+	user, err := h.userRepo.FindByID(ctx, p.UserID)
+	if err != nil || user == nil {
+		return fmt.Errorf("find user: %w", err)
+	}
 
-	if err := h.fmRepo.UpdatePerformanceLabels(ctx, clipID, views, ctr, avgWatch, band); err != nil {
+	clip, err := h.clipRepo.FindByID(ctx, clipID)
+	if err != nil {
+		return fmt.Errorf("find clip: %w", err)
+	}
+
+	video, err := h.videoRepo.FindByID(ctx, clip.VideoID)
+	if err != nil {
+		return fmt.Errorf("find video: %w", err)
+	}
+
+	ytClient, err := youtube.NewAnalyticsClient(ctx, user.AccessToken)
+	if err != nil {
+		return fmt.Errorf("create analytics client: %w", err)
+	}
+
+	metrics, err := ytClient.FetchClipMetrics(ctx, video.YouTubeVideoID, user.ChannelID, video.PublishedAt)
+	if err != nil {
+		log.Warn().Err(err).Msg("analytics fetch failed — storing zero values")
+		metrics = &youtube.ClipMetrics{}
+	}
+
+	band := scoring.PerformanceBand(metrics.Views)
+
+	if err := h.fmRepo.UpdatePerformanceLabels(ctx, clipID, metrics.Views, metrics.CTR, metrics.AvgWatchTime, band); err != nil {
 		return fmt.Errorf("update performance labels: %w", err)
+	}
+
+	if err := h.clipRepo.UpdateFields(ctx, clipID, map[string]any{
+		"performanceData": models.PerformanceData{
+			Views48h:        metrics.Views,
+			CTR48h:          metrics.CTR,
+			AvgWatchTimeSec: metrics.AvgWatchTime,
+			CollectedAt:     time.Now(),
+		},
+	}); err != nil {
+		log.Warn().Err(err).Msg("update clip performance data failed — non-fatal")
 	}
 
 	labeled, err := h.fmRepo.CountLabeledForUser(ctx, userID)
 	if err != nil {
-		log.Warn().Err(err).Msg("count labeled rows failed — skipping retrain check")
+		log.Warn().Err(err).Msg("count labeled failed — skipping retrain check")
 		return nil
 	}
 
-	log.Info().Int64("labeledRows", labeled).Msg("analytics collected")
+	log.Info().Int64("views", metrics.Views).Int64("labeledRows", labeled).Msg("analytics collected")
 
 	if labeled >= 10 {
 		task, err := NewRetrainCPEPTask(p.UserID)
-		if err != nil {
-			return fmt.Errorf("build retrain task: %w", err)
-		}
-		if err := h.enqueueRetrainTask(ctx, task); err != nil {
-			log.Warn().Err(err).Msg("enqueue retrain task failed — non-fatal")
-		} else {
-			log.Info().Msg("cpep retraining job enqueued")
+		if err == nil {
+			if err := h.queue.Enqueue(task); err != nil {
+				log.Warn().Err(err).Msg("enqueue retrain failed — non-fatal")
+			} else {
+				log.Info().Msg("cpep retraining job enqueued")
+			}
 		}
 	}
 
