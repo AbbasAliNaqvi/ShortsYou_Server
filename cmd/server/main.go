@@ -12,6 +12,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/auth"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/server"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/logger"
@@ -20,7 +21,7 @@ import (
 const version = "0.1.0"
 
 func main() {
-	// Load configuration.
+	// Configuration
 	cfg, err := config.Load()
 	if err != nil {
 		os.Stderr.WriteString(
@@ -29,7 +30,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger.
 	log := logger.New(cfg.Env)
 
 	log.Info().
@@ -37,9 +37,8 @@ func main() {
 		Str("env", cfg.Env).
 		Msg("ShortsYou_Server starting")
 
-	// Connect to MongoDB.
-	log.Info().
-		Msg("connecting to mongodb")
+	// MongoDB
+	log.Info().Msg("connecting to mongodb")
 
 	mongo, err := database.NewMongo(
 		cfg.MongoURI,
@@ -52,47 +51,29 @@ func main() {
 	}
 
 	defer func() {
-		ctx, cancel := context.WithTimeout(
-			context.Background(),
-			5*time.Second,
-		)
-		defer cancel()
-
-		if err := mongo.Disconnect(ctx); err != nil {
+		if err := mongo.Disconnect(); err != nil {
 			log.Error().
 				Err(err).
 				Msg("mongodb disconnect error")
-
 			return
 		}
 
-		log.Info().
-			Msg("mongodb disconnected")
+		log.Info().Msg("mongodb disconnected")
 	}()
 
 	// Create MongoDB indexes.
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		30*time.Second,
-	)
-
-	if err := mongo.CreateIndexes(ctx); err != nil {
-		cancel()
-
+	if err := mongo.CreateIndexes(context.Background()); err != nil {
 		log.Fatal().
 			Err(err).
 			Msg("mongodb index creation failed")
 	}
 
-	cancel()
-
 	log.Info().
 		Str("db", cfg.MongoDBName).
 		Msg("mongodb ready")
 
-	// Connect to Redis.
-	log.Info().
-		Msg("connecting to redis")
+	// Redis
+	log.Info().Msg("connecting to redis")
 
 	redis, err := database.NewRedis(cfg.RedisURL)
 	if err != nil {
@@ -106,24 +87,75 @@ func main() {
 			log.Error().
 				Err(err).
 				Msg("redis close error")
-
 			return
 		}
 
-		log.Info().
-			Msg("redis disconnected")
+		log.Info().Msg("redis disconnected")
 	}()
 
-	log.Info().
-		Msg("redis ready")
+	log.Info().Msg("redis ready")
 
-	// Configure Google OAuth.
+	// Repositories
+	//
+	// These must be initialized before the queue handlers because
+	// the video-processing handler needs videoRepo.
 	oauthCfg := auth.NewOAuthConfig(cfg)
 
-	// Create user repository.
 	userRepo := repository.NewUserRepository(mongo)
+	videoRepo := repository.NewVideoRepository(mongo)
 
-	// Create HTTP server.
+	// Asynq queue client
+	log.Info().Msg("initializing queue client")
+
+	queueClient, err := queue.NewClient(cfg.RedisURL)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("queue client init failed")
+	}
+
+	defer func() {
+		queueClient.Close()
+		log.Info().Msg("queue client closed")
+	}()
+
+	log.Info().Msg("queue client ready")
+
+	// Asynq worker
+	log.Info().Msg("initializing queue worker")
+
+	worker, err := queue.NewWorker(
+		cfg.RedisURL,
+		log,
+	)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("queue worker init failed")
+	}
+
+	taskHandlers := queue.NewTaskHandlers(
+		log,
+		videoRepo,
+	)
+
+	// Register video-processing task.
+	worker.Register(
+		queue.TypeProcessVideo,
+		taskHandlers.HandleProcessVideo,
+	)
+
+	go func() {
+		log.Info().Msg("queue worker starting")
+
+		if err := worker.Start(); err != nil {
+			log.Error().
+				Err(err).
+				Msg("queue worker stopped")
+		}
+	}()
+
+	// HTTP server
 	srv := server.New(
 		cfg,
 		log,
@@ -131,25 +163,21 @@ func main() {
 		redis,
 		oauthCfg,
 		userRepo,
+		videoRepo,
+		queueClient,
 	)
 
-	// Start HTTP server.
 	go func() {
 		if err := srv.Start(); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
+
 			log.Error().
 				Err(err).
 				Msg("server stopped unexpectedly")
-
-			os.Exit(1)
 		}
 	}()
 
-	log.Info().
-		Str("port", cfg.Port).
-		Msg("HTTP server started")
-
-	// Wait for termination signal.
+	// OS shutdown signals.
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(
@@ -160,22 +188,25 @@ func main() {
 
 	<-quit
 
-	log.Info().
-		Msg("shutdown signal received")
+	log.Info().Msg("shutdown signal received")
 
-	// Gracefully shut down HTTP server.
-	shutdownCtx, shutdownCancel := context.WithTimeout(
+	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		30*time.Second,
 	)
-	defer shutdownCancel()
+	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	// Stop accepting HTTP requests.
+	if err := srv.Shutdown(ctx); err != nil {
 		log.Error().
 			Err(err).
 			Msg("server shutdown error")
 	}
 
-	log.Info().
-		Msg("server stopped cleanly")
+	// Stop Asynq worker.
+	log.Info().Msg("stopping queue worker")
+	worker.Stop()
+	log.Info().Msg("queue worker stopped")
+
+	log.Info().Msg("server stopped cleanly")
 }

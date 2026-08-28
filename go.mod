@@ -11,7 +11,6 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.18.2
 	go.mongodb.org/mongo-driver v1.17.9
-	go.mongodb.org/mongo-driver/v2 v2.6.0
 	golang.org/x/oauth2 v0.17.0
 	golang.org/x/time v0.5.0
 	google.golang.org/api v0.169.0

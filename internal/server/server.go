@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,19 +12,23 @@ import (
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 )
 
 type Server struct {
-	http     *http.Server
-	log      zerolog.Logger
-	cfg      *config.Config
-	mongo    *database.MongoDB
-	redis    *database.RedisClient
-	oauthCfg *oauth2.Config
-	userRepo *repository.UserRepository
+	http        *http.Server
+	log         zerolog.Logger
+	cfg         *config.Config
+	mongo       *database.MongoDB
+	redis       *database.RedisClient
+	oauthCfg    *oauth2.Config
+	userRepo    *repository.UserRepository
+	videoRepo   *repository.VideoRepository
+	queueClient *queue.Client
 }
 
+// New creates and configures the HTTP server.
 func New(
 	cfg *config.Config,
 	log zerolog.Logger,
@@ -33,6 +36,8 @@ func New(
 	redis *database.RedisClient,
 	oauthCfg *oauth2.Config,
 	userRepo *repository.UserRepository,
+	videoRepo *repository.VideoRepository,
+	queueClient *queue.Client,
 ) *Server {
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -43,12 +48,14 @@ func New(
 	router := gin.New()
 
 	s := &Server{
-		cfg:      cfg,
-		log:      log,
-		mongo:    mongo,
-		redis:    redis,
-		oauthCfg: oauthCfg,
-		userRepo: userRepo,
+		cfg:         cfg,
+		log:         log,
+		mongo:       mongo,
+		redis:       redis,
+		oauthCfg:    oauthCfg,
+		userRepo:    userRepo,
+		videoRepo:   videoRepo,
+		queueClient: queueClient,
 	}
 
 	s.registerRoutes(router)
@@ -65,23 +72,18 @@ func New(
 	return s
 }
 
+// Start starts the HTTP server.
 func (s *Server) Start() error {
 	s.log.Info().
 		Str("addr", s.http.Addr).
 		Msg("HTTP server listening")
 
-	err := s.http.ListenAndServe()
-
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-
-	return nil
+	return s.http.ListenAndServe()
 }
 
+// Shutdown gracefully shuts down the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.log.Info().
-		Msg("HTTP server shutting down")
+	s.log.Info().Msg("HTTP server shutting down")
 
 	return s.http.Shutdown(ctx)
 }

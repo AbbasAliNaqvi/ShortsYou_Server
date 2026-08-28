@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
@@ -48,12 +49,11 @@ func (r *UserRepository) FindByGoogleID(
 	return &user, nil
 }
 
-// FindByID returns the user matching the given MongoDB ObjectID string.
 func (r *UserRepository) FindByID(
 	ctx context.Context,
 	id string,
 ) (*models.User, error) {
-	oid, err := bson.ObjectIDFromHex(id)
+	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
@@ -84,8 +84,6 @@ func (r *UserRepository) Upsert(
 	update models.User,
 ) (*models.User, error) {
 	now := time.Now()
-
-	update.UpdatedAt = now
 
 	filter := bson.M{
 		"googleId": googleID,

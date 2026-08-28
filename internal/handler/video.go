@@ -21,7 +21,7 @@ type VideoHandler struct {
 
 func NewVideoHandler(
 	videoRepo *repository.VideoRepository,
-	userRepo  *repository.UserRepository,
+	userRepo *repository.UserRepository,
 	queueClient *queue.Client,
 ) *VideoHandler {
 	return &VideoHandler{
@@ -31,36 +31,78 @@ func NewVideoHandler(
 	}
 }
 
+// SyncChannel fetches the authenticated user's YouTube videos,
+// stores/updates them in MongoDB, and queues pending videos for processing.
 func (h *VideoHandler) SyncChannel(c *gin.Context) {
-	userIDStr, _ := c.Get("userID")
+	value, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c)
+		return
+	}
 
-	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+	userIDStr, ok := value.(string)
+	if !ok || userIDStr == "" {
+		response.Unauthorized(c)
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
 	if err != nil {
 		response.BadRequest(c, "invalid user id")
 		return
 	}
 
-	// Retrieve stored OAuth access token to call YouTube on the user's behalf.
-	user, err := h.userRepo.FindByID(c.Request.Context(), userIDStr.(string))
-	if err != nil || user == nil {
+	// Retrieve the local user.
+	user, err := h.userRepo.FindByID(
+		c.Request.Context(),
+		userIDStr,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "find user: " + err.Error(),
+		})
+		return
+	}
+
+	if user == nil {
 		response.NotFound(c, "user")
 		return
 	}
 
-	ytClient, err := youtube.NewClientWithToken(c.Request.Context(), user.AccessToken)
-	if err != nil {
-		response.InternalError(c)
+	if user.AccessToken == "" {
+		response.BadRequest(c, "youtube authorization required")
 		return
 	}
 
-	ytVideos, err := ytClient.FetchMyVideos(c.Request.Context())
+	// Create a YouTube client using the user's OAuth access token.
+	ytClient, err := youtube.NewClientWithToken(
+		c.Request.Context(),
+		user.AccessToken,
+	)
 	if err != nil {
-		response.InternalError(c)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "create youtube client: " + err.Error(),
+		})
 		return
 	}
 
-	// Map YouTube metadata to our Video model.
+	// Fetch the user's YouTube videos.
+	ytVideos, err := ytClient.FetchMyVideos(
+		c.Request.Context(),
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "fetch youtube videos: " + err.Error(),
+		})
+		return
+	}
+
+	// Convert YouTube video data into our MongoDB model.
 	videoModels := make([]models.Video, 0, len(ytVideos))
+
 	for _, v := range ytVideos {
 		videoModels = append(videoModels, models.Video{
 			UserID:          userID,
@@ -76,50 +118,83 @@ func (h *VideoHandler) SyncChannel(c *gin.Context) {
 		})
 	}
 
-	if err := h.videoRepo.BulkUpsert(c.Request.Context(), videoModels); err != nil {
-		response.InternalError(c)
+	// Insert new videos and update existing video metadata.
+	if err := h.videoRepo.BulkUpsert(
+		c.Request.Context(),
+		videoModels,
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "save videos: " + err.Error(),
+		})
 		return
 	}
 
-	// Find every video still pending processing and queue it.
-	pending, err := h.videoRepo.FindByStatus(c.Request.Context(), userID, models.StatusPending)
+	// Find all videos that still need processing.
+	pending, err := h.videoRepo.FindByStatus(
+		c.Request.Context(),
+		userID,
+		models.StatusPending,
+	)
 	if err != nil {
-		response.InternalError(c)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "find pending videos: " + err.Error(),
+		})
 		return
 	}
 
+	// Queue pending videos for asynchronous processing.
 	queued := 0
-	for _, v := range pending {
-		task, err := queue.NewProcessVideoTask(v.ID.Hex(), userIDStr.(string))
+
+	for _, video := range pending {
+		task, err := queue.NewProcessVideoTask(
+			video.ID.Hex(),
+			userIDStr,
+		)
 		if err != nil {
 			continue
 		}
+
 		if err := h.queue.Enqueue(task); err != nil {
 			continue
 		}
+
 		queued++
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"synced": len(videoModels),
-			"queued": queued,
-		},
+	response.OK(c, gin.H{
+		"synced": len(videoModels),
+		"queued": queued,
 	})
 }
 
 // ListVideos returns all videos belonging to the authenticated user.
 func (h *VideoHandler) ListVideos(c *gin.Context) {
-	userIDStr, _ := c.Get("userID")
+	value, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c)
+		return
+	}
 
-	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+	userIDStr, ok := value.(string)
+	if !ok || userIDStr == "" {
+		response.Unauthorized(c)
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
 	if err != nil {
 		response.BadRequest(c, "invalid user id")
 		return
 	}
 
-	videos, err := h.videoRepo.FindByUserID(c.Request.Context(), userID, 50, 0)
+	videos, err := h.videoRepo.FindByUserID(
+		c.Request.Context(),
+		userID,
+		50,
+		0,
+	)
 	if err != nil {
 		response.InternalError(c)
 		return

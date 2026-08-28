@@ -59,6 +59,15 @@ func (m *MongoDB) Collection(name string) *mongo.Collection {
 	return m.DB.Collection(name)
 }
 
+// Ping verifies that MongoDB is reachable.
+func (m *MongoDB) Ping(ctx context.Context) error {
+	if m == nil || m.Client == nil {
+		return fmt.Errorf("mongodb client is nil")
+	}
+
+	return m.Client.Ping(ctx, nil)
+}
+
 // CreateIndexes creates all application indexes.
 func (m *MongoDB) CreateIndexes(ctx context.Context) error {
 	// Users
