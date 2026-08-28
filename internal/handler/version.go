@@ -9,13 +9,17 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 )
 
-const buildVersion = "0.1.0"
+var (
+	BuildVersion = "1.0.0"
+	BuildTime    = "unknown"
+)
 
 func Version(c *gin.Context) {
 	response.JSON(c, http.StatusOK, true, gin.H{
-		"version": buildVersion,
-		"runtime": runtime.Version(),
-		"os":      runtime.GOOS,
-		"arch":    runtime.GOARCH,
+		"version":   BuildVersion,
+		"buildTime": BuildTime,
+		"runtime":   runtime.Version(),
+		"os":        runtime.GOOS,
+		"arch":      runtime.GOARCH,
 	}, "")
 }

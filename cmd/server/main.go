@@ -21,7 +21,10 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/logger"
 )
 
-const version = "0.1.0"
+var (
+	version   = "1.0.0"
+	buildTime = "unknown"
+)
 
 func main() {
 	cfg, err := config.Load()
@@ -31,7 +34,11 @@ func main() {
 	}
 
 	log := logger.New(cfg.Env)
-	log.Info().Str("version", version).Str("env", cfg.Env).Msg("ShortsYou_Server starting")
+	log.Info().
+		Str("version", version).
+		Str("buildTime", buildTime).
+		Str("env", cfg.Env).
+		Msg("ShortsYou_Server starting")
 
 	log.Info().Msg("connecting to mongodb")
 	mongo, err := database.NewMongo(cfg.MongoURI, cfg.MongoDBName)
@@ -82,29 +89,29 @@ func main() {
 	}
 
 	// Repositories
-	userRepo    := repository.NewUserRepository(mongo)
-	videoRepo   := repository.NewVideoRepository(mongo)
-	clipRepo    := repository.NewClipRepository(mongo)
-	fmRepo      := repository.NewFeatureMatrixRepository(mongo)
-	dnaRepo     := repository.NewCreatorDNARepository(mongo)
+	userRepo := repository.NewUserRepository(mongo)
+	videoRepo := repository.NewVideoRepository(mongo)
+	clipRepo := repository.NewClipRepository(mongo)
+	fmRepo := repository.NewFeatureMatrixRepository(mongo)
+	dnaRepo := repository.NewCreatorDNARepository(mongo)
 	personaRepo := repository.NewPersonaRepository(mongo)
-	trendRepo   := repository.NewTrendForecastRepository(mongo)
-	abRepo      := repository.NewABExperimentRepository(mongo)
+	trendRepo := repository.NewTrendForecastRepository(mongo)
+	abRepo := repository.NewABExperimentRepository(mongo)
 
 	// Services
-	oauthCfg   := auth.NewOAuthConfig(cfg)
+	oauthCfg := auth.NewOAuthConfig(cfg)
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
-	mlClient   := ml.NewClient(cfg.MLNLPServiceURL, cfg.MLAudioServiceURL)
-	supabase   := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
+	mlClient := ml.NewClient(cfg.MLNLPServiceURL, cfg.MLAudioServiceURL)
+	supabase := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
 
 	taskHandlers := queue.NewTaskHandlers(
 		log, videoRepo, clipRepo, fmRepo, userRepo,
 		mlClient, supabase, llmRotator, queueClient,
 	)
-	worker.Register(queue.TypeProcessVideo,     taskHandlers.HandleProcessVideo)
-	worker.Register(queue.TypeExportClip,       taskHandlers.HandleExportClip)
+	worker.Register(queue.TypeProcessVideo, taskHandlers.HandleProcessVideo)
+	worker.Register(queue.TypeExportClip, taskHandlers.HandleExportClip)
 	worker.Register(queue.TypeCollectAnalytics, taskHandlers.HandleCollectAnalytics)
-	worker.Register(queue.TypeRetrainCPEP,      taskHandlers.HandleRetrainCPEP)
+	worker.Register(queue.TypeRetrainCPEP, taskHandlers.HandleRetrainCPEP)
 
 	go func() {
 		log.Info().Msg("queue worker starting")

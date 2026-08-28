@@ -1,0 +1,9 @@
+.git
+.env
+.env.local
+bin/
+tmp/
+*.test
+*.out
+vendor/
+.DS_Store

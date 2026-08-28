@@ -70,63 +70,182 @@ func (m *MongoDB) Ping(ctx context.Context) error {
 
 // CreateIndexes creates all application indexes.
 func (m *MongoDB) CreateIndexes(ctx context.Context) error {
-	// Users
-	users := m.Collection("users")
-
-	_, err := users.Indexes().CreateMany(ctx, []mongo.IndexModel{
-		{
-			Keys: bson.D{
-				{Key: "googleId", Value: 1},
-			},
-			Options: options.Index().
-				SetUnique(true).
-				SetName("uniq_google_id"),
-		},
-		{
-			Keys: bson.D{
-				{Key: "email", Value: 1},
-			},
-			Options: options.Index().
-				SetName("email_idx"),
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("create users indexes: %w", err)
+	type spec struct {
+		collection string
+		model      mongo.IndexModel
 	}
 
-	// Videos
-	videos := m.Collection("videos")
+	indexes := []spec{
+		// users
+		{
+			collection: "users",
+			model: mongo.IndexModel{
+				Keys: bson.D{{Key: "email", Value: 1}},
+				Options: options.Index().
+					SetUnique(true).
+					SetName("email_1"),
+			},
+		},
+		{
+			collection: "users",
+			model: mongo.IndexModel{
+				Keys: bson.D{{Key: "googleId", Value: 1}},
+				Options: options.Index().
+					SetUnique(true).
+					SetName("uniq_google_id"),
+			},
+		},
 
-	_, err = videos.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		// videos
 		{
-			Keys: bson.D{
-				{Key: "userId", Value: 1},
-				{Key: "youtubeVideoId", Value: 1},
+			collection: "videos",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "youtubeVideoId", Value: 1}},
+				Options: options.Index().SetUnique(true),
 			},
-			Options: options.Index().
-				SetUnique(true).
-				SetName("uniq_user_youtube_video"),
 		},
 		{
-			Keys: bson.D{
-				{Key: "userId", Value: 1},
-				{Key: "publishedAt", Value: -1},
+			collection: "videos",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "createdAt", Value: -1},
+				},
 			},
-			Options: options.Index().
-				SetName("user_published_idx"),
 		},
 		{
-			Keys: bson.D{
-				{Key: "userId", Value: 1},
-				{Key: "processingStatus", Value: 1},
+			collection: "videos",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "youtubeVideoId", Value: 1},
+				},
+				Options: options.Index().
+					SetUnique(true).
+					SetName("uniq_user_youtube_video"),
 			},
-			Options: options.Index().
-				SetName("user_processing_status_idx"),
 		},
-	})
+		{
+			collection: "videos",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "processingStatus", Value: 1},
+				},
+				Options: options.Index().
+					SetName("user_processing_status_idx"),
+			},
+		},
 
-	if err != nil {
-		return fmt.Errorf("create videos indexes: %w", err)
+		// clips
+		{
+			collection: "clips",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "videoId", Value: 1},
+					{Key: "viralScore", Value: -1},
+				},
+			},
+		},
+		{
+			collection: "clips",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "status", Value: 1},
+				},
+			},
+		},
+		{
+			collection: "clips",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "viralScore", Value: -1},
+				},
+			},
+		},
+
+		// feature_matrix
+		{
+			collection: "feature_matrix",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "clipId", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+		},
+		{
+			collection: "feature_matrix",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "performanceBand", Value: 1},
+				},
+			},
+		},
+
+		// creator_dna
+		{
+			collection: "creator_dna",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "userId", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+		},
+
+		// audience_personas
+		{
+			collection: "audience_personas",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "userId", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+		},
+
+		// trend_forecasts
+		{
+			collection: "trend_forecasts",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "topic", Value: 1},
+				},
+				Options: options.Index().SetUnique(true),
+			},
+		},
+		{
+			collection: "trend_forecasts",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "peakPredictionDate", Value: 1},
+				},
+			},
+		},
+
+		// ab_experiments
+		{
+			collection: "ab_experiments",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "createdAt", Value: -1},
+				},
+			},
+		},
+		{
+			collection: "ab_experiments",
+			model: mongo.IndexModel{
+				Keys: bson.D{{Key: "clipId", Value: 1}},
+			},
+		},
+	}
+
+	for _, idx := range indexes {
+		coll := m.DB.Collection(idx.collection)
+		if _, err := coll.Indexes().CreateOne(ctx, idx.model); err != nil {
+			return fmt.Errorf("create index on %s: %w", idx.collection, err)
+		}
 	}
 
 	return nil
