@@ -12,6 +12,7 @@ import (
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 )
@@ -25,19 +26,22 @@ type Server struct {
 	oauthCfg    *oauth2.Config
 	userRepo    *repository.UserRepository
 	videoRepo   *repository.VideoRepository
+	clipRepo    *repository.ClipRepository
 	queueClient *queue.Client
+	llmRotator  *llm.Rotator
 }
 
-// New creates and configures the HTTP server.
 func New(
-	cfg *config.Config,
-	log zerolog.Logger,
-	mongo *database.MongoDB,
-	redis *database.RedisClient,
-	oauthCfg *oauth2.Config,
-	userRepo *repository.UserRepository,
-	videoRepo *repository.VideoRepository,
+	cfg         *config.Config,
+	log         zerolog.Logger,
+	mongo       *database.MongoDB,
+	redis       *database.RedisClient,
+	oauthCfg    *oauth2.Config,
+	userRepo    *repository.UserRepository,
+	videoRepo   *repository.VideoRepository,
+	clipRepo    *repository.ClipRepository,
 	queueClient *queue.Client,
+	llmRotator  *llm.Rotator,
 ) *Server {
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -46,7 +50,6 @@ func New(
 	}
 
 	router := gin.New()
-
 	s := &Server{
 		cfg:         cfg,
 		log:         log,
@@ -55,9 +58,10 @@ func New(
 		oauthCfg:    oauthCfg,
 		userRepo:    userRepo,
 		videoRepo:   videoRepo,
+		clipRepo:    clipRepo,
 		queueClient: queueClient,
+		llmRotator:  llmRotator,
 	}
-
 	s.registerRoutes(router)
 
 	s.http = &http.Server{
@@ -72,18 +76,12 @@ func New(
 	return s
 }
 
-// Start starts the HTTP server.
 func (s *Server) Start() error {
-	s.log.Info().
-		Str("addr", s.http.Addr).
-		Msg("HTTP server listening")
-
+	s.log.Info().Str("addr", s.http.Addr).Msg("HTTP server listening")
 	return s.http.ListenAndServe()
 }
 
-// Shutdown gracefully shuts down the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.log.Info().Msg("HTTP server shutting down")
-
 	return s.http.Shutdown(ctx)
 }

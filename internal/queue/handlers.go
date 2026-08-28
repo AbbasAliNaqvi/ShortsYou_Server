@@ -28,13 +28,9 @@ func NewTaskHandlers(
 	}
 }
 
-// HandleProcessVideo handles the asynchronous video-processing pipeline.
-//
 // For now this implements the pipeline/state-machine foundation:
 // pending -> downloading -> transcribing -> analyzing -> completed.
-//
-// The actual downloader/transcription/AI analysis can be plugged into
-// these phases as those components are implemented.
+
 func (h *TaskHandlers) HandleProcessVideo(
 	ctx context.Context,
 	t *asynq.Task,
@@ -99,22 +95,6 @@ func (h *TaskHandlers) HandleProcessVideo(
 		Str("videoId", p.VideoID).
 		Msg("video processing phase: downloading")
 
-	// TODO:
-	// Download the source video here.
-	//
-	// Example future flow:
-	//
-	// sourcePath, err := downloader.Download(ctx, video.YouTubeVideoID)
-	// if err != nil {
-	//     _ = h.videoRepo.UpdateStatus(
-	//         ctx,
-	//         videoID,
-	//         models.StatusFailed,
-	//         err.Error(),
-	//     )
-	//     return fmt.Errorf("download video: %w", err)
-	// }
-
 	// ------------------------------------------------------------
 	// Phase 2: Transcribing
 	// ------------------------------------------------------------
@@ -131,20 +111,6 @@ func (h *TaskHandlers) HandleProcessVideo(
 	h.log.Info().
 		Str("videoId", p.VideoID).
 		Msg("video processing phase: transcribing")
-
-	// TODO:
-	// Run speech-to-text here.
-	//
-	// transcript, err := transcriber.Transcribe(ctx, sourcePath)
-	// if err != nil {
-	//     _ = h.videoRepo.UpdateStatus(
-	//         ctx,
-	//         videoID,
-	//         models.StatusFailed,
-	//         err.Error(),
-	//     )
-	//     return fmt.Errorf("transcribe video: %w", err)
-	// }
 
 	// ------------------------------------------------------------
 	// Phase 3: Analyzing
@@ -163,25 +129,6 @@ func (h *TaskHandlers) HandleProcessVideo(
 		Str("videoId", p.VideoID).
 		Msg("video processing phase: analyzing")
 
-	// TODO:
-	// Run AI analysis here.
-	//
-	// clips, err := analyzer.FindClips(ctx, transcript)
-	// if err != nil {
-	//     _ = h.videoRepo.UpdateStatus(
-	//         ctx,
-	//         videoID,
-	//         models.StatusFailed,
-	//         err.Error(),
-	//     )
-	//     return fmt.Errorf("analyze video: %w", err)
-	// }
-	//
-	// h.videoRepo.UpdateClipsDetected(ctx, videoID, len(clips))
-
-	// ------------------------------------------------------------
-	// Phase 4: Completed
-	// ------------------------------------------------------------
 
 	if err := h.videoRepo.UpdateStatus(
 		ctx,
@@ -195,6 +142,20 @@ func (h *TaskHandlers) HandleProcessVideo(
 	h.log.Info().
 		Str("videoId", p.VideoID).
 		Msg("video processing completed")
+
+	return nil
+}
+
+func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) error {
+	var p ExportClipPayload
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return fmt.Errorf("decode payload: %w", err)
+	}
+
+	h.log.Info().
+		Str("clipId", p.ClipID).
+		Str("userId", p.UserID).
+		Msg("clip export job received — editing pipeline starts in phase 3")
 
 	return nil
 }
