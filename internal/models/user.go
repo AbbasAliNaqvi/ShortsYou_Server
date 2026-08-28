@@ -16,6 +16,7 @@ type User struct {
 	ProfilePicture string             `bson:"profilePicture" json:"profilePicture"`
 	AccessToken    string             `bson:"accessToken" json:"-"`
 	RefreshToken   string             `bson:"refreshToken" json:"-"`
+	TokenExpiry    time.Time          `bson:"tokenExpiry" json:"-"`
 	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
 }

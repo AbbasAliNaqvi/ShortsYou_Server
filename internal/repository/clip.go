@@ -22,7 +22,6 @@ func NewClipRepository(db *database.MongoDB) *ClipRepository {
 	return &ClipRepository{col: db.Collection("clips")}
 }
 
-// BulkInsert inserts a batch of detected clip candidates in one round-trip.
 func (r *ClipRepository) BulkInsert(ctx context.Context, clips []models.Clip) error {
 	if len(clips) == 0 {
 		return nil
@@ -43,7 +42,6 @@ func (r *ClipRepository) BulkInsert(ctx context.Context, clips []models.Clip) er
 	return nil
 }
 
-// FindByUserID returns all clips for a user sorted by viral score descending.
 func (r *ClipRepository) FindByUserID(
 	ctx context.Context,
 	userID primitive.ObjectID,
@@ -143,6 +141,14 @@ func (r *ClipRepository) UpdatePerformanceData(
 	})
 	if err != nil {
 		return fmt.Errorf("UpdatePerformanceData: %w", err)
+	}
+	return nil
+}
+
+func (r *ClipRepository) UpdateFields(ctx context.Context, id primitive.ObjectID, fields map[string]any) error {
+	_, err := r.col.UpdateByID(ctx, id, bson.M{"$set": fields})
+	if err != nil {
+		return fmt.Errorf("UpdateFields: %w", err)
 	}
 	return nil
 }

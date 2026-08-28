@@ -136,6 +136,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		ProfilePicture: userInfo.Picture,
 		AccessToken:    token.AccessToken,
 		RefreshToken:   token.RefreshToken,
+		TokenExpiry:    token.Expiry,
 	}
 
 	// Create or update user.

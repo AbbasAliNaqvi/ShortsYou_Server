@@ -13,9 +13,11 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/ml"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/server"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/logger"
 )
 
@@ -83,11 +85,18 @@ func main() {
 	userRepo   := repository.NewUserRepository(mongo)
 	videoRepo  := repository.NewVideoRepository(mongo)
 	clipRepo   := repository.NewClipRepository(mongo)
+	fmRepo     := repository.NewFeatureMatrixRepository(mongo)
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
+	mlClient   := ml.NewClient(cfg.MLNLPServiceURL, cfg.MLAudioServiceURL)
+	supabase   := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
 
-	taskHandlers := queue.NewTaskHandlers(log, videoRepo)
-	worker.Register(queue.TypeProcessVideo, taskHandlers.HandleProcessVideo)
-	worker.Register(queue.TypeExportClip,   taskHandlers.HandleExportClip)
+	taskHandlers := queue.NewTaskHandlers(
+		log, videoRepo, clipRepo, fmRepo, mlClient, supabase, llmRotator,
+	)
+	worker.Register(queue.TypeProcessVideo,     taskHandlers.HandleProcessVideo)
+	worker.Register(queue.TypeExportClip,       taskHandlers.HandleExportClip)
+	worker.Register(queue.TypeCollectAnalytics, taskHandlers.HandleCollectAnalytics)
+	worker.Register(queue.TypeRetrainCPEP,      taskHandlers.HandleRetrainCPEP)
 
 	go func() {
 		log.Info().Msg("queue worker starting")
@@ -99,7 +108,7 @@ func main() {
 	srv := server.New(
 		cfg, log, mongo, redis,
 		oauthCfg,
-		userRepo, videoRepo, clipRepo,
+		userRepo, videoRepo, clipRepo, fmRepo,
 		queueClient,
 		llmRotator,
 	)

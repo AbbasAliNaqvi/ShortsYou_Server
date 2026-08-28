@@ -136,3 +136,42 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 		},
 	})
 }
+
+func (h *ClipHandler) MarkPublished(c *gin.Context) {
+	userIDStr, _ := c.Get("userID")
+	clipIDStr := c.Param("id")
+
+	id, err := primitive.ObjectIDFromHex(clipIDStr)
+	if err != nil {
+		response.BadRequest(c, "invalid clip id")
+		return
+	}
+
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.NotFound(c, "clip")
+		return
+	}
+
+	if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusPublished); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	task, err := queue.NewCollectAnalyticsTask(clipIDStr, userIDStr.(string), clip.VideoID.Hex())
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	if err := h.queue.Enqueue(task); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"clipId":  clipIDStr,
+		"status":  models.ClipStatusPublished,
+		"message": "analytics collection scheduled for 48 hours from now",
+	})
+}

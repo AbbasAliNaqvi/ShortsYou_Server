@@ -27,6 +27,7 @@ type Server struct {
 	userRepo    *repository.UserRepository
 	videoRepo   *repository.VideoRepository
 	clipRepo    *repository.ClipRepository
+	fmRepo      *repository.FeatureMatrixRepository
 	queueClient *queue.Client
 	llmRotator  *llm.Rotator
 }
@@ -40,6 +41,7 @@ func New(
 	userRepo    *repository.UserRepository,
 	videoRepo   *repository.VideoRepository,
 	clipRepo    *repository.ClipRepository,
+	fmRepo      *repository.FeatureMatrixRepository,
 	queueClient *queue.Client,
 	llmRotator  *llm.Rotator,
 ) *Server {
@@ -59,6 +61,7 @@ func New(
 		userRepo:    userRepo,
 		videoRepo:   videoRepo,
 		clipRepo:    clipRepo,
+		fmRepo:      fmRepo,
 		queueClient: queueClient,
 		llmRotator:  llmRotator,
 	}
@@ -72,7 +75,6 @@ func New(
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
 	return s
 }
 

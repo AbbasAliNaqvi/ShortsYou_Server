@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/oauth2"
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
@@ -17,17 +18,20 @@ type VideoHandler struct {
 	videoRepo *repository.VideoRepository
 	userRepo  *repository.UserRepository
 	queue     *queue.Client
+	oauthCfg  *oauth2.Config
 }
 
 func NewVideoHandler(
 	videoRepo *repository.VideoRepository,
 	userRepo *repository.UserRepository,
 	queueClient *queue.Client,
+	oauthCfg *oauth2.Config,
 ) *VideoHandler {
 	return &VideoHandler{
 		videoRepo: videoRepo,
 		userRepo:  userRepo,
 		queue:     queueClient,
+		oauthCfg:  oauthCfg,
 	}
 }
 
@@ -79,6 +83,9 @@ func (h *VideoHandler) SyncChannel(c *gin.Context) {
 	ytClient, err := youtube.NewClientWithToken(
 		c.Request.Context(),
 		user.AccessToken,
+		user.RefreshToken,
+		user.TokenExpiry,
+		h.oauthCfg,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

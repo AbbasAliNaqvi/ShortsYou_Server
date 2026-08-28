@@ -15,13 +15,22 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 
 	// System
 	h := handler.NewHealth(s.mongo, s.redis)
-	r.GET("/health",  h.Check)
+	r.GET("/health", h.Check)
 	r.GET("/version", handler.Version)
 
 	// Public auth
 	authHandler := handler.NewAuthHandler(s.cfg, s.oauthCfg, s.userRepo)
-	r.GET("/api/v1/auth/google",          authHandler.GoogleLogin)
+	r.GET("/api/v1/auth/google", authHandler.GoogleLogin)
 	r.GET("/api/v1/auth/google/callback", authHandler.GoogleCallback)
+
+	// Internal — ML service callbacks, protected by shared secret header
+	internalHandler := handler.NewInternalHandler(s.clipRepo, s.videoRepo, s.fmRepo)
+	internal := r.Group("/api/internal")
+	internal.Use(middleware.InternalKeyAuth(s.cfg.InternalAPIKey))
+	{
+		internal.POST("/short/done", internalHandler.ShortDone)
+		internal.POST("/cpep/done", internalHandler.CPEPDone)
+	}
 
 	// Protected — JWT required
 	protected := r.Group("/api/v1")
@@ -29,14 +38,23 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	{
 		protected.GET("/auth/me", authHandler.Me)
 
-		videoHandler := handler.NewVideoHandler(s.videoRepo, s.userRepo, s.queueClient)
+		videoHandler := handler.NewVideoHandler(
+			s.videoRepo,
+			s.userRepo,
+			s.queueClient,
+			s.oauthCfg,
+		)
 		protected.POST("/videos/sync", videoHandler.SyncChannel)
-		protected.GET("/videos",       videoHandler.ListVideos)
+		protected.GET("/videos", videoHandler.ListVideos)
 
 		clipHandler := handler.NewClipHandler(s.clipRepo, s.queueClient)
-		protected.GET("/clips",               clipHandler.ListClips)
-		protected.GET("/clips/:id",           clipHandler.GetClip)
-		protected.PATCH("/clips/:id",         clipHandler.UpdateClip)
-		protected.POST("/clips/:id/export",   clipHandler.ExportClip)
+		protected.GET("/clips", clipHandler.ListClips)
+		protected.GET("/clips/:id", clipHandler.GetClip)
+		protected.PATCH("/clips/:id", clipHandler.UpdateClip)
+		protected.POST("/clips/:id/export", clipHandler.ExportClip)
+		protected.POST("/clips/:id/published", clipHandler.MarkPublished)
+
+		adminHandler := handler.NewAdminHandler(s.llmRotator)
+		protected.GET("/admin/key-health", adminHandler.KeyHealth)
 	}
 }

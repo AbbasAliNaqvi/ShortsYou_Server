@@ -85,9 +85,6 @@ func (r *VideoRepository) BulkUpsert(
 	return nil
 }
 
-// FindByUserID returns videos belonging to a user.
-//
-// Results are ordered newest first using YouTube's publishedAt timestamp.
 func (r *VideoRepository) FindByUserID(
 	ctx context.Context,
 	userID primitive.ObjectID,
@@ -138,8 +135,6 @@ func (r *VideoRepository) FindByUserID(
 	return videos, nil
 }
 
-// FindByStatus returns all videos belonging to a user with the given
-// processing status.
 func (r *VideoRepository) FindByStatus(
 	ctx context.Context,
 	userID primitive.ObjectID,
@@ -175,9 +170,6 @@ func (r *VideoRepository) FindByStatus(
 	return videos, nil
 }
 
-// FindByID returns a video by MongoDB ObjectID.
-//
-// The caller should perform the user ownership check separately.
 func (r *VideoRepository) FindByID(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -200,10 +192,6 @@ func (r *VideoRepository) FindByID(
 	return &video, nil
 }
 
-// FindByIDAndUserID returns a video only if it belongs to the supplied user.
-//
-// This is safer for HTTP handlers than FindByID because it prevents a user
-// from accessing another user's video by guessing/obtaining its ObjectID.
 func (r *VideoRepository) FindByIDAndUserID(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -229,10 +217,6 @@ func (r *VideoRepository) FindByIDAndUserID(
 	return &video, nil
 }
 
-// UpdateStatus changes the processing status of a video.
-//
-// If errLog is provided, it is saved into errorLog.
-// When a video succeeds, passing an empty errLog clears an old error.
 func (r *VideoRepository) UpdateStatus(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -266,7 +250,6 @@ func (r *VideoRepository) UpdateStatus(
 	return nil
 }
 
-// UpdateClipsDetected updates the number of clips detected for a video.
 func (r *VideoRepository) UpdateClipsDetected(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -291,5 +274,18 @@ func (r *VideoRepository) UpdateClipsDetected(
 		return fmt.Errorf("update clips detected: %w", err)
 	}
 
+	return nil
+}
+
+func (r *VideoRepository) SetClipsDetected(ctx context.Context, id primitive.ObjectID, count int) error {
+	_, err := r.col.UpdateByID(ctx, id, bson.M{
+		"$set": bson.M{
+			"clipsDetected": count,
+			"updatedAt":     time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("SetClipsDetected: %w", err)
+	}
 	return nil
 }

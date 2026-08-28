@@ -13,16 +13,41 @@ import (
 )
 
 type Client struct {
-	svc *yt.Service
+	svc   *yt.Service
+	token *oauth2.Token
 }
 
-func NewClientWithToken(ctx context.Context, accessToken string) (*Client, error) {
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
-	svc, err := yt.NewService(ctx, option.WithTokenSource(ts))
+func NewClientWithToken(
+	ctx context.Context,
+	accessToken string,
+	refreshToken string,
+	tokenExpiry time.Time,
+	oauthConfig *oauth2.Config,
+) (*Client, error) {
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       tokenExpiry,
+	}
+
+	ts := oauthConfig.TokenSource(ctx, token)
+
+	svc, err := yt.NewService(
+		ctx,
+		option.WithTokenSource(ts),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("youtube.NewService: %w", err)
 	}
-	return &Client{svc: svc}, nil
+
+	return &Client{
+		svc:   svc,
+		token: token,
+	}, nil
+}
+
+func (c *Client) Token() *oauth2.Token {
+	return c.token
 }
 
 type VideoMeta struct {

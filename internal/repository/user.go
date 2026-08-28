@@ -99,7 +99,9 @@ func (r *UserRepository) Upsert(
 			"profilePicture": update.ProfilePicture,
 			"accessToken":    update.AccessToken,
 			"refreshToken":   update.RefreshToken,
-			"updatedAt":      now,
+			"tokenExpiry":    update.TokenExpiry,
+
+			"updatedAt": now,
 		},
 		"$setOnInsert": bson.M{
 			"createdAt": now,
