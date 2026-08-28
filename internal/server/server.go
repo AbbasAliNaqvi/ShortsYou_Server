@@ -14,9 +14,9 @@ import (
 )
 
 type Server struct {
-	http *http.Server
-	log zerolog.Logger
-	cfg *config.Config
+	http  *http.Server
+	log   zerolog.Logger
+	cfg   *config.Config
 	mongo *database.MongoDB
 	redis *database.RedisClient
 }
@@ -34,19 +34,24 @@ func New(
 	}
 
 	router := gin.New()
-	s:= &Server{
-		cfg: cfg,
-		log: log,
+
+	s := &Server{
+		cfg:   cfg,
+		log:   log,
 		mongo: mongo,
 		redis: redis,
 	}
 
+	// Register middleware and routes.
+	s.registerRoutes(router)
+
 	s.http = &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.Port),
-		Handler: router,
-		ReadTimeout: 15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout: 60 * time.Second,
+		// cfg.Port is a string, so use %s, not %d.
+		Addr:              fmt.Sprintf(":%s", cfg.Port),
+		Handler:           router,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -54,11 +59,22 @@ func New(
 }
 
 func (s *Server) Start() error {
-	s.log.Info().Str("addr", s.http.Addr).Msg("Http Server Listensing")
-	return s.http.ListenAndServe()
+	s.log.Info().
+		Str("addr", s.http.Addr).
+		Msg("HTTP server listening")
+
+	err := s.http.ListenAndServe()
+
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.log.Info().Msg("Http Server Shutting Down")
+	s.log.Info().
+		Msg("HTTP server shutting down")
+
 	return s.http.Shutdown(ctx)
 }

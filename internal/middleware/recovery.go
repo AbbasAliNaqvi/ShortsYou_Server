@@ -7,22 +7,22 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func Recovery(logger zerolog.Logger) gin.HandlerFunc {
+func Recovery(log zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
-			if rec := recover(); rec != nil {
+			if err := recover(); err != nil {
 				log.Error().
-					Interface("panic", rec).
-					Str("method", c.Request.Method).
+					Interface("error", err).
 					Str("path", c.Request.URL.Path).
-					Msg("Recovered from panic")
+					Str("method", c.Request.Method).
+					Msg("panic recovered")
 
-				c.AbortWithStatus(http.StatusInternalServerError , gin.H{
-					"success": false,
-					"message": "Internal Server Error",
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"error": "Internal Server Error",
 				})
 			}
 		}()
+
 		c.Next()
 	}
 }

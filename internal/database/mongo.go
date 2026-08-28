@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
 type MongoDB struct {
 	Client *mongo.Client
-	DB    *mongo.Database
+	DB     *mongo.Database
 }
 
-func NewMongoDB(uri, dbName string) (*MongoDB, error) {
-
+// NewMongo creates a new MongoDB connection.
+func NewMongo(uri, dbName string) (*MongoDB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -28,61 +28,80 @@ func NewMongoDB(uri, dbName string) (*MongoDB, error) {
 		SetMaxPoolSize(100).
 		SetMinPoolSize(5)
 
-	client, err := mongo.Connect(ctx, opts)
+	// MongoDB Go Driver v2 does not take a context
+	// as an argument to mongo.Connect().
+	client, err := mongo.Connect(opts)
 	if err != nil {
-		return nil, fmt.Errorf("MONGO.CONNECT: %w",err)
+		return nil, fmt.Errorf("MONGO.CONNECT: %w", err)
 	}
 
+	// Verify the connection.
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
 		_ = client.Disconnect(context.Background())
-		return nil, fmt.Errorf("MONGO.PING: %w",err)
+		return nil, fmt.Errorf("MONGO.PING: %w", err)
 	}
 
 	return &MongoDB{
 		Client: client,
-		DB:    client.Database(dbName),
+		DB:     client.Database(dbName),
 	}, nil
 }
 
+// NewMongoDB is kept as an alias for compatibility.
+func NewMongoDB(uri, dbName string) (*MongoDB, error) {
+	return NewMongo(uri, dbName)
+}
+
+// Collection returns a MongoDB collection.
 func (m *MongoDB) Collection(name string) *mongo.Collection {
 	return m.DB.Collection(name)
 }
 
+// Ping checks whether MongoDB is reachable.
 func (m *MongoDB) Ping(ctx context.Context) error {
 	return m.Client.Ping(ctx, readpref.Primary())
 }
 
+// Disconnect closes the MongoDB connection.
 func (m *MongoDB) Disconnect(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(),5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
 	return m.Client.Disconnect(ctx)
 }
 
+// CreateIndexes creates all required application indexes.
 func (m *MongoDB) CreateIndexes(ctx context.Context) error {
-	type spec struct {
+	type indexSpec struct {
 		collection string
 		model      mongo.IndexModel
 	}
 
-	indexes := []spec{
+	indexes := []indexSpec{
 		{
 			collection: "users",
 			model: mongo.IndexModel{
-				Keys:    bson.D{{Key: "email", Value: 1}},
+				Keys: bson.D{
+					{Key: "email", Value: 1},
+				},
 				Options: options.Index().SetUnique(true),
 			},
 		},
 		{
 			collection: "users",
 			model: mongo.IndexModel{
-				Keys:    bson.D{{Key: "googleId", Value: 1}},
+				Keys: bson.D{
+					{Key: "googleId", Value: 1},
+				},
 				Options: options.Index().SetUnique(true),
 			},
 		},
 		{
 			collection: "videos",
 			model: mongo.IndexModel{
-				Keys:    bson.D{{Key: "youtubeVideoId", Value: 1}},
+				Keys: bson.D{
+					{Key: "youtubeVideoId", Value: 1},
+				},
 				Options: options.Index().SetUnique(true),
 			},
 		},
@@ -116,16 +135,23 @@ func (m *MongoDB) CreateIndexes(ctx context.Context) error {
 		{
 			collection: "feature_matrix",
 			model: mongo.IndexModel{
-				Keys:    bson.D{{Key: "clipId", Value: 1}},
+				Keys: bson.D{
+					{Key: "clipId", Value: 1},
+				},
 				Options: options.Index().SetUnique(true),
 			},
 		},
 	}
 
 	for _, idx := range indexes {
-		coll := m.DB.Collection(idx.collection)
-		if _, err := coll.Indexes().CreateOne(ctx, idx.model); err != nil {
-			return fmt.Errorf("index on %s: %w", idx.collection, err)
+		collection := m.DB.Collection(idx.collection)
+
+		if _, err := collection.Indexes().CreateOne(ctx, idx.model); err != nil {
+			return fmt.Errorf(
+				"failed to create index on %s: %w",
+				idx.collection,
+				err,
+			)
 		}
 	}
 
