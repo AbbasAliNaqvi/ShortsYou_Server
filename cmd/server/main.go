@@ -101,12 +101,22 @@ func main() {
 	// Services
 	oauthCfg := auth.NewOAuthConfig(cfg)
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
-	mlClient := ml.NewClient(cfg.MLNLPServiceURL, cfg.MLAudioServiceURL)
+	var mlClient ml.Service
+
+	if cfg.Env == "development" {
+		mlClient = ml.NewMockService()
+	} else {
+		mlClient = ml.NewClient(
+			cfg.MLNLPServiceURL,
+			cfg.MLAudioServiceURL,
+		)
+	}
+
 	supabase := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
 
 	taskHandlers := queue.NewTaskHandlers(
 		log, videoRepo, clipRepo, fmRepo, userRepo,
-		mlClient, supabase, llmRotator, queueClient,
+		mlClient, supabase, llmRotator, queueClient, cfg,
 	)
 	worker.Register(queue.TypeProcessVideo, taskHandlers.HandleProcessVideo)
 	worker.Register(queue.TypeExportClip, taskHandlers.HandleExportClip)

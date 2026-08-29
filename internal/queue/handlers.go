@@ -1,9 +1,12 @@
 package queue
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -11,7 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/youtube"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/downloader"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/ml"
@@ -19,6 +22,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/scoring"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/youtube"
 )
 
 type TaskHandlers struct {
@@ -27,22 +31,24 @@ type TaskHandlers struct {
 	clipRepo   *repository.ClipRepository
 	fmRepo     *repository.FeatureMatrixRepository
 	userRepo   *repository.UserRepository
-	mlClient   *ml.Client
+	mlClient   ml.Service
 	storage    *storage.SupabaseClient
 	llmRotator *llm.Rotator
 	queue      *Client
+	cfg        *config.Config
 }
 
 func NewTaskHandlers(
-	log        zerolog.Logger,
-	videoRepo  *repository.VideoRepository,
-	clipRepo   *repository.ClipRepository,
-	fmRepo     *repository.FeatureMatrixRepository,
-	userRepo   *repository.UserRepository,
-	mlClient   *ml.Client,
-	supabase   *storage.SupabaseClient,
+	log zerolog.Logger,
+	videoRepo *repository.VideoRepository,
+	clipRepo *repository.ClipRepository,
+	fmRepo *repository.FeatureMatrixRepository,
+	userRepo *repository.UserRepository,
+	mlClient ml.Service,
+	supabase *storage.SupabaseClient,
 	llmRotator *llm.Rotator,
-	queue      *Client,
+	queue *Client,
+	cfg *config.Config,
 ) *TaskHandlers {
 	return &TaskHandlers{
 		log:        log,
@@ -54,6 +60,7 @@ func NewTaskHandlers(
 		storage:    supabase,
 		llmRotator: llmRotator,
 		queue:      queue,
+		cfg:        cfg,
 	}
 }
 
@@ -103,11 +110,50 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	}
 
 	videoKey := downloader.VideoKey(p.UserID, p.VideoID)
-	videoURL, err := h.storage.Upload(ctx, "raw-videos", videoKey, "video/mp4", videoData)
+
+	// Upload the raw video
+	_, err = h.storage.Upload(
+		ctx,
+		"raw-videos",
+		videoKey,
+		"video/mp4",
+		videoData,
+	)
 	if err != nil {
 		return fail("upload video to storage", err)
 	}
-	log.Info().Str("url", videoURL).Msg("video uploaded")
+
+	log.Info().
+		Str("bucket", "raw-videos").
+		Str("objectKey", videoKey).
+		Msg("video uploaded")
+
+	// Create a temporary signed URL for the uploaded video.
+	// This URL is passed to the ML service so it can access the private object.
+	log.Info().
+		Str("bucket", "raw-videos").
+		Str("objectKey", videoKey).
+		Msg("creating signed URL for raw video")
+
+	videoURL, err := h.storage.SignedURL(
+		ctx,
+		"raw-videos",
+		videoKey,
+		3600,
+	)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("bucket", "raw-videos").
+			Str("objectKey", videoKey).
+			Msg("failed to create signed URL")
+
+		return fail("get signed url", err)
+	}
+
+	log.Info().
+		Str("videoURL", videoURL).
+		Msg("raw video signed URL created")
 
 	log.Info().Msg("video processing phase: transcribing")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusTranscribing, "")
@@ -119,7 +165,10 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	if err != nil {
 		return fail("transcribe", err)
 	}
-	log.Info().Int("segments", len(transcription.Segments)).Msg("transcription complete")
+
+	log.Info().
+		Int("segments", len(transcription.Segments)).
+		Msg("transcription complete")
 
 	log.Info().Msg("video processing phase: analyzing")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusAnalyzing, "")
@@ -158,7 +207,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 			Msg("segment score")
 	}
 
-	const clipThreshold = 0.0
+	const clipThreshold = 0.70
 
 	var candidates []scoring.SegmentScore
 	for _, s := range scores {
@@ -265,10 +314,84 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		return fmt.Errorf("decode payload: %w", err)
 	}
 
-	log := h.log.With().Str("clipId", p.ClipID).Str("userId", p.UserID).Logger()
-	log.Info().Msg("clip export job received — pipeline wires to ml audio service in phase 4")
+	log := h.log.With().
+		Str("clipId", p.ClipID).
+		Str("userId", p.UserID).
+		Logger()
 
+	log.Info().Msg("export job started")
+
+	clipID, err := primitive.ObjectIDFromHex(p.ClipID)
+	if err != nil {
+		return fmt.Errorf("invalid clipId: %w", err)
+	}
+
+	clip, err := h.clipRepo.FindByID(ctx, clipID)
+	if err != nil {
+		return fmt.Errorf("find clip: %w", err)
+	}
+
+	video, err := h.videoRepo.FindByID(ctx, clip.VideoID)
+	if err != nil {
+		return fmt.Errorf("find video: %w", err)
+	}
+
+	// Get a signed URL so the Python service can download the raw video
+	videoURL, err := h.storage.SignedURL(ctx, "raw-videos",
+		downloader.VideoKey(p.UserID, video.ID.Hex()), 3600)
+	if err != nil {
+		return fmt.Errorf("get signed url: %w", err)
+	}
+
+	// Build callback URL pointing back to this Go server
+	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
+
+	editReq := map[string]any{
+		"job_id":          p.ClipID,
+		"clip_id":         p.ClipID,
+		"user_id":         p.UserID,
+		"video_url":       videoURL,
+		"start_time":      clip.StartTime,
+		"end_time":        clip.EndTime,
+		"style":           styleFromEditSettings(clip.EditSettings),
+		"hook_text":       clip.SelectedHook,
+		"music_mood":      clip.EditSettings.MusicMood,
+		"remove_silences": clip.EditSettings.RemoveSilences,
+		"remove_fillers":  clip.EditSettings.RemoveFillers,
+		"callback_url":    callbackURL,
+		"callback_key":    h.cfg.InternalAPIKey,
+	}
+
+	data, _ := json.Marshal(editReq)
+
+	httpResp, err := http.Post(
+		h.cfg.MLAudioServiceURL+"/create-short",
+		"application/json",
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return fmt.Errorf("call edit service: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(httpResp.Body)
+		return fmt.Errorf("edit service returned %d: %s", httpResp.StatusCode, body)
+	}
+
+	log.Info().Msg("export job submitted to edit service")
 	return nil
+}
+
+func styleFromEditSettings(s models.EditSettings) string {
+	switch s.BackgroundStyle {
+	case "dark_gradient":
+		return "bold"
+	case "original":
+		return "minimal"
+	default:
+		return "clean"
+	}
 }
 
 func hookPrompt(transcriptText string) string {

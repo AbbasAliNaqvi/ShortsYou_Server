@@ -15,6 +15,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
 )
 
 type Server struct {
@@ -34,24 +35,25 @@ type Server struct {
 	abRepo      *repository.ABExperimentRepository
 	queueClient *queue.Client
 	llmRotator  *llm.Rotator
+	supabase    *storage.SupabaseClient
 }
 
 func New(
-	cfg         *config.Config,
-	log         zerolog.Logger,
-	mongo       *database.MongoDB,
-	redis       *database.RedisClient,
-	oauthCfg    *oauth2.Config,
-	userRepo    *repository.UserRepository,
-	videoRepo   *repository.VideoRepository,
-	clipRepo    *repository.ClipRepository,
-	fmRepo      *repository.FeatureMatrixRepository,
-	dnaRepo     *repository.CreatorDNARepository,
+	cfg *config.Config,
+	log zerolog.Logger,
+	mongo *database.MongoDB,
+	redis *database.RedisClient,
+	oauthCfg *oauth2.Config,
+	userRepo *repository.UserRepository,
+	videoRepo *repository.VideoRepository,
+	clipRepo *repository.ClipRepository,
+	fmRepo *repository.FeatureMatrixRepository,
+	dnaRepo *repository.CreatorDNARepository,
 	personaRepo *repository.PersonaRepository,
-	trendRepo   *repository.TrendForecastRepository,
-	abRepo      *repository.ABExperimentRepository,
+	trendRepo *repository.TrendForecastRepository,
+	abRepo *repository.ABExperimentRepository,
 	queueClient *queue.Client,
-	llmRotator  *llm.Rotator,
+	llmRotator *llm.Rotator,
 ) *Server {
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)

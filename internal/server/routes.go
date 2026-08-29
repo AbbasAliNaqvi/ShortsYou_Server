@@ -52,9 +52,10 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		protected.POST("/videos/sync", videoHandler.SyncChannel)
 		protected.GET("/videos", videoHandler.ListVideos)
 
-		clipHandler := handler.NewClipHandler(s.clipRepo, s.queueClient)
+		clipHandler := handler.NewClipHandler(s.clipRepo, s.queueClient, s.supabase)
 		protected.GET("/clips", clipHandler.ListClips)
 		protected.GET("/clips/:id", clipHandler.GetClip)
+		protected.GET("/clips/:id/download", clipHandler.GetDownloadURL)
 		protected.PATCH("/clips/:id", clipHandler.UpdateClip)
 		protected.POST("/clips/:id/export", clipHandler.ExportClip)
 		protected.POST("/clips/:id/published", clipHandler.MarkPublished)

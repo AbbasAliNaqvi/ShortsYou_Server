@@ -12,21 +12,21 @@ import (
 )
 
 type InternalHandler struct {
-	clipRepo  *repository.ClipRepository
-	videoRepo *repository.VideoRepository
-	fmRepo    *repository.FeatureMatrixRepository
-	dnaRepo   *repository.CreatorDNARepository
+	clipRepo    *repository.ClipRepository
+	videoRepo   *repository.VideoRepository
+	fmRepo      *repository.FeatureMatrixRepository
+	dnaRepo     *repository.CreatorDNARepository
 	personaRepo *repository.PersonaRepository
-	trendRepo *repository.TrendForecastRepository
+	trendRepo   *repository.TrendForecastRepository
 }
 
 func NewInternalHandler(
-	clipRepo    *repository.ClipRepository,
-	videoRepo   *repository.VideoRepository,
-	fmRepo      *repository.FeatureMatrixRepository,
-	dnaRepo     *repository.CreatorDNARepository,
+	clipRepo *repository.ClipRepository,
+	videoRepo *repository.VideoRepository,
+	fmRepo *repository.FeatureMatrixRepository,
+	dnaRepo *repository.CreatorDNARepository,
 	personaRepo *repository.PersonaRepository,
-	trendRepo   *repository.TrendForecastRepository,
+	trendRepo *repository.TrendForecastRepository,
 ) *InternalHandler {
 	return &InternalHandler{
 		clipRepo:    clipRepo,
@@ -73,12 +73,12 @@ func (h *InternalHandler) ShortDone(c *gin.Context) {
 }
 
 type cpepDoneRequest struct {
-	UserID             string                    `json:"userId"             binding:"required"`
-	ModelVersion       string                    `json:"modelVersion"       binding:"required"`
-	PearsonR           float64                   `json:"pearsonR"`
-	RMSE               float64                   `json:"rmse"`
-	R2                 float64                   `json:"r2"`
-	NSamples           int64                     `json:"nSamples"`
+	UserID             string                     `json:"userId"             binding:"required"`
+	ModelVersion       string                     `json:"modelVersion"       binding:"required"`
+	PearsonR           float64                    `json:"pearsonR"`
+	RMSE               float64                    `json:"rmse"`
+	R2                 float64                    `json:"r2"`
+	NSamples           int64                      `json:"nSamples"`
 	FeatureImportances []models.FeatureImportance `json:"featureImportances"`
 }
 

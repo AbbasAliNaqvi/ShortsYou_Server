@@ -1,11 +1,13 @@
 package downloader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type Result struct {
@@ -17,58 +19,68 @@ type Result struct {
 func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
 	url := "https://www.youtube.com/watch?v=" + youtubeVideoID
 
-	tmp, err := os.CreateTemp("", "shortsyou-*.mp4")
+	tmpDir, err := os.MkdirTemp("", "shortsyou-download-*")
 	if err != nil {
-		return nil, fmt.Errorf("create temp file: %w", err)
+		return nil, fmt.Errorf("create temp directory: %w", err)
 	}
 
-	tmpPath := tmp.Name()
-	tmp.Close()
+	cleanup := func() {
+		_ = os.RemoveAll(tmpDir)
+	}
+
+	outputTemplate := filepath.Join(tmpDir, "video.%(ext)s")
+	finalPath := filepath.Join(tmpDir, "video.mp4")
 
 	cmd := exec.CommandContext(ctx,
 		"yt-dlp",
+
 		"--quiet",
 		"--no-warnings",
 
-		// Prefer MP4 video + M4A audio.
-		"--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+		"--format",
+		"bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
 
-		"--output", tmpPath,
-		"--no-part",
+		"--output",
+		outputTemplate,
 
-		// Ensure the final output is MP4 when merging is required.
-		"--merge-output-format", "mp4",
+		"--merge-output-format",
+		"mp4",
 
 		url,
 	)
 
-	cmd.Stderr = os.Stderr
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		os.Remove(tmpPath)
-		return nil, fmt.Errorf("yt-dlp: %w", err)
+		cleanup()
+
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+
+		return nil, fmt.Errorf("yt-dlp: %s", errMsg)
 	}
 
-	if _, err := os.Stat(tmpPath); err != nil {
-		os.Remove(tmpPath)
-		return nil, fmt.Errorf("yt-dlp output not found: %w", err)
+	if _, err := os.Stat(finalPath); err != nil {
+		cleanup()
+		return nil, fmt.Errorf("yt-dlp output not found at %s: %w", finalPath, err)
 	}
 
 	return &Result{
-		FilePath:    tmpPath,
+		FilePath:    finalPath,
 		ContentType: "video/mp4",
-		Cleanup: func() {
-			os.Remove(tmpPath)
-		},
+		Cleanup:     cleanup,
 	}, nil
 }
 
-// VideoKey returns the Supabase object path for a raw downloaded video.
+// VideoKey returns the Supabase object path relative to the raw-videos bucket.
 func VideoKey(userID, videoID string) string {
-	return filepath.Join("raw-videos", userID, videoID+".mp4")
+	return filepath.Join(userID, videoID+".mp4")
 }
 
-// ShortKey returns the Supabase object path for a processed 9:16 short clip.
+// ShortKey returns the Supabase object path relative to the processed-clips bucket.
 func ShortKey(userID, clipID string) string {
-	return filepath.Join("processed-clips", userID, clipID+".mp4")
+	return filepath.Join(userID, clipID+".mp4")
 }

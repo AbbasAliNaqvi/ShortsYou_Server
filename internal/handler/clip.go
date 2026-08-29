@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,16 +10,18 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 )
 
 type ClipHandler struct {
 	clipRepo *repository.ClipRepository
 	queue    *queue.Client
+	supabase *storage.SupabaseClient
 }
 
-func NewClipHandler(clipRepo *repository.ClipRepository, queueClient *queue.Client) *ClipHandler {
-	return &ClipHandler{clipRepo: clipRepo, queue: queueClient}
+func NewClipHandler(clipRepo *repository.ClipRepository, queueClient *queue.Client, supabase *storage.SupabaseClient) *ClipHandler {
+	return &ClipHandler{clipRepo: clipRepo, queue: queueClient, supabase: supabase}
 }
 
 func (h *ClipHandler) ListClips(c *gin.Context) {
@@ -98,6 +101,7 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 func (h *ClipHandler) ExportClip(c *gin.Context) {
 	userIDStr, _ := c.Get("userID")
 	clipIDStr := c.Param("id")
+	fmt.Printf("EXPORT CLIP: clipID=%q userID=%q\n", clipIDStr, userIDStr)
 
 	id, err := primitive.ObjectIDFromHex(clipIDStr)
 	if err != nil {
@@ -173,5 +177,45 @@ func (h *ClipHandler) MarkPublished(c *gin.Context) {
 		"clipId":  clipIDStr,
 		"status":  models.ClipStatusPublished,
 		"message": "analytics collection scheduled for 48 hours from now",
+	})
+}
+
+func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
+	userIDStr, _ := c.Get("userID")
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid clip id")
+		return
+	}
+
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.NotFound(c, "clip")
+		return
+	}
+
+	// Only the owner can download
+	if clip.UserID.Hex() != userIDStr.(string) {
+		response.Forbidden(c)
+		return
+	}
+
+	if clip.SupabaseShortURL == "" {
+		response.BadRequest(c, "clip has not been exported yet")
+		return
+	}
+
+	// Generate a 15-minute signed URL for direct download
+	objectKey := fmt.Sprintf("processed-clips/%s/%s.mp4", userIDStr, clip.ID.Hex())
+	signedURL, err := h.supabase.SignedURL(c.Request.Context(), "processed-clips", objectKey, 900)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"downloadUrl": signedURL,
+		"expiresIn":   900,
+		"filename":    fmt.Sprintf("shortsyou-%s.mp4", clip.ID.Hex()),
 	})
 }

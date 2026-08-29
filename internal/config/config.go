@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Env  string
-	Port string
+	Env     string
+	Port    string
+	BaseURL string
 
 	MongoURI    string
 	MongoDBName string
@@ -49,8 +50,9 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Env:  v.GetString("ENV"),
-		Port: v.GetString("PORT"),
+		Env:     v.GetString("ENV"),
+		Port:    v.GetString("PORT"),
+		BaseURL: v.GetString("BASE_URL"),
 
 		MongoURI:    v.GetString("MONGO_URI"),
 		MongoDBName: v.GetString("MONGO_DB_NAME"),
@@ -101,6 +103,10 @@ func Load() (*Config, error) {
 
 	if cfg.Port == "" {
 		cfg.Port = "8080"
+	}
+
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "http://localhost:" + cfg.Port
 	}
 
 	if cfg.MongoDBName == "" {
