@@ -21,6 +21,10 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.GET("/api/v1/auth/google", authHandler.GoogleLogin)
 	r.GET("/api/v1/auth/google/callback", authHandler.GoogleCallback)
 
+	channelHandler := handler.NewChannelHandler(s.cfg)
+	r.GET("/api/v1/channels/search", channelHandler.SearchChannel)
+	r.GET("/api/v1/channels/:channelId/videos", channelHandler.GetChannelVideos)
+
 	internalHandler := handler.NewInternalHandler(
 		s.clipRepo, s.videoRepo, s.fmRepo, s.dnaRepo, s.personaRepo, s.trendRepo,
 	)
