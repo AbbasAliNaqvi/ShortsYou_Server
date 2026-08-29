@@ -29,11 +29,10 @@ type SegmentScore struct {
 	SemanticLabels      []string
 }
 
-
 func Score(
 	transcript ml.TranscribeResponse,
-	analysis   ml.AnalyzeResponse,
-	emotion    ml.EmotionResponse,
+	analysis ml.AnalyzeResponse,
+	emotion ml.EmotionResponse,
 ) []SegmentScore {
 	analysisMap := make(map[int]ml.AnalyzedSegment, len(analysis.Segments))
 	for _, s := range analysis.Segments {

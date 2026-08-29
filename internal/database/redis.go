@@ -20,13 +20,19 @@ func NewRedis(url string) (*RedisClient, error) {
 	}
 
 	// Connection pool configuration.
-	opts.PoolSize = 10
-	opts.MinIdleConns = 2
+	opts.PoolSize = 5
+	opts.MinIdleConns = 1
 
 	// Connection timeouts.
-	opts.DialTimeout = 5 * time.Second
-	opts.ReadTimeout = 3 * time.Second
-	opts.WriteTimeout = 3 * time.Second
+	// Increased for Upstash/cloud Redis connections.
+	opts.DialTimeout = 10 * time.Second
+	opts.ReadTimeout = 10 * time.Second
+	opts.WriteTimeout = 10 * time.Second
+
+	// Close connections before the Redis provider
+	// has a chance to drop idle connections.
+	opts.ConnMaxIdleTime = 30 * time.Second
+	opts.ConnMaxLifetime = 5 * time.Minute
 
 	// Create Redis client.
 	client := redis.NewClient(opts)
@@ -34,7 +40,7 @@ func NewRedis(url string) (*RedisClient, error) {
 	// Test Redis connection.
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		5*time.Second,
+		15*time.Second,
 	)
 	defer cancel()
 

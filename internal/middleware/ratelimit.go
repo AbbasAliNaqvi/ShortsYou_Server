@@ -9,9 +9,9 @@ import (
 )
 
 type ipStore struct {
-	mu  sync.Mutex
+	mu       sync.Mutex
 	limiters map[string]*rate.Limiter
-	rps rate.Limit
+	rps      rate.Limit
 }
 
 var store *ipStore
@@ -19,14 +19,14 @@ var store *ipStore
 func RateLimit(rps int) gin.HandlerFunc {
 	store = &ipStore{
 		limiters: make(map[string]*rate.Limiter),
-		rps: rate.Limit(rps),
+		rps:      rate.Limit(rps),
 	}
 
 	return func(c *gin.Context) {
 		if !store.allow(c.ClientIP()) {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"success": false,
-				"error": "Rate limit exceeded",
+				"error":   "Rate limit exceeded",
 			})
 			return
 		}

@@ -20,12 +20,12 @@ type AnalyticsHandler struct {
 }
 
 func NewAnalyticsHandler(
-	dnaRepo     *repository.CreatorDNARepository,
+	dnaRepo *repository.CreatorDNARepository,
 	personaRepo *repository.PersonaRepository,
-	trendRepo   *repository.TrendForecastRepository,
-	fmRepo      *repository.FeatureMatrixRepository,
-	clipRepo    *repository.ClipRepository,
-	abRepo      *repository.ABExperimentRepository,
+	trendRepo *repository.TrendForecastRepository,
+	fmRepo *repository.FeatureMatrixRepository,
+	clipRepo *repository.ClipRepository,
+	abRepo *repository.ABExperimentRepository,
 ) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		dnaRepo:     dnaRepo,
@@ -216,8 +216,8 @@ func computePearsonR(points []perfPoint) float64 {
 	for _, p := range points {
 		x := p.PredictedScore
 		y := float64(p.ActualViews)
-		sumX  += x
-		sumY  += y
+		sumX += x
+		sumY += y
 		sumXY += x * y
 		sumX2 += x * x
 		sumY2 += y * y

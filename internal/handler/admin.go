@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 type AdminHandler struct {

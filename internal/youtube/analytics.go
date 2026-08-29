@@ -31,7 +31,7 @@ type ClipMetrics struct {
 
 func (c *AnalyticsClient) FetchClipMetrics(ctx context.Context, videoID, channelID string, publishedAt time.Time) (*ClipMetrics, error) {
 	startDate := publishedAt.Format("2006-01-02")
-	endDate   := publishedAt.Add(48 * time.Hour).Format("2006-01-02")
+	endDate := publishedAt.Add(48 * time.Hour).Format("2006-01-02")
 
 	resp, err := c.svc.Reports.Query().
 		Ids("channel==" + channelID).

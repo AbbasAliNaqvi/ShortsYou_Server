@@ -39,15 +39,28 @@ func NewInternalHandler(
 }
 
 type shortDoneRequest struct {
-	ClipID    string  `json:"clipId"    binding:"required"`
-	OutputURL string  `json:"outputUrl" binding:"required"`
-	Duration  float64 `json:"duration"`
+	JobID         string  `json:"job_id"`
+	ClipID        string  `json:"clipId"`
+	OutputURL     string  `json:"outputUrl"`
+	ThumbnailURL  string  `json:"thumbnailUrl"`
+	Duration      float64 `json:"duration"`
+	FileSizeBytes int64   `json:"fileSizeBytes"`
+	Resolution    string  `json:"resolution"`
+	StyleApplied  string  `json:"styleApplied"`
+	Error         string  `json:"error"`
 }
 
+// POST /api/internal/short/done
 func (h *InternalHandler) ShortDone(c *gin.Context) {
 	var req shortDoneRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid request body")
+		response.BadRequest(c, "invalid request body: "+err.Error())
+		return
+	}
+
+	if req.ClipID == "" {
+		response.BadRequest(c, "clipId is required")
 		return
 	}
 
@@ -57,24 +70,103 @@ func (h *InternalHandler) ShortDone(c *gin.Context) {
 		return
 	}
 
+	clip, err := h.clipRepo.FindByID(
+		c.Request.Context(),
+		id,
+	)
+	if err != nil {
+		response.NotFound(c, "clip")
+		return
+	}
+
+	// Ignore duplicate callbacks after successful completion.
+	if clip.Status == models.ClipStatusExported &&
+		req.Error == "" {
+		response.OK(c, gin.H{
+			"clipId": req.ClipID,
+			"status": "exported",
+		})
+		return
+	}
+
+	// ---------------------------------------------------------
+	// FAILURE CALLBACK
+	// ---------------------------------------------------------
+
+	if req.Error != "" {
+		now := time.Now()
+
+		err := h.clipRepo.UpdateFields(
+			c.Request.Context(),
+			id,
+			map[string]any{
+				"status":    models.ClipStatusFailed,
+				"errorLog":  req.Error,
+				"updatedAt": now,
+			},
+		)
+		if err != nil {
+			response.InternalError(c)
+			return
+		}
+
+		response.OK(c, gin.H{
+			"clipId": req.ClipID,
+			"status": "failed",
+			"error":  req.Error,
+		})
+
+		return
+	}
+
+	// ---------------------------------------------------------
+	// SUCCESS CALLBACK
+	// ---------------------------------------------------------
+
+	if req.OutputURL == "" {
+		response.BadRequest(
+			c,
+			"outputUrl is required for successful callback",
+		)
+		return
+	}
+
 	now := time.Now()
-	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+
+	fields := map[string]any{
 		"supabaseShortUrl": req.OutputURL,
-		"durationSeconds":  req.Duration,
 		"status":           models.ClipStatusExported,
 		"exportedAt":       now,
 		"updatedAt":        now,
-	}); err != nil {
+	}
+
+	if req.ThumbnailURL != "" {
+		fields["selectedThumbnail"] = req.ThumbnailURL
+	}
+
+	if req.Duration > 0 {
+		fields["durationSeconds"] = req.Duration
+	}
+
+	if err := h.clipRepo.UpdateFields(
+		c.Request.Context(),
+		id,
+		fields,
+	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	response.OK(c, gin.H{"clipId": req.ClipID, "status": "exported"})
+	response.OK(c, gin.H{
+		"clipId":    req.ClipID,
+		"status":    "exported",
+		"outputUrl": req.OutputURL,
+	})
 }
 
 type cpepDoneRequest struct {
-	UserID             string                     `json:"userId"             binding:"required"`
-	ModelVersion       string                     `json:"modelVersion"       binding:"required"`
+	UserID             string                     `json:"userId" binding:"required"`
+	ModelVersion       string                     `json:"modelVersion" binding:"required"`
 	PearsonR           float64                    `json:"pearsonR"`
 	RMSE               float64                    `json:"rmse"`
 	R2                 float64                    `json:"r2"`
@@ -82,8 +174,10 @@ type cpepDoneRequest struct {
 	FeatureImportances []models.FeatureImportance `json:"featureImportances"`
 }
 
+// POST /api/internal/cpep/done
 func (h *InternalHandler) CPEPDone(c *gin.Context) {
 	var req cpepDoneRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "invalid request body")
 		return
@@ -103,13 +197,21 @@ func (h *InternalHandler) CPEPDone(c *gin.Context) {
 		TrainedAt: time.Now(),
 	}
 
-	if err := h.dnaRepo.AppendModelAccuracy(c.Request.Context(), userID, point); err != nil {
+	if err := h.dnaRepo.AppendModelAccuracy(
+		c.Request.Context(),
+		userID,
+		point,
+	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
 	if len(req.FeatureImportances) > 0 {
-		if err := h.dnaRepo.UpdateFeatureImportances(c.Request.Context(), userID, req.FeatureImportances); err != nil {
+		if err := h.dnaRepo.UpdateFeatureImportances(
+			c.Request.Context(),
+			userID,
+			req.FeatureImportances,
+		); err != nil {
 			response.InternalError(c)
 			return
 		}
@@ -122,50 +224,71 @@ func (h *InternalHandler) CPEPDone(c *gin.Context) {
 	})
 }
 
-// DNADone receives the full Creator DNA profile from the NLP service after LDA runs.
+// POST /api/internal/dna/done
 func (h *InternalHandler) DNADone(c *gin.Context) {
 	var dna models.CreatorDNA
+
 	if err := c.ShouldBindJSON(&dna); err != nil {
 		response.BadRequest(c, "invalid request body")
 		return
 	}
 
-	if err := h.dnaRepo.Upsert(c.Request.Context(), dna); err != nil {
+	if err := h.dnaRepo.Upsert(
+		c.Request.Context(),
+		dna,
+	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	response.OK(c, gin.H{"userId": dna.UserID.Hex(), "status": "dna stored"})
+	response.OK(c, gin.H{
+		"userId": dna.UserID.Hex(),
+		"status": "dna stored",
+	})
 }
 
-// PersonasDone receives DBSCAN audience persona clusters from the NLP service.
+// POST /api/internal/personas/done
 func (h *InternalHandler) PersonasDone(c *gin.Context) {
 	var persona models.AudiencePersona
+
 	if err := c.ShouldBindJSON(&persona); err != nil {
 		response.BadRequest(c, "invalid request body")
 		return
 	}
 
-	if err := h.personaRepo.Upsert(c.Request.Context(), persona); err != nil {
+	if err := h.personaRepo.Upsert(
+		c.Request.Context(),
+		persona,
+	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	response.OK(c, gin.H{"userId": persona.UserID.Hex(), "personas": len(persona.Personas)})
+	response.OK(c, gin.H{
+		"userId":   persona.UserID.Hex(),
+		"personas": len(persona.Personas),
+	})
 }
 
-// ForecastDone receives a Prophet time-series forecast from the NLP service.
+// POST /api/internal/forecast/done
 func (h *InternalHandler) ForecastDone(c *gin.Context) {
 	var forecast models.TrendForecast
+
 	if err := c.ShouldBindJSON(&forecast); err != nil {
 		response.BadRequest(c, "invalid request body")
 		return
 	}
 
-	if err := h.trendRepo.Upsert(c.Request.Context(), forecast); err != nil {
+	if err := h.trendRepo.Upsert(
+		c.Request.Context(),
+		forecast,
+	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	response.OK(c, gin.H{"userId": forecast.UserID.Hex(), "topic": forecast.Topic})
+	response.OK(c, gin.H{
+		"userId": forecast.UserID.Hex(),
+		"topic":  forecast.Topic,
+	})
 }

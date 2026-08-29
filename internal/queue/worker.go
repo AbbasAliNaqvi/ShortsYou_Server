@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
@@ -20,8 +21,10 @@ func NewWorker(redisURL string, log zerolog.Logger) (*Worker, error) {
 	}
 
 	srv := asynq.NewServer(opt, asynq.Config{
-		Concurrency: 5,
-		// Priority queues — critical jobs jump the line.
+		Concurrency:              3,
+		HealthCheckInterval:      30 * time.Second,
+		DelayedTaskCheckInterval: 10 * time.Second,
+
 		Queues: map[string]int{
 			"critical": 6,
 			"default":  3,
@@ -44,6 +47,7 @@ func (w *Worker) Start() error {
 	if err := w.server.Start(w.mux); err != nil {
 		return fmt.Errorf("worker.Start: %w", err)
 	}
+
 	return nil
 }
 
