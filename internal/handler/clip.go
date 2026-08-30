@@ -3,6 +3,9 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -364,16 +367,15 @@ func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
 		return
 	}
 
-	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	clipIDStr := c.Param("id")
+
+	id, err := primitive.ObjectIDFromHex(clipIDStr)
 	if err != nil {
 		response.BadRequest(c, "invalid clip id")
 		return
 	}
 
-	clip, err := h.clipRepo.FindByID(
-		c.Request.Context(),
-		id,
-	)
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		response.NotFound(c, "clip")
 		return
@@ -391,40 +393,54 @@ func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
 	}
 
 	if clip.SupabaseShortURL == "" {
-		response.BadRequest(c, "clip has not been exported yet")
+		response.BadRequest(c, "exported clip has no output URL")
 		return
 	}
 
-	objectKey := fmt.Sprintf(
-		"%s/%s/%s.mp4",
+	if h.supabase == nil {
+		fmt.Println("[download] supabase client is nil")
+		response.InternalError(c)
+		return
+	}
+
+	objectKey, err := extractProcessedObjectKey(
+		clip.SupabaseShortURL,
 		queue.ProcessedClipBucket,
-		userID.Hex(),
-		clip.ID.Hex(),
+	)
+	if err != nil {
+		fmt.Printf(
+			"[download] invalid stored output URL: %v\n",
+			err,
+		)
+		response.InternalError(c)
+		return
+	}
+
+	fmt.Printf(
+		"[download] bucket=%s object=%s\n",
+		queue.ProcessedClipBucket,
+		objectKey,
 	)
 
 	signedURL, err := h.supabase.SignedURL(
 		c.Request.Context(),
 		queue.ProcessedClipBucket,
-		fmt.Sprintf(
-			"%s/%s.mp4",
-			userID.Hex(),
-			clip.ID.Hex(),
-		),
-		900,
+		objectKey,
+		3600,
 	)
 	if err != nil {
+		fmt.Printf(
+			"[download] signed URL generation failed: %v\n",
+			err,
+		)
 		response.InternalError(c)
 		return
 	}
 
 	response.OK(c, gin.H{
+		"clipId":      clipIDStr,
 		"downloadUrl": signedURL,
-		"expiresIn":   900,
-		"filename": fmt.Sprintf(
-			"shortsyou-%s.mp4",
-			clip.ID.Hex(),
-		),
-		"objectKey": objectKey,
+		"expiresIn":   3600,
 	})
 }
 
@@ -494,4 +510,175 @@ func isValidStatusTransition(
 	default:
 		return false
 	}
+}
+
+func extractProcessedObjectKey(outputURL, bucket string) (string, error) {
+	outputURL = strings.TrimSpace(outputURL)
+
+	if outputURL == "" {
+		return "", fmt.Errorf("output URL is empty")
+	}
+
+	// If the callback already gives us an object key,
+	// accept it directly.
+	if !strings.HasPrefix(outputURL, "http://") &&
+		!strings.HasPrefix(outputURL, "https://") {
+		key := strings.TrimLeft(outputURL, "/")
+
+		prefix := bucket + "/"
+		if strings.HasPrefix(key, prefix) {
+			key = strings.TrimPrefix(key, prefix)
+		}
+
+		if key == "" {
+			return "", fmt.Errorf("empty object key")
+		}
+
+		return key, nil
+	}
+
+	u, err := url.Parse(outputURL)
+	if err != nil {
+		return "", fmt.Errorf("parse output URL: %w", err)
+	}
+
+	// Expected:
+	// /storage/v1/object/public/<bucket>/<object>
+	// /storage/v1/object/sign/<bucket>/<object>
+	marker := "/storage/v1/object/"
+
+	idx := strings.Index(u.Path, marker)
+	if idx == -1 {
+		return "", fmt.Errorf(
+			"output URL is not a Supabase storage URL: %s",
+			outputURL,
+		)
+	}
+
+	remainder := strings.TrimPrefix(
+		u.Path[idx+len(marker):],
+		"/",
+	)
+
+	parts := strings.SplitN(remainder, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf(
+			"cannot extract bucket/object from output URL",
+		)
+	}
+
+	// parts[0] can be "public", "sign", etc.
+	// Find the bucket name in the remaining path.
+	remaining := remainder
+
+	for _, mode := range []string{"public", "sign", "authenticated"} {
+		prefix := mode + "/" + bucket + "/"
+
+		if strings.HasPrefix(remaining, prefix) {
+			key := strings.TrimPrefix(remaining, prefix)
+
+			if key == "" {
+				return "", fmt.Errorf("empty object key")
+			}
+
+			return key, nil
+		}
+	}
+
+	return "", fmt.Errorf(
+		"bucket %q not found in output URL path %q",
+		bucket,
+		u.Path,
+	)
+}
+
+func (h *ClipHandler) ApproveClip(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid clip id")
+		return
+	}
+
+	if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusDetected); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+		"status":     "approved",
+		"approvedAt": time.Now(),
+		"updatedAt":  time.Now(),
+	}); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"clipId":  c.Param("id"),
+		"status":  "approved",
+		"message": "clip approved and ready for export",
+	})
+}
+
+func (h *ClipHandler) RejectClip(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid clip id")
+		return
+	}
+
+	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+		"status":     "rejected",
+		"rejectedAt": time.Now(),
+		"updatedAt":  time.Now(),
+	}); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"clipId":  c.Param("id"),
+		"status":  "rejected",
+		"message": "clip rejected and archived",
+	})
+}
+
+func (h *ClipHandler) ListPendingClips(c *gin.Context) {
+	userIDStr, _ := c.Get("userID")
+	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+	if err != nil {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
+	clips, err := h.clipRepo.FindByStatus(c.Request.Context(), userID, "detected")
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"clips": clips,
+		"count": len(clips),
+	})
+}
+
+func (h *ClipHandler) ListApprovedClips(c *gin.Context) {
+	userIDStr, _ := c.Get("userID")
+	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+	if err != nil {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
+	clips, err := h.clipRepo.FindByStatus(c.Request.Context(), userID, "approved")
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"clips": clips,
+		"count": len(clips),
+	})
 }

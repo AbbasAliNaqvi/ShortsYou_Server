@@ -54,7 +54,9 @@ func New(
 	abRepo *repository.ABExperimentRepository,
 	queueClient *queue.Client,
 	llmRotator *llm.Rotator,
+	supabase *storage.SupabaseClient,
 ) *Server {
+
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
@@ -62,6 +64,7 @@ func New(
 	}
 
 	router := gin.New()
+
 	s := &Server{
 		cfg:         cfg,
 		log:         log,
@@ -78,7 +81,9 @@ func New(
 		abRepo:      abRepo,
 		queueClient: queueClient,
 		llmRotator:  llmRotator,
+		supabase:    supabase,
 	}
+
 	s.registerRoutes(router)
 
 	s.http = &http.Server{
@@ -89,11 +94,15 @@ func New(
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+
 	return s
 }
 
 func (s *Server) Start() error {
-	s.log.Info().Str("addr", s.http.Addr).Msg("HTTP server listening")
+	s.log.Info().
+		Str("addr", s.http.Addr).
+		Msg("HTTP server listening")
+
 	return s.http.ListenAndServe()
 }
 

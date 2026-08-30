@@ -137,6 +137,7 @@ func main() {
 		dnaRepo, personaRepo, trendRepo, abRepo,
 		queueClient,
 		llmRotator,
+		supabase,
 	)
 
 	go func() {

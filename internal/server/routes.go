@@ -160,6 +160,26 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			clipHandler.MarkPublished,
 		)
 
+		protected.GET(
+			"/clips/pending",
+			clipHandler.ListPendingClips,
+		)
+
+		protected.GET(
+			"/clips/approved",
+			clipHandler.ListApprovedClips,
+		)
+
+		protected.PATCH(
+			"/clips/:id/approve",
+			clipHandler.ApproveClip,
+		)
+
+		protected.PATCH(
+			"/clips/:id/reject",
+			clipHandler.RejectClip,
+		)
+
 		analyticsHandler := handler.NewAnalyticsHandler(
 			s.dnaRepo,
 			s.personaRepo,

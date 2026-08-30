@@ -9,9 +9,10 @@ import (
 	yt "google.golang.org/api/youtube/v3"
 )
 
+
+// Works for any public YouTube channel.
 type PublicClient struct {
-	svc    *yt.Service
-	apiKey string
+	svc *yt.Service
 }
 
 func NewPublicClient(ctx context.Context, apiKey string) (*PublicClient, error) {
@@ -19,7 +20,7 @@ func NewPublicClient(ctx context.Context, apiKey string) (*PublicClient, error) 
 	if err != nil {
 		return nil, fmt.Errorf("youtube.NewPublicClient: %w", err)
 	}
-	return &PublicClient{svc: svc, apiKey: apiKey}, nil
+	return &PublicClient{svc: svc}, nil
 }
 
 type ChannelResult struct {
@@ -34,6 +35,7 @@ type ChannelResult struct {
 	IsOwned         bool   `json:"isOwned"`
 }
 
+// SearchChannel finds a YouTube channel by name, handle, or URL.
 func (c *PublicClient) SearchChannel(ctx context.Context, query string) (*ChannelResult, error) {
 	resp, err := c.svc.Search.
 		List([]string{"snippet"}).
@@ -49,10 +51,8 @@ func (c *PublicClient) SearchChannel(ctx context.Context, query string) (*Channe
 		return nil, fmt.Errorf("channel not found: %s", query)
 	}
 
-	item := resp.Items[0]
-	channelID := item.Snippet.ChannelId
+	channelID := resp.Items[0].Snippet.ChannelId
 
-	// Fetch full channel details
 	details, err := c.svc.Channels.
 		List([]string{"snippet", "statistics"}).
 		Id(channelID).
@@ -66,20 +66,30 @@ func (c *PublicClient) SearchChannel(ctx context.Context, query string) (*Channe
 	}
 
 	ch := details.Items[0]
+
+	thumbnailURL := ""
+	if ch.Snippet.Thumbnails != nil {
+		if ch.Snippet.Thumbnails.High != nil {
+			thumbnailURL = ch.Snippet.Thumbnails.High.Url
+		} else if ch.Snippet.Thumbnails.Default != nil {
+			thumbnailURL = ch.Snippet.Thumbnails.Default.Url
+		}
+	}
+
 	return &ChannelResult{
 		ChannelID:       ch.Id,
 		Title:           ch.Snippet.Title,
 		Description:     ch.Snippet.Description,
-		ThumbnailURL:    ch.Snippet.Thumbnails.High.Url,
+		ThumbnailURL:    thumbnailURL,
 		SubscriberCount: ch.Statistics.SubscriberCount,
 		VideoCount:      ch.Statistics.VideoCount,
 		ViewCount:       ch.Statistics.ViewCount,
 		CustomURL:       ch.Snippet.CustomUrl,
-		IsOwned:         false, // only true when accessed via OAuth
+		IsOwned:         false,
 	}, nil
 }
 
-// FetchPublicVideos returns videos from any public channel using only API key.
+// FetchPublicVideos returns the most viewed videos from any public channel.
 func (c *PublicClient) FetchPublicVideos(ctx context.Context, channelID string, maxResults int64) ([]VideoMeta, error) {
 	resp, err := c.svc.Search.
 		List([]string{"id"}).
@@ -102,10 +112,10 @@ func (c *PublicClient) FetchPublicVideos(ctx context.Context, channelID string, 
 		return nil, nil
 	}
 
-	return c.fetchDetails(ctx, ids)
+	return c.fetchPublicDetails(ctx, ids)
 }
 
-func (c *PublicClient) fetchDetails(ctx context.Context, ids []string) ([]VideoMeta, error) {
+func (c *PublicClient) fetchPublicDetails(ctx context.Context, ids []string) ([]VideoMeta, error) {
 	resp, err := c.svc.Videos.
 		List([]string{"snippet", "statistics", "contentDetails"}).
 		Id(ids...).
@@ -130,5 +140,6 @@ func (c *PublicClient) fetchDetails(ctx context.Context, ids []string) ([]VideoM
 			CommentCount:    int64(item.Statistics.CommentCount),
 		})
 	}
+
 	return videos, nil
 }

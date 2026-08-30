@@ -14,7 +14,7 @@ import (
 type InternalHandler struct {
 	clipRepo    *repository.ClipRepository
 	videoRepo   *repository.VideoRepository
-	fmRepo      *repository.FeatureMatrixRepository
+	fmRepo      *repository.FeatureMatrixRepository 
 	dnaRepo     *repository.CreatorDNARepository
 	personaRepo *repository.PersonaRepository
 	trendRepo   *repository.TrendForecastRepository

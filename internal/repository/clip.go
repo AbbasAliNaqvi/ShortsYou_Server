@@ -152,3 +152,28 @@ func (r *ClipRepository) UpdateFields(ctx context.Context, id primitive.ObjectID
 	}
 	return nil
 }
+
+// FindByStatus returns all clips for a user matching a specific status string.
+func (r *ClipRepository) FindByStatus(
+	ctx context.Context,
+	userID primitive.ObjectID,
+	status string,
+) ([]models.Clip, error) {
+	opts := options.Find().
+		SetSort(bson.D{{Key: "viralScore", Value: -1}})
+
+	cursor, err := r.col.Find(ctx, bson.M{
+		"userId": userID,
+		"status": status,
+	}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("FindByStatus: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var clips []models.Clip
+	if err := cursor.All(ctx, &clips); err != nil {
+		return nil, fmt.Errorf("decode clips: %w", err)
+	}
+	return clips, nil
+}

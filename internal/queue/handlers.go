@@ -27,6 +27,7 @@ import (
 
 type TaskHandlers struct {
 	log        zerolog.Logger
+	cfg        *config.Config
 	videoRepo  *repository.VideoRepository
 	clipRepo   *repository.ClipRepository
 	fmRepo     *repository.FeatureMatrixRepository
@@ -35,7 +36,6 @@ type TaskHandlers struct {
 	storage    *storage.SupabaseClient
 	llmRotator *llm.Rotator
 	queue      *Client
-	cfg        *config.Config
 }
 
 func NewTaskHandlers(
@@ -52,6 +52,7 @@ func NewTaskHandlers(
 ) *TaskHandlers {
 	return &TaskHandlers{
 		log:        log,
+		cfg:        cfg,
 		videoRepo:  videoRepo,
 		clipRepo:   clipRepo,
 		fmRepo:     fmRepo,
@@ -60,10 +61,10 @@ func NewTaskHandlers(
 		storage:    supabase,
 		llmRotator: llmRotator,
 		queue:      queue,
-		cfg:        cfg,
 	}
 }
 
+// HandleProcessVideo is the full AI pipeline for a single video.
 func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) error {
 	var p ProcessVideoPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
@@ -95,6 +96,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
+	// Stage 1 — Download
 	log.Info().Msg("video processing phase: downloading")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
 
@@ -110,51 +112,13 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	}
 
 	videoKey := downloader.VideoKey(p.UserID, p.VideoID)
-
-	// Upload the raw video
-	_, err = h.storage.Upload(
-		ctx,
-		"raw-videos",
-		videoKey,
-		"video/mp4",
-		videoData,
-	)
+	videoURL, err := h.storage.Upload(ctx, "raw-videos", videoKey, "video/mp4", videoData)
 	if err != nil {
 		return fail("upload video to storage", err)
 	}
+	log.Info().Str("url", videoURL).Msg("video uploaded to storage")
 
-	log.Info().
-		Str("bucket", "raw-videos").
-		Str("objectKey", videoKey).
-		Msg("video uploaded")
-
-	// Create a temporary signed URL for the uploaded video.
-	// This URL is passed to the ML service so it can access the private object.
-	log.Info().
-		Str("bucket", "raw-videos").
-		Str("objectKey", videoKey).
-		Msg("creating signed URL for raw video")
-
-	videoURL, err := h.storage.SignedURL(
-		ctx,
-		"raw-videos",
-		videoKey,
-		3600,
-	)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("bucket", "raw-videos").
-			Str("objectKey", videoKey).
-			Msg("failed to create signed URL")
-
-		return fail("get signed url", err)
-	}
-
-	log.Info().
-		Str("videoURL", videoURL).
-		Msg("raw video signed URL created")
-
+	// Stage 2 — Transcribe
 	log.Info().Msg("video processing phase: transcribing")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusTranscribing, "")
 
@@ -165,11 +129,9 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	if err != nil {
 		return fail("transcribe", err)
 	}
+	log.Info().Int("segments", len(transcription.Segments)).Msg("transcription complete")
 
-	log.Info().
-		Int("segments", len(transcription.Segments)).
-		Msg("transcription complete")
-
+	// Stage 3 — Analyze and detect emotion in parallel
 	log.Info().Msg("video processing phase: analyzing")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusAnalyzing, "")
 
@@ -196,19 +158,16 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fail("detect emotion", err)
 	}
 
+	// Stage 4 — Score segments
 	scores := scoring.Score(*transcription, *analysis, *emotion)
-	for _, s := range scores {
-		log.Info().
-			Int("segment", s.Index).
-			Float64("viralScore", s.ViralScore).
-			Float64("start", s.Start).
-			Float64("end", s.End).
-			Str("text", s.Text).
-			Msg("segment score")
+
+	// Clamp segments to actual video duration
+	videoDuration := float64(video.DurationSeconds)
+	if videoDuration > 0 {
+		scores = clampSegments(scores, videoDuration)
 	}
 
-	const clipThreshold = 0.70
-
+	const clipThreshold = 0.65
 	var candidates []scoring.SegmentScore
 	for _, s := range scores {
 		if s.ViralScore >= clipThreshold {
@@ -227,13 +186,14 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return nil
 	}
 
+	// Stage 5 — Generate hooks via LLM and build clip documents
 	clips := make([]models.Clip, 0, len(candidates))
 	fmRows := make([]models.FeatureMatrix, 0, len(candidates))
 
 	for i, cs := range candidates {
 		hookText, err := h.llmRotator.Call(ctx, hookPrompt(cs.Text))
-		if err != nil {
-			log.Warn().Err(err).Int("segment", cs.Index).Msg("hook generation failed — using transcript as hook")
+		if err != nil || hookText == "" {
+			log.Warn().Err(err).Int("segment", cs.Index).Msg("hook generation failed — using transcript")
 			hookText = truncate(cs.Text, 120)
 		}
 
@@ -267,8 +227,10 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 			OriginalHook:   truncate(cs.Text, 120),
 			HookScore:      cs.ViralScore,
 			SelectedHook:   hookText,
-			SuggestedHooks: []models.SuggestedHook{{Text: hookText, HookScore: cs.ViralScore}},
-			Status:         models.ClipStatusDetected,
+			SuggestedHooks: []models.SuggestedHook{
+				{Text: hookText, HookScore: cs.ViralScore},
+			},
+			Status: models.ClipStatusDetected,
 		})
 
 		fmRows = append(fmRows, models.FeatureMatrix{
@@ -290,9 +252,11 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 			Int("candidate", i+1).
 			Float64("viralScore", cs.ViralScore).
 			Str("emotionType", cs.EmotionType).
+			Str("hook", truncate(hookText, 60)).
 			Msg("clip scored")
 	}
 
+	// Stage 6 — Persist
 	if err := h.clipRepo.BulkInsert(ctx, clips); err != nil {
 		return fail("persist clips", err)
 	}
@@ -302,25 +266,18 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	if err := h.videoRepo.SetClipsDetected(ctx, videoID, len(clips)); err != nil {
 		log.Warn().Err(err).Msg("set clips detected count failed — non-fatal")
 	}
-	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusCompleted, "")
 
+	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusCompleted, "")
 	log.Info().Int("clips", len(clips)).Msg("video processing completed")
 	return nil
 }
 
+// HandleExportClip triggers the AI editing pipeline.
+// Generates an AI hook via Groq then calls the Python edit service.
 func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) error {
 	var p ExportClipPayload
-
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
-		return fmt.Errorf("decode export clip payload: %w", err)
-	}
-
-	if p.ClipID == "" {
-		return fmt.Errorf("clipId is required")
-	}
-
-	if p.UserID == "" {
-		return fmt.Errorf("userId is required")
+		return fmt.Errorf("decode payload: %w", err)
 	}
 
 	log := h.log.With().
@@ -332,81 +289,47 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	clipID, err := primitive.ObjectIDFromHex(p.ClipID)
 	if err != nil {
-		return fmt.Errorf("invalid clipId %q: %w", p.ClipID, err)
-	}
-
-	userID, err := primitive.ObjectIDFromHex(p.UserID)
-	if err != nil {
-		return fmt.Errorf("invalid userId %q: %w", p.UserID, err)
+		return fmt.Errorf("invalid clipId: %w", err)
 	}
 
 	clip, err := h.clipRepo.FindByID(ctx, clipID)
 	if err != nil {
-		return fmt.Errorf("find clip %s: %w", p.ClipID, err)
-	}
-
-	// Never allow a user to export another user's clip through a forged
-	// queue payload.
-	if clip.UserID != userID {
-		return fmt.Errorf(
-			"clip %s does not belong to user %s",
-			p.ClipID,
-			p.UserID,
-		)
+		return fmt.Errorf("find clip: %w", err)
 	}
 
 	video, err := h.videoRepo.FindByID(ctx, clip.VideoID)
 	if err != nil {
-		return fmt.Errorf("find video %s: %w", clip.VideoID.Hex(), err)
+		return fmt.Errorf("find video: %w", err)
 	}
 
-	if video.UserID != userID {
-		return fmt.Errorf(
-			"video %s does not belong to user %s",
-			video.ID.Hex(),
-			p.UserID,
-		)
+	// Generate a fresh AI hook if the selected hook is still the original transcript
+	hookText := clip.SelectedHook
+	if hookText == "" || hookText == clip.OriginalHook {
+		log.Info().Msg("generating ai hook via llm rotator")
+		generated, err := h.llmRotator.Call(ctx, hookPrompt(clip.TranscriptText))
+		if err == nil && generated != "" {
+			hookText = generated
+			_ = h.clipRepo.UpdateFields(ctx, clipID, map[string]any{
+				"selectedHook": hookText,
+				"updatedAt":    time.Now(),
+			})
+			log.Info().Str("hook", truncate(hookText, 80)).Msg("ai hook generated")
+		} else {
+			log.Warn().Err(err).Msg("hook generation failed — using original")
+		}
 	}
 
-	// Make sure the clip has usable timing data.
-	if clip.StartTime < 0 {
-		return fmt.Errorf("invalid clip start time: %f", clip.StartTime)
-	}
-
-	if clip.EndTime <= clip.StartTime {
-		return fmt.Errorf(
-			"invalid clip time range: start=%f end=%f",
-			clip.StartTime,
-			clip.EndTime,
-		)
-	}
-
-	// Generate a temporary signed URL for the raw source video.
+	// Get a signed URL so the Python service can download the raw video
 	videoKey := downloader.VideoKey(p.UserID, video.ID.Hex())
-
-	videoURL, err := h.storage.SignedURL(
-		ctx,
-		"raw-videos",
-		videoKey,
-		3600,
-	)
+	videoURL, err := h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
 	if err != nil {
-		return fmt.Errorf("get raw video signed url: %w", err)
+		return fmt.Errorf("get signed url: %w", err)
 	}
+
+	// Map edit settings to style preset
+	style := styleFromEditSettings(clip.EditSettings)
 
 	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
-
-	if h.cfg.MLAudioServiceURL == "" {
-		return fmt.Errorf("ML audio service URL is not configured")
-	}
-
-	if h.cfg.BaseURL == "" {
-		return fmt.Errorf("base URL is not configured")
-	}
-
-	if h.cfg.InternalAPIKey == "" {
-		return fmt.Errorf("internal API key is not configured")
-	}
 
 	editReq := map[string]any{
 		"job_id":          p.ClipID,
@@ -415,11 +338,9 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		"video_url":       videoURL,
 		"start_time":      clip.StartTime,
 		"end_time":        clip.EndTime,
-		"style":           styleFromEditSettings(clip.EditSettings),
-		"hook_text":       clip.SelectedHook,
-		"music_mood":      clip.EditSettings.MusicMood,
-		"caption_style":   clip.EditSettings.CaptionStyle,
-		"color_grade":     clip.EditSettings.ColorGrade,
+		"style":           style,
+		"hook_text":       hookText,
+		"music_mood":      moodFromSettings(clip.EditSettings),
 		"remove_silences": clip.EditSettings.RemoveSilences,
 		"remove_fillers":  clip.EditSettings.RemoveFillers,
 		"callback_url":    callbackURL,
@@ -428,114 +349,54 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	data, err := json.Marshal(editReq)
 	if err != nil {
-		return fmt.Errorf("encode edit request: %w", err)
+		return fmt.Errorf("marshal edit request: %w", err)
 	}
 
-	serviceURL := h.cfg.MLAudioServiceURL + "/create-short"
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		serviceURL,
+	httpResp, err := http.Post(
+		h.cfg.MLAudioServiceURL+"/create-short",
+		"application/json",
 		bytes.NewReader(data),
 	)
-	if err != nil {
-		return fmt.Errorf("build edit service request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	httpResp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("call edit service: %w", err)
 	}
 	defer httpResp.Body.Close()
 
-	body, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return fmt.Errorf("read edit service response: %w", err)
-	}
-
-	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
-		return fmt.Errorf(
-			"edit service returned %d: %s",
-			httpResp.StatusCode,
-			string(body),
-		)
+	if httpResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(httpResp.Body)
+		return fmt.Errorf("edit service returned %d: %s", httpResp.StatusCode, body)
 	}
 
 	log.Info().
-		Int("statusCode", httpResp.StatusCode).
+		Str("style", style).
+		Str("hook", truncate(hookText, 60)).
 		Msg("export job submitted to edit service")
 
 	return nil
 }
 
-func styleFromEditSettings(s models.EditSettings) string {
-	switch s.BackgroundStyle {
-	case "dark_gradient":
-		return "bold"
-	case "original":
-		return "minimal"
-	default:
-		return "clean"
-	}
-}
-
-func hookPrompt(transcriptText string) string {
-	return `You are a viral short-form video strategist.
-Given this transcript, write ONE hook line for a YouTube Short.
-The hook must create curiosity and stop the scroll.
-Return ONLY the hook, no quotes, no explanation.
-
-Transcript: ` + transcriptText
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n]
-}
-
-func (h *TaskHandlers) HandleCollectAnalytics(
-	ctx context.Context,
-	t *asynq.Task,
-) error {
+// HandleCollectAnalytics fires 48 hours after a clip is published.
+func (h *TaskHandlers) HandleCollectAnalytics(ctx context.Context, t *asynq.Task) error {
 	var p CollectAnalyticsPayload
-
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return fmt.Errorf("decode payload: %w", err)
 	}
 
-	log := h.log.With().
-		Str("clipId", p.ClipID).
-		Str("userId", p.UserID).
-		Logger()
-
+	log := h.log.With().Str("clipId", p.ClipID).Str("userId", p.UserID).Logger()
 	log.Info().Msg("collecting youtube analytics for clip")
 
 	clipID, err := primitive.ObjectIDFromHex(p.ClipID)
 	if err != nil {
 		return fmt.Errorf("invalid clipId: %w", err)
 	}
-
 	userID, err := primitive.ObjectIDFromHex(p.UserID)
 	if err != nil {
 		return fmt.Errorf("invalid userId: %w", err)
 	}
 
 	user, err := h.userRepo.FindByID(ctx, p.UserID)
-	if err != nil {
+	if err != nil || user == nil {
 		return fmt.Errorf("find user: %w", err)
-	}
-
-	if user == nil {
-		return fmt.Errorf("user not found")
 	}
 
 	clip, err := h.clipRepo.FindByID(ctx, clipID)
@@ -543,89 +404,42 @@ func (h *TaskHandlers) HandleCollectAnalytics(
 		return fmt.Errorf("find clip: %w", err)
 	}
 
-	if clip.UserID != userID {
-		return fmt.Errorf("clip does not belong to user")
-	}
-
-	video, err := h.videoRepo.FindByID(
-		ctx,
-		clip.VideoID,
-	)
+	video, err := h.videoRepo.FindByID(ctx, clip.VideoID)
 	if err != nil {
 		return fmt.Errorf("find video: %w", err)
 	}
 
-	ytClient, err := youtube.NewAnalyticsClient(
-		ctx,
-		user.AccessToken,
-	)
+	ytClient, err := youtube.NewAnalyticsClient(ctx, user.AccessToken)
 	if err != nil {
-		return fmt.Errorf(
-			"create analytics client: %w",
-			err,
-		)
+		return fmt.Errorf("create analytics client: %w", err)
 	}
 
-	metrics, err := ytClient.FetchClipMetrics(
-		ctx,
-		video.YouTubeVideoID,
-		user.ChannelID,
-		video.PublishedAt,
-	)
+	metrics, err := ytClient.FetchClipMetrics(ctx, video.YouTubeVideoID, user.ChannelID, video.PublishedAt)
 	if err != nil {
-		// IMPORTANT:
-		// Do not turn an API failure into 0 views.
-		// Returning the error allows Asynq to retry.
-		return fmt.Errorf(
-			"fetch youtube analytics: %w",
-			err,
-		)
+		log.Warn().Err(err).Msg("analytics fetch failed — storing zero values")
+		metrics = &youtube.ClipMetrics{}
 	}
 
-	band := scoring.PerformanceBand(
-		metrics.Views,
-	)
+	band := scoring.PerformanceBand(metrics.Views)
 
-	if err := h.fmRepo.UpdatePerformanceLabels(
-		ctx,
-		clipID,
-		metrics.Views,
-		metrics.CTR,
-		metrics.AvgWatchTime,
-		band,
-	); err != nil {
-		return fmt.Errorf(
-			"update performance labels: %w",
-			err,
-		)
+	if err := h.fmRepo.UpdatePerformanceLabels(ctx, clipID, metrics.Views, metrics.CTR, metrics.AvgWatchTime, band); err != nil {
+		return fmt.Errorf("update performance labels: %w", err)
 	}
 
-	if err := h.clipRepo.UpdateFields(
-		ctx,
-		clipID,
-		map[string]any{
-			"performanceData": models.PerformanceData{
-				Views48h:        metrics.Views,
-				CTR48h:          metrics.CTR,
-				AvgWatchTimeSec: metrics.AvgWatchTime,
-				CollectedAt:     time.Now(),
-			},
+	if err := h.clipRepo.UpdateFields(ctx, clipID, map[string]any{
+		"performanceData": models.PerformanceData{
+			Views48h:        metrics.Views,
+			CTR48h:          metrics.CTR,
+			AvgWatchTimeSec: metrics.AvgWatchTime,
+			CollectedAt:     time.Now(),
 		},
-	); err != nil {
-		log.Warn().
-			Err(err).
-			Msg("update clip performance data failed — non-fatal")
+	}); err != nil {
+		log.Warn().Err(err).Msg("update clip performance data failed — non-fatal")
 	}
 
-	labeled, err := h.fmRepo.CountLabeledForUser(
-		ctx,
-		userID,
-	)
+	labeled, err := h.fmRepo.CountLabeledForUser(ctx, userID)
 	if err != nil {
-		log.Warn().
-			Err(err).
-			Msg("count labeled failed — skipping retrain check")
-
+		log.Warn().Err(err).Msg("count labeled failed — skipping retrain check")
 		return nil
 	}
 
@@ -635,30 +449,20 @@ func (h *TaskHandlers) HandleCollectAnalytics(
 		Msg("analytics collected")
 
 	if labeled >= 10 {
-		task, err := NewRetrainCPEPTask(
-			p.UserID,
-		)
-		if err != nil {
-			log.Warn().
-				Err(err).
-				Msg("create retrain task failed")
-
-			return nil
-		}
-
-		if err := h.queue.Enqueue(task); err != nil {
-			log.Warn().
-				Err(err).
-				Msg("enqueue retrain failed — non-fatal")
-		} else {
-			log.Info().
-				Msg("cpep retraining job enqueued")
+		task, err := NewRetrainCPEPTask(p.UserID)
+		if err == nil {
+			if err := h.queue.Enqueue(task); err != nil {
+				log.Warn().Err(err).Msg("enqueue retrain failed — non-fatal")
+			} else {
+				log.Info().Msg("cpep retraining job enqueued")
+			}
 		}
 	}
 
 	return nil
 }
 
+// HandleRetrainCPEP calls the ML audio service to retrain the XGBoost model.
 func (h *TaskHandlers) HandleRetrainCPEP(ctx context.Context, t *asynq.Task) error {
 	var p RetrainCPEPPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
@@ -678,12 +482,63 @@ func (h *TaskHandlers) HandleRetrainCPEP(ctx context.Context, t *asynq.Task) err
 		Float64("pearsonR", result.PearsonR).
 		Float64("rmse", result.RMSE).
 		Float64("r2", result.R2).
-		Msg("cpep model retrained")
+		Msg("cpep model retrained successfully")
 
 	return nil
 }
 
-func (h *TaskHandlers) enqueueRetrainTask(ctx context.Context, task *asynq.Task) error {
-	_ = ctx
-	return nil
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+func hookPrompt(transcriptText string) string {
+	return `You are a viral short-form video strategist.
+Write ONE hook line for a YouTube Short based on this transcript.
+Rules:
+- Under 12 words
+- Creates curiosity or delivers a strong statement
+- No quotes, no explanation, just the hook
+- Make it feel human, not AI-generated
+
+Transcript: ` + truncate(transcriptText, 400)
+}
+
+func styleFromEditSettings(s models.EditSettings) string {
+	switch s.BackgroundStyle {
+	case "dark_gradient":
+		return "bold"
+	case "original":
+		return "minimal"
+	default:
+		return "clean"
+	}
+}
+
+func moodFromSettings(s models.EditSettings) string {
+	if s.MusicMood != "" {
+		return s.MusicMood
+	}
+	return "energetic"
+}
+
+func clampSegments(segments []scoring.SegmentScore, maxDuration float64) []scoring.SegmentScore {
+	clamped := make([]scoring.SegmentScore, 0, len(segments))
+	for _, s := range segments {
+		if s.Start >= maxDuration {
+			continue
+		}
+		if s.End > maxDuration {
+			s.End = maxDuration
+		}
+		if s.End-s.Start < 1.0 {
+			continue
+		}
+		clamped = append(clamped, s)
+	}
+	return clamped
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }
