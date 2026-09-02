@@ -243,12 +243,22 @@ func (r *VideoRepository) UpdateStatus(
 		return fmt.Errorf("update video status: %w", err)
 	}
 
+	fmt.Printf(
+		"UPDATE VIDEO: db=%s collection=%s id=%s matched=%d modified=%d\n",
+		r.col.Database().Name(),
+		r.col.Name(),
+		id.Hex(),
+		result.MatchedCount,
+		result.ModifiedCount,
+	)
+
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("video not found: %s", id.Hex())
 	}
 
 	return nil
 }
+
 
 func (r *VideoRepository) UpdateFields(
 	ctx context.Context,
