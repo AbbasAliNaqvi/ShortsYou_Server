@@ -37,6 +37,8 @@ type Config struct {
 	GeminiKeys []string
 
 	AllowedOrigins []string
+
+	MLAPIKey string
 }
 
 func Load() (*Config, error) {
@@ -74,6 +76,7 @@ func Load() (*Config, error) {
 		MLAudioServiceURL: v.GetString("ML_AUDIO_SERVICE_URL"),
 
 		InternalAPIKey: v.GetString("INTERNAL_API_KEY"),
+		MLAPIKey: v.GetString("ML_API_KEY"),
 	}
 
 	for i := 1; i <= 5; i++ {

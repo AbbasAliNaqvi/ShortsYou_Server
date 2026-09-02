@@ -93,6 +93,16 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			"/forecast/done",
 			internalHandler.ForecastDone,
 		)
+
+		internal.POST(
+			"/transcription/done",
+			internalHandler.TranscriptionDone,
+		)
+
+		internal.POST(
+			"/analysis/done",
+			internalHandler.AnalysisDone,
+		)	
 	}
 
 	protected := r.Group("/api/v1")
@@ -112,6 +122,8 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			s.userRepo,
 			s.queueClient,
 			s.oauthCfg,
+			s.jobRepo,
+			s.cfg,
 		)
 
 		protected.POST(
@@ -124,25 +136,20 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			videoHandler.ListVideos,
 		)
 
+		protected.POST(
+			"/channels/:channelId/videos/:youtubeVideoId/process",
+			videoHandler.ProcessPublicVideo,
+		)
+
+		protected.GET(
+			"/jobs/:jobId",
+			videoHandler.GetJobStatus,
+		)
+
 		clipHandler := handler.NewClipHandler(
 			s.clipRepo,
 			s.queueClient,
 			s.supabase,
-		)
-
-		protected.GET(
-			"/clips",
-			clipHandler.ListClips,
-		)
-
-		protected.GET(
-			"/clips/:id",
-			clipHandler.GetClip,
-		)
-
-		protected.PATCH(
-			"/clips/:id",
-			clipHandler.UpdateClip,
 		)
 
 		protected.POST(
@@ -178,6 +185,21 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		protected.PATCH(
 			"/clips/:id/reject",
 			clipHandler.RejectClip,
+		)
+
+		protected.GET(
+			"/clips",
+			clipHandler.ListClips,
+		)
+
+		protected.GET(
+			"/clips/:id",
+			clipHandler.GetClip,
+		)
+
+		protected.PATCH(
+			"/clips/:id",
+			clipHandler.UpdateClip,
 		)
 
 		analyticsHandler := handler.NewAnalyticsHandler(

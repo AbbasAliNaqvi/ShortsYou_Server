@@ -1,6 +1,10 @@
 package ml
 
-// NLP Service types — sent to and received from port 8000
+type TranscribeRequest struct {
+	VideoID  string `json:"videoId"`
+	AudioURL string `json:"audioUrl"`
+}
+
 type WordTimestamp struct {
 	Word        string  `json:"word"`
 	Start       float64 `json:"start"`
@@ -9,14 +13,16 @@ type WordTimestamp struct {
 }
 
 type FillerWord struct {
-	Word  string  `json:"word"`
-	Start float64 `json:"start"`
-	End   float64 `json:"end"`
+	Word        string  `json:"word"`
+	Start       float64 `json:"start"`
+	End         float64 `json:"end"`
+	Probability float64 `json:"probability"`
 }
 
 type SilenceGap struct {
-	Start float64 `json:"start"`
-	End   float64 `json:"end"`
+	Start    float64 `json:"start"`
+	End      float64 `json:"end"`
+	Duration float64 `json:"duration"`
 }
 
 type TranscriptSegment struct {
@@ -25,18 +31,24 @@ type TranscriptSegment struct {
 	End         float64         `json:"end"`
 	Text        string          `json:"text"`
 	Words       []WordTimestamp `json:"words"`
-	FillerWords []FillerWord    `json:"fillerWords"`
-	SilenceGaps []SilenceGap    `json:"silenceGaps"`
-}
-
-type TranscribeRequest struct {
-	VideoID  string `json:"videoId"`
-	AudioURL string `json:"audioUrl"`
 }
 
 type TranscribeResponse struct {
-	Segments []TranscriptSegment `json:"segments"`
-	Language string              `json:"language"`
+	Segments    []TranscriptSegment `json:"segments"`
+	FillerWords []FillerWord        `json:"fillerWords"`
+	SilenceGaps []SilenceGap        `json:"silenceGaps"`
+	Language    string              `json:"language"`
+}
+
+
+type AnalyzeRequest struct {
+	JobID       string              `json:"job_id"`
+	VideoID     string              `json:"video_id"`
+	UserID      string              `json:"user_id"`
+	Language    string              `json:"language"`
+	Segments    []TranscriptSegment `json:"segments"`
+	FillerWords []FillerWord        `json:"fillerWords"`
+	SilenceGaps []SilenceGap        `json:"silenceGaps"`
 }
 
 type AnalyzedSegment struct {
@@ -46,17 +58,14 @@ type AnalyzedSegment struct {
 	NoveltyScore   float64   `json:"noveltyScore"`
 	ClarityScore   float64   `json:"clarityScore"`
 	Embedding      []float64 `json:"embedding"`
+	HookScore      float64   `json:"hookScore"`
+	SuggestedHook  string    `json:"suggestedHook"`
 }
 
 type TopicWeight struct {
 	Topic  string  `json:"topic"`
+	Label  string  `json:"label"`
 	Weight float64 `json:"weight"`
-}
-
-type AnalyzeRequest struct {
-	VideoID  string              `json:"videoId"`
-	UserID   string              `json:"userId"`
-	Segments []TranscriptSegment `json:"segments"`
 }
 
 type AnalyzeResponse struct {
@@ -64,11 +73,17 @@ type AnalyzeResponse struct {
 	TopicDistribution []TopicWeight     `json:"topicDistribution"`
 }
 
-// Audio/Video Service types — sent to and received from port 8001
 
 type SegmentWindow struct {
+	Index int     `json:"index"`
 	Start float64 `json:"start"`
 	End   float64 `json:"end"`
+}
+
+type EmotionRequest struct {
+	VideoID  string          `json:"videoId"`
+	AudioURL string          `json:"audioUrl"`
+	Segments []SegmentWindow `json:"segments"`
 }
 
 type EmotionSegment struct {
@@ -80,39 +95,25 @@ type EmotionSegment struct {
 	PitchVariation      float64 `json:"pitchVariation"`
 }
 
-type EmotionRequest struct {
-	VideoID  string          `json:"videoId"`
-	AudioURL string          `json:"audioUrl"`
-	Segments []SegmentWindow `json:"segments"`
-}
-
 type EmotionResponse struct {
 	Segments []EmotionSegment `json:"segments"`
 }
 
-type EditSettingsML struct {
-	BackgroundStyle string `json:"backgroundStyle"`
-	ColorGrade      string `json:"colorGrade"`
-	MusicMood       string `json:"musicMood"`
-	CaptionStyle    string `json:"captionStyle"`
-	RemoveSilences  bool   `json:"removeSilences"`
-	RemoveFillers   bool   `json:"removeFillers"`
-}
 
 type GenerateShortRequest struct {
-	ClipID       string         `json:"clipId"`
-	UserID       string         `json:"userId"`
-	VideoURL     string         `json:"videoUrl"`
-	StartTime    float64        `json:"startTime"`
-	EndTime      float64        `json:"endTime"`
-	EditSettings EditSettingsML `json:"editSettings"`
-	CallbackURL  string         `json:"callbackUrl"`
+	ClipID      string  `json:"clipId"`
+	UserID      string  `json:"userId"`
+	VideoURL    string  `json:"videoUrl"`
+	StartTime   float64 `json:"startTime"`
+	EndTime     float64 `json:"endTime"`
+	CallbackURL string  `json:"callbackUrl"`
 }
 
 type GenerateShortResponse struct {
 	OutputURL string  `json:"outputUrl"`
 	Duration  float64 `json:"duration"`
 }
+
 
 type TrainCPEPRequest struct {
 	UserID string `json:"userId"`

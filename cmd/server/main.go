@@ -109,14 +109,18 @@ func main() {
 		mlClient = ml.NewClient(
 			cfg.MLNLPServiceURL,
 			cfg.MLAudioServiceURL,
+			cfg.MLAPIKey,
+			cfg.BaseURL,
 		)
 	}
 
 	supabase := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)
 
+	jobRepo := repository.NewJobRepository(mongo)
+
 	taskHandlers := queue.NewTaskHandlers(
 		log, videoRepo, clipRepo, fmRepo, userRepo,
-		mlClient, supabase, llmRotator, queueClient, cfg,
+		jobRepo, mlClient, supabase, llmRotator, queueClient, cfg,
 	)
 	worker.Register(queue.TypeProcessVideo, taskHandlers.HandleProcessVideo)
 	worker.Register(queue.TypeExportClip, taskHandlers.HandleExportClip)
@@ -138,6 +142,7 @@ func main() {
 		queueClient,
 		llmRotator,
 		supabase,
+		jobRepo,
 	)
 
 	go func() {

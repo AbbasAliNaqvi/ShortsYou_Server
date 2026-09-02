@@ -289,3 +289,35 @@ func (r *VideoRepository) SetClipsDetected(ctx context.Context, id primitive.Obj
 	}
 	return nil
 }
+
+
+// Used for public channel videos that bypass the bulk sync flow.
+func (r *VideoRepository) Insert(ctx context.Context, video models.Video) error {
+	now := time.Now()
+	video.CreatedAt = now
+	video.UpdatedAt = now
+	_, err := r.col.InsertOne(ctx, video)
+	if err != nil {
+		return fmt.Errorf("Insert: %w", err)
+	}
+	return nil
+}
+
+func (r *VideoRepository) FindByYouTubeID(
+	ctx context.Context,
+	ytVideoID string,
+	userID primitive.ObjectID,
+) (*models.Video, error) {
+	var video models.Video
+	err := r.col.FindOne(ctx, bson.M{
+		"youtubeVideoId": ytVideoID,
+		"userId":         userID,
+	}).Decode(&video)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("FindByYouTubeID: %w", err)
+	}
+	return &video, nil
+}

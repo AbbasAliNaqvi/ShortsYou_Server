@@ -38,6 +38,17 @@ func NewInternalHandler(
 	}
 }
 
+type transcriptionDoneRequest struct {
+	VideoID     string                   `json:"videoId"     binding:"required"`
+	UserID      string                   `json:"userId"`
+	Segments    []models.TranscriptSegment `json:"segments"`
+	FillerWords []models.FillerWord      `json:"fillerWords"`
+	SilenceGaps []models.SilenceGap      `json:"silenceGaps"`
+	Language    string                   `json:"language"`
+	Error       string                   `json:"error"`
+}
+
+
 type shortDoneRequest struct {
 	JobID         string  `json:"job_id"`
 	ClipID        string  `json:"clipId"`
@@ -290,5 +301,104 @@ func (h *InternalHandler) ForecastDone(c *gin.Context) {
 	response.OK(c, gin.H{
 		"userId": forecast.UserID.Hex(),
 		"topic":  forecast.Topic,
+	})
+}
+
+func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
+	var req transcriptionDoneRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid body")
+		return
+	}
+
+	videoID, err := primitive.ObjectIDFromHex(req.VideoID)
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+
+	// ---------------------------------------------------------
+	// FAILURE CALLBACK
+	// ---------------------------------------------------------
+
+	if req.Error != "" {
+		if err := h.videoRepo.UpdateStatus(
+			c.Request.Context(),
+			videoID,
+			models.StatusFailed,
+			req.Error,
+		); err != nil {
+			response.InternalError(c)
+			return
+		}
+
+		response.OK(c, gin.H{
+			"status": "error recorded",
+		})
+		return
+	}
+
+	// ---------------------------------------------------------
+	// SUCCESS CALLBACK
+	// ---------------------------------------------------------
+
+	// Mark video as ready for the analysis stage.
+	if err := h.videoRepo.UpdateStatus(
+		c.Request.Context(),
+		videoID,
+		models.StatusAnalyzing,
+		"",
+	); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	// TODO: Store req.Segments, req.FillerWords and req.SilenceGaps
+	// in MongoDB and enqueue the analysis task.
+
+	response.OK(c, gin.H{
+		"status":   "received",
+		"segments": len(req.Segments),
+	})
+}
+
+
+type analysisDoneRequest struct {
+	VideoID           string                 `json:"videoId"           binding:"required"`
+	UserID            string                 `json:"userId"`
+	Segments          []AnalyzedSegmentResult `json:"segments"`
+	TopicDistribution []TopicWeight          `json:"topicDistribution"`
+	Error             string                 `json:"error"`
+}
+
+type AnalyzedSegmentResult struct {
+	Index          int      `json:"index"`
+	SemanticScore  float64  `json:"semanticScore"`
+	NoveltyScore   float64  `json:"noveltyScore"`
+	ClarityScore   float64  `json:"clarityScore"`
+	HookScore      float64  `json:"hookScore"`
+	SemanticLabels []string `json:"semanticLabels"`
+	SuggestedHook  string   `json:"suggestedHook"`
+}
+
+type TopicWeight struct {
+	Topic  string  `json:"topic"`
+	Weight float64 `json:"weight"`
+}
+
+// POST /api/internal/analysis/done
+func (h *InternalHandler) AnalysisDone(c *gin.Context) {
+	var req analysisDoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid body")
+		return
+	}
+
+	// scoring + clip creation goes here
+	// For now confirm receipt
+	response.OK(c, gin.H{
+		"status":   "received",
+		"segments": len(req.Segments),
 	})
 }

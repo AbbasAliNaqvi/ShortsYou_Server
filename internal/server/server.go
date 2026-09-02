@@ -36,6 +36,7 @@ type Server struct {
 	queueClient *queue.Client
 	llmRotator  *llm.Rotator
 	supabase    *storage.SupabaseClient
+	jobRepo     *repository.JobRepository
 }
 
 func New(
@@ -55,6 +56,7 @@ func New(
 	queueClient *queue.Client,
 	llmRotator *llm.Rotator,
 	supabase *storage.SupabaseClient,
+	jobRepo     *repository.JobRepository,
 ) *Server {
 
 	if cfg.Env == "production" {
@@ -82,6 +84,7 @@ func New(
 		queueClient: queueClient,
 		llmRotator:  llmRotator,
 		supabase:    supabase,
+		jobRepo: jobRepo,
 	}
 
 	s.registerRoutes(router)

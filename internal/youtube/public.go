@@ -143,3 +143,7 @@ func (c *PublicClient) fetchPublicDetails(ctx context.Context, ids []string) ([]
 
 	return videos, nil
 }
+
+func (c *PublicClient) FetchPublicVideoDetails(ctx context.Context, ids []string) ([]VideoMeta, error) {
+	return c.fetchPublicDetails(ctx, ids)
+}

@@ -32,6 +32,7 @@ type TaskHandlers struct {
 	clipRepo   *repository.ClipRepository
 	fmRepo     *repository.FeatureMatrixRepository
 	userRepo   *repository.UserRepository
+	jobRepo    *repository.JobRepository
 	mlClient   ml.Service
 	storage    *storage.SupabaseClient
 	llmRotator *llm.Rotator
@@ -44,6 +45,7 @@ func NewTaskHandlers(
 	clipRepo *repository.ClipRepository,
 	fmRepo *repository.FeatureMatrixRepository,
 	userRepo *repository.UserRepository,
+	jobRepo *repository.JobRepository,
 	mlClient ml.Service,
 	supabase *storage.SupabaseClient,
 	llmRotator *llm.Rotator,
@@ -57,6 +59,7 @@ func NewTaskHandlers(
 		clipRepo:   clipRepo,
 		fmRepo:     fmRepo,
 		userRepo:   userRepo,
+		jobRepo:    jobRepo,
 		mlClient:   mlClient,
 		storage:    supabase,
 		llmRotator: llmRotator,
@@ -75,15 +78,8 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	if err != nil {
 		return fmt.Errorf("invalid videoId: %w", err)
 	}
-	userID, err := primitive.ObjectIDFromHex(p.UserID)
-	if err != nil {
-		return fmt.Errorf("invalid userId: %w", err)
-	}
 
-	log := h.log.With().
-		Str("videoId", p.VideoID).
-		Str("userId", p.UserID).
-		Logger()
+	log := h.log.With().Str("videoId", p.VideoID).Str("userId", p.UserID).Logger()
 
 	video, err := h.videoRepo.FindByID(ctx, videoID)
 	if err != nil {
@@ -91,13 +87,13 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	}
 
 	fail := func(stage string, err error) error {
-		log.Error().Err(err).Str("stage", stage).Msg("video processing failed")
+		log.Error().Err(err).Str("stage", stage).Msg("processing failed")
 		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusFailed, err.Error())
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	// Stage 1 — Download
-	log.Info().Msg("video processing phase: downloading")
+	// Stage 1 — Download and upload to Supabase
+	log.Info().Msg("downloading video")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
 
 	dl, err := downloader.Download(ctx, video.YouTubeVideoID)
@@ -108,171 +104,34 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 
 	videoData, err := os.ReadFile(dl.FilePath)
 	if err != nil {
-		return fail("read downloaded file", err)
+		return fail("read file", err)
 	}
 
 	videoKey := downloader.VideoKey(p.UserID, p.VideoID)
 	videoURL, err := h.storage.Upload(ctx, "raw-videos", videoKey, "video/mp4", videoData)
 	if err != nil {
-		return fail("upload video to storage", err)
+		return fail("upload", err)
 	}
-	log.Info().Str("url", videoURL).Msg("video uploaded to storage")
+	log.Info().Str("url", videoURL).Msg("video uploaded")
 
-	// Stage 2 — Transcribe
-	log.Info().Msg("video processing phase: transcribing")
+	// Stage 2 — Fire async transcription
+	// Results come back via /api/internal/transcription/done
+	log.Info().Msg("requesting transcription from ML service")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusTranscribing, "")
 
-	transcription, err := h.mlClient.Transcribe(ctx, ml.TranscribeRequest{
+	_, err = h.mlClient.Transcribe(ctx, ml.TranscribeRequest{
 		VideoID:  p.VideoID,
 		AudioURL: videoURL,
 	})
 	if err != nil {
 		return fail("transcribe", err)
 	}
-	log.Info().Int("segments", len(transcription.Segments)).Msg("transcription complete")
 
-	// Stage 3 — Analyze and detect emotion in parallel
-	log.Info().Msg("video processing phase: analyzing")
-	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusAnalyzing, "")
-
-	analysis, err := h.mlClient.Analyze(ctx, ml.AnalyzeRequest{
-		VideoID:  p.VideoID,
-		UserID:   p.UserID,
-		Segments: transcription.Segments,
-	})
-	if err != nil {
-		return fail("analyze", err)
-	}
-
-	windows := make([]ml.SegmentWindow, len(transcription.Segments))
-	for i, s := range transcription.Segments {
-		windows[i] = ml.SegmentWindow{Start: s.Start, End: s.End}
-	}
-
-	emotion, err := h.mlClient.DetectEmotion(ctx, ml.EmotionRequest{
-		VideoID:  p.VideoID,
-		AudioURL: videoURL,
-		Segments: windows,
-	})
-	if err != nil {
-		return fail("detect emotion", err)
-	}
-
-	// Stage 4 — Score segments
-	scores := scoring.Score(*transcription, *analysis, *emotion)
-
-	// Clamp segments to actual video duration
-	videoDuration := float64(video.DurationSeconds)
-	if videoDuration > 0 {
-		scores = clampSegments(scores, videoDuration)
-	}
-
-	const clipThreshold = 0.65
-	var candidates []scoring.SegmentScore
-	for _, s := range scores {
-		if s.ViralScore >= clipThreshold {
-			candidates = append(candidates, s)
-		}
-	}
-
-	log.Info().
-		Int("segments", len(scores)).
-		Int("candidates", len(candidates)).
-		Msg("clip detection complete")
-
-	if len(candidates) == 0 {
-		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusCompleted, "")
-		log.Info().Msg("video processing completed — no clips above threshold")
-		return nil
-	}
-
-	// Stage 5 — Generate hooks via LLM and build clip documents
-	clips := make([]models.Clip, 0, len(candidates))
-	fmRows := make([]models.FeatureMatrix, 0, len(candidates))
-
-	for i, cs := range candidates {
-		hookText, err := h.llmRotator.Call(ctx, hookPrompt(cs.Text))
-		if err != nil || hookText == "" {
-			log.Warn().Err(err).Int("segment", cs.Index).Msg("hook generation failed — using transcript")
-			hookText = truncate(cs.Text, 120)
-		}
-
-		clipID := primitive.NewObjectID()
-
-		posRatio := 0.0
-		if video.DurationSeconds > 0 {
-			posRatio = cs.Start / float64(video.DurationSeconds)
-		}
-
-		clips = append(clips, models.Clip{
-			ID:               clipID,
-			VideoID:          videoID,
-			UserID:           userID,
-			StartTime:        cs.Start,
-			EndTime:          cs.End,
-			DurationSeconds:  cs.End - cs.Start,
-			TranscriptText:   cs.Text,
-			Category:         models.CategoryViral,
-			ViralScore:       cs.ViralScore,
-			GenericPredScore: cs.ViralScore,
-			Scores: models.ClipScores{
-				Emotion:        cs.EmotionScore,
-				SemanticImpact: cs.SemanticImpactScore,
-				SpeechEmphasis: cs.SpeechEmphasisScore,
-				Clarity:        cs.ClarityScore,
-				Novelty:        cs.NoveltyScore,
-			},
-			SemanticLabels: cs.SemanticLabels,
-			EmotionType:    cs.EmotionType,
-			OriginalHook:   truncate(cs.Text, 120),
-			HookScore:      cs.ViralScore,
-			SelectedHook:   hookText,
-			SuggestedHooks: []models.SuggestedHook{
-				{Text: hookText, HookScore: cs.ViralScore},
-			},
-			Status: models.ClipStatusDetected,
-		})
-
-		fmRows = append(fmRows, models.FeatureMatrix{
-			ID:                  primitive.NewObjectID(),
-			ClipID:              clipID,
-			VideoID:             videoID,
-			UserID:              userID,
-			EmotionScore:        cs.EmotionScore,
-			SemanticImpactScore: cs.SemanticImpactScore,
-			SpeechEmphasisScore: cs.SpeechEmphasisScore,
-			ClarityScore:        cs.ClarityScore,
-			NoveltyScore:        cs.NoveltyScore,
-			HookScore:           cs.ViralScore,
-			DurationSeconds:     cs.End - cs.Start,
-			VideoPositionRatio:  posRatio,
-		})
-
-		log.Info().
-			Int("candidate", i+1).
-			Float64("viralScore", cs.ViralScore).
-			Str("emotionType", cs.EmotionType).
-			Str("hook", truncate(hookText, 60)).
-			Msg("clip scored")
-	}
-
-	// Stage 6 — Persist
-	if err := h.clipRepo.BulkInsert(ctx, clips); err != nil {
-		return fail("persist clips", err)
-	}
-	if err := h.fmRepo.BulkInsert(ctx, fmRows); err != nil {
-		return fail("persist feature matrix", err)
-	}
-	if err := h.videoRepo.SetClipsDetected(ctx, videoID, len(clips)); err != nil {
-		log.Warn().Err(err).Msg("set clips detected count failed — non-fatal")
-	}
-
-	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusCompleted, "")
-	log.Info().Int("clips", len(clips)).Msg("video processing completed")
+	// Job hands off here — Mayank's service will callback when transcription is done
+	log.Info().Msg("transcription job accepted — waiting for callback")
 	return nil
 }
 
-// HandleExportClip triggers the AI editing pipeline.
 // Generates an AI hook via Groq then calls the Python edit service.
 func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) error {
 	var p ExportClipPayload
@@ -345,6 +204,8 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		"remove_fillers":  clip.EditSettings.RemoveFillers,
 		"callback_url":    callbackURL,
 		"callback_key":    h.cfg.InternalAPIKey,
+		"layout":          layoutFromSettings(clip.EditSettings),
+		"emotion_type":    clip.EmotionType,
 	}
 
 	data, err := json.Marshal(editReq)
@@ -541,4 +402,11 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+func layoutFromSettings(s models.EditSettings) string {
+	if s.BackgroundStyle == "two_frame" {
+		return "two_frame"
+	}
+	return "standard"
 }
