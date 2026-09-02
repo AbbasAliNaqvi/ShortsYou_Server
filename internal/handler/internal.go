@@ -2,6 +2,7 @@ package handler
 
 import (
 	"time"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -308,24 +309,28 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 	var req transcriptionDoneRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "invalid body")
+		response.BadRequest(c, "invalid body: "+err.Error())
 		return
 	}
 
 	videoID, err := primitive.ObjectIDFromHex(req.VideoID)
 	if err != nil {
-		response.BadRequest(c, "invalid videoId")
+		response.BadRequest(c, "invalid video id: "+err.Error())
 		return
 	}
 
-	// ML service reported a transcription failure.
+	// Handle ML transcription failure.
 	if req.Error != "" {
-		if err := h.videoRepo.UpdateStatus(
+		err := h.videoRepo.UpdateFields(
 			c.Request.Context(),
 			videoID,
-			models.StatusFailed,
-			req.Error,
-		); err != nil {
+			map[string]any{
+				"processingStatus": "failed",
+				"errorLog":         req.Error,
+			},
+		)
+		if err != nil {
+			fmt.Printf("TRANSCRIPTION ERROR UPDATE FAILED: %v\n", err)
 			response.InternalError(c)
 			return
 		}
@@ -336,25 +341,27 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 		return
 	}
 
-	// Store transcription and move video to analyzing.
-	if err := h.videoRepo.UpdateTranscription(
+	// Store transcription status.
+	err = h.videoRepo.UpdateFields(
 		c.Request.Context(),
 		videoID,
-		req.Segments,
-		req.FillerWords,
-		req.SilenceGaps,
-		req.Language,
-	); err != nil {
+		map[string]any{
+			"processingStatus": "analyzing",
+		},
+	)
+	if err != nil {
+		fmt.Printf("TRANSCRIPTION UPDATE FAILED: %v\n", err)
 		response.InternalError(c)
 		return
 	}
 
 	response.OK(c, gin.H{
 		"status":   "received",
-		"videoId":   req.VideoID,
+		"videoId":  req.VideoID,
 		"segments": len(req.Segments),
 	})
 }
+
 
 
 

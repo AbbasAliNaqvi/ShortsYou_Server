@@ -250,6 +250,34 @@ func (r *VideoRepository) UpdateStatus(
 	return nil
 }
 
+func (r *VideoRepository) UpdateFields(
+	ctx context.Context,
+	id primitive.ObjectID,
+	fields map[string]any,
+) error {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	fields["updatedAt"] = time.Now()
+
+	result, err := r.col.UpdateOne(
+		ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": fields},
+	)
+	if err != nil {
+		return fmt.Errorf("update video fields: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("video not found: %s", id.Hex())
+	}
+
+	return nil
+}
+
+
 func (r *VideoRepository) UpdateTranscription(
 	ctx context.Context,
 	id primitive.ObjectID,
