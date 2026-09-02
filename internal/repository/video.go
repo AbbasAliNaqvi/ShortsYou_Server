@@ -250,6 +250,41 @@ func (r *VideoRepository) UpdateStatus(
 	return nil
 }
 
+func (r *VideoRepository) UpdateTranscription(
+	ctx context.Context,
+	id primitive.ObjectID,
+	segments []models.TranscriptSegment,
+	fillerWords []models.FillerWord,
+	silenceGaps []models.SilenceGap,
+	language string,
+) error {
+	fields := bson.M{
+		"processingStatus": models.StatusAnalyzing,
+		"transcript": bson.M{
+			"segments":    segments,
+			"fillerWords": fillerWords,
+			"silenceGaps": silenceGaps,
+			"language":    language,
+		},
+		"updatedAt": time.Now(),
+	}
+
+	result, err := r.col.UpdateOne(
+		ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": fields},
+	)
+	if err != nil {
+		return fmt.Errorf("update video transcription: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("video not found: %s", id.Hex())
+	}
+
+	return nil
+}
+
 func (r *VideoRepository) UpdateClipsDetected(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -289,7 +324,6 @@ func (r *VideoRepository) SetClipsDetected(ctx context.Context, id primitive.Obj
 	}
 	return nil
 }
-
 
 // Used for public channel videos that bypass the bulk sync flow.
 func (r *VideoRepository) Insert(ctx context.Context, video models.Video) error {

@@ -314,14 +314,11 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 
 	videoID, err := primitive.ObjectIDFromHex(req.VideoID)
 	if err != nil {
-		response.BadRequest(c, "invalid video id")
+		response.BadRequest(c, "invalid videoId")
 		return
 	}
 
-	// ---------------------------------------------------------
-	// FAILURE CALLBACK
-	// ---------------------------------------------------------
-
+	// ML service reported a transcription failure.
 	if req.Error != "" {
 		if err := h.videoRepo.UpdateStatus(
 			c.Request.Context(),
@@ -339,29 +336,26 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 		return
 	}
 
-	// ---------------------------------------------------------
-	// SUCCESS CALLBACK
-	// ---------------------------------------------------------
-
-	// Mark video as ready for the analysis stage.
-	if err := h.videoRepo.UpdateStatus(
+	// Store transcription and move video to analyzing.
+	if err := h.videoRepo.UpdateTranscription(
 		c.Request.Context(),
 		videoID,
-		models.StatusAnalyzing,
-		"",
+		req.Segments,
+		req.FillerWords,
+		req.SilenceGaps,
+		req.Language,
 	); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	// TODO: Store req.Segments, req.FillerWords and req.SilenceGaps
-	// in MongoDB and enqueue the analysis task.
-
 	response.OK(c, gin.H{
 		"status":   "received",
+		"videoId":   req.VideoID,
 		"segments": len(req.Segments),
 	})
 }
+
 
 
 type analysisDoneRequest struct {
