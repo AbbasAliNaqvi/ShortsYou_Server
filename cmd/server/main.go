@@ -97,6 +97,8 @@ func main() {
 	personaRepo := repository.NewPersonaRepository(mongo)
 	trendRepo := repository.NewTrendForecastRepository(mongo)
 	abRepo := repository.NewABExperimentRepository(mongo)
+	transcriptRepo := repository.NewTranscriptRepository(mongo)
+
 
 	// Services
 	oauthCfg := auth.NewOAuthConfig(cfg)
@@ -143,6 +145,7 @@ func main() {
 		llmRotator,
 		supabase,
 		jobRepo,
+		transcriptRepo,
 	)
 
 	go func() {

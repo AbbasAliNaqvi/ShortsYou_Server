@@ -50,7 +50,6 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		"/api/v1/channels/:channelId/videos",
 		channelHandler.GetChannelVideos,
 	)
-
 	internalHandler := handler.NewInternalHandler(
 		s.clipRepo,
 		s.videoRepo,
@@ -58,8 +57,11 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		s.dnaRepo,
 		s.personaRepo,
 		s.trendRepo,
+		s.transcriptRepo,
+		s.llmRotator,
+		s.cfg,
+		s.log,
 	)
-
 	internal := r.Group("/api/internal")
 
 	internal.Use(
@@ -102,7 +104,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		internal.POST(
 			"/analysis/done",
 			internalHandler.AnalysisDone,
-		)	
+		)
 	}
 
 	protected := r.Group("/api/v1")

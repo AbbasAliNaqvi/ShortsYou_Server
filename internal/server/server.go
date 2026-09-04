@@ -19,24 +19,25 @@ import (
 )
 
 type Server struct {
-	http        *http.Server
-	log         zerolog.Logger
-	cfg         *config.Config
-	mongo       *database.MongoDB
-	redis       *database.RedisClient
-	oauthCfg    *oauth2.Config
-	userRepo    *repository.UserRepository
-	videoRepo   *repository.VideoRepository
-	clipRepo    *repository.ClipRepository
-	fmRepo      *repository.FeatureMatrixRepository
-	dnaRepo     *repository.CreatorDNARepository
-	personaRepo *repository.PersonaRepository
-	trendRepo   *repository.TrendForecastRepository
-	abRepo      *repository.ABExperimentRepository
-	queueClient *queue.Client
-	llmRotator  *llm.Rotator
-	supabase    *storage.SupabaseClient
-	jobRepo     *repository.JobRepository
+	http           *http.Server
+	log            zerolog.Logger
+	cfg            *config.Config
+	mongo          *database.MongoDB
+	redis          *database.RedisClient
+	oauthCfg       *oauth2.Config
+	userRepo       *repository.UserRepository
+	videoRepo      *repository.VideoRepository
+	clipRepo       *repository.ClipRepository
+	fmRepo         *repository.FeatureMatrixRepository
+	dnaRepo        *repository.CreatorDNARepository
+	personaRepo    *repository.PersonaRepository
+	trendRepo      *repository.TrendForecastRepository
+	abRepo         *repository.ABExperimentRepository
+	queueClient    *queue.Client
+	llmRotator     *llm.Rotator
+	supabase       *storage.SupabaseClient
+	jobRepo        *repository.JobRepository
+	transcriptRepo *repository.TranscriptRepository
 }
 
 func New(
@@ -56,7 +57,8 @@ func New(
 	queueClient *queue.Client,
 	llmRotator *llm.Rotator,
 	supabase *storage.SupabaseClient,
-	jobRepo     *repository.JobRepository,
+	jobRepo *repository.JobRepository,
+	transcriptRepo *repository.TranscriptRepository,
 ) *Server {
 
 	if cfg.Env == "production" {
@@ -84,7 +86,8 @@ func New(
 		queueClient: queueClient,
 		llmRotator:  llmRotator,
 		supabase:    supabase,
-		jobRepo: jobRepo,
+		jobRepo:     jobRepo,
+		transcriptRepo: transcriptRepo,
 	}
 
 	s.registerRoutes(router)

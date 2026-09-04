@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"net/http"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,13 +18,17 @@ func InternalKeyAuth(expectedKey string) gin.HandlerFunc {
 			return
 		}
 
-		providedKey := c.GetHeader("X-Internal-API-Key")
+		// Try X-Internal-Key first.
+		providedKey := c.GetHeader("X-Internal-Key")
+
+		// Fall back to X-Internal-API-Key.
+		if providedKey == "" {
+			providedKey = c.GetHeader("X-Internal-API-Key")
+		}
 
 		if providedKey == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   "missing internal API key",
-			})
+			response.Unauthorized(c)
+			c.Abort()
 			return
 		}
 
@@ -31,10 +36,8 @@ func InternalKeyAuth(expectedKey string) gin.HandlerFunc {
 			[]byte(providedKey),
 			[]byte(expectedKey),
 		) != 1 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   "invalid internal API key",
-			})
+			response.Unauthorized(c)
+			c.Abort()
 			return
 		}
 
