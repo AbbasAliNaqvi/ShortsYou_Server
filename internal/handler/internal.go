@@ -34,16 +34,16 @@ type InternalHandler struct {
 }
 
 func NewInternalHandler(
-	clipRepo       *repository.ClipRepository,
-	videoRepo      *repository.VideoRepository,
-	fmRepo         *repository.FeatureMatrixRepository,
-	dnaRepo        *repository.CreatorDNARepository,
-	personaRepo    *repository.PersonaRepository,
-	trendRepo      *repository.TrendForecastRepository,
+	clipRepo *repository.ClipRepository,
+	videoRepo *repository.VideoRepository,
+	fmRepo *repository.FeatureMatrixRepository,
+	dnaRepo *repository.CreatorDNARepository,
+	personaRepo *repository.PersonaRepository,
+	trendRepo *repository.TrendForecastRepository,
 	transcriptRepo *repository.TranscriptRepository,
-	llmRotator     *llm.Rotator,
-	cfg            *config.Config,
-	log            zerolog.Logger,
+	llmRotator *llm.Rotator,
+	cfg *config.Config,
+	log zerolog.Logger,
 ) *InternalHandler {
 	return &InternalHandler{
 		clipRepo:       clipRepo,
@@ -62,13 +62,13 @@ func NewInternalHandler(
 // ── Transcription Done ────────────────────────────────────────────────────────
 
 type transcriptionDoneRequest struct {
-	VideoID     string                           `json:"videoId"     binding:"required"`
-	UserID      string                           `json:"userId"`
-	Segments    []repository.StoredSegment       `json:"segments"`
-	FillerWords []repository.StoredFillerWord    `json:"fillerWords"`
-	SilenceGaps []repository.StoredSilenceGap    `json:"silenceGaps"`
-	Language    string                           `json:"language"`
-	Error       string                           `json:"error"`
+	VideoID     string                        `json:"videoId"     binding:"required"`
+	UserID      string                        `json:"userId"`
+	Segments    []repository.StoredSegment    `json:"segments"`
+	FillerWords []repository.StoredFillerWord `json:"fillerWords"`
+	SilenceGaps []repository.StoredSilenceGap `json:"silenceGaps"`
+	Language    string                        `json:"language"`
+	Error       string                        `json:"error"`
 }
 
 // TranscriptionDone receives Whisper results from Mayank.
@@ -143,7 +143,7 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 // fireAnalyze calls Mayank's /analyze endpoint in a goroutine.
 func (h *InternalHandler) fireAnalyze(
 	videoID, userID, language string,
-	segments    []repository.StoredSegment,
+	segments []repository.StoredSegment,
 	fillerWords []repository.StoredFillerWord,
 	silenceGaps []repository.StoredSilenceGap,
 ) {
@@ -286,18 +286,19 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			SemanticScore:  s.SemanticScore,
 			NoveltyScore:   s.NoveltyScore,
 			ClarityScore:   s.ClarityScore,
-			HookScore:       s.HookScore,
+			HookScore:      s.HookScore,
 			SemanticLabels: s.SemanticLabels,
 			SuggestedHook:  s.SuggestedHook,
 		}
 	}
 
-	// Load video to get duration for clamping
-	video, err := h.videoRepo.FindByID(c.Request.Context(), videoID)
-	if err != nil {
-		log.Error().Err(err).Msg("video not found")
-		response.InternalError(c)
-		return
+	var videoDuration float64 = 3600 // 1 hour default = effectively no clamping
+
+	video, videoErr := h.videoRepo.FindByID(c.Request.Context(), videoID)
+	if videoErr != nil || video == nil {
+		log.Warn().Str("videoId", req.VideoID).Msg("video not in mongodb — creating clips without duration clamping")
+	} else if video.DurationSeconds > 0 {
+		videoDuration = float64(video.DurationSeconds)
 	}
 
 	userID, _ := primitive.ObjectIDFromHex(req.UserID)
@@ -324,10 +325,10 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 
 		// Clamp timestamps to actual video duration
 		end := seg.End
-		if float64(video.DurationSeconds) > 0 && end > float64(video.DurationSeconds) {
-			end = float64(video.DurationSeconds)
+		if float64(videoDuration) > 0 && end > float64(videoDuration) {
+			end = float64(videoDuration)
 		}
-		if seg.Start >= float64(video.DurationSeconds) {
+		if seg.Start >= float64(videoDuration) {
 			continue
 		}
 		if end-seg.Start < 1.0 {
@@ -391,7 +392,7 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 				c.Request.Context(),
 				fmt.Sprintf(
 					"Write ONE viral hook for a YouTube Short under 12 words. "+
-					"Create curiosity. No quotes. Transcript: %s",
+						"Create curiosity. No quotes. Transcript: %s",
 					cs.Text,
 				),
 			)
@@ -402,22 +403,22 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			}
 		}
 
-		clipID  := primitive.NewObjectID()
+		clipID := primitive.NewObjectID()
 		posRatio := 0.0
-		if video.DurationSeconds > 0 {
-			posRatio = cs.Start / float64(video.DurationSeconds)
+		if videoDuration > 0 && videoDuration < 3600 {
+			posRatio = cs.Start / videoDuration
 		}
 
 		clips = append(clips, models.Clip{
-			ID:              clipID,
-			VideoID:         videoID,
-			UserID:          userID,
-			StartTime:       cs.Start,
-			EndTime:         cs.End,
-			DurationSeconds: cs.End - cs.Start,
-			TranscriptText:  cs.Text,
-			Category:        models.CategoryViral,
-			ViralScore:      cs.ViralScore,
+			ID:               clipID,
+			VideoID:          videoID,
+			UserID:           userID,
+			StartTime:        cs.Start,
+			EndTime:          cs.End,
+			DurationSeconds:  cs.End - cs.Start,
+			TranscriptText:   cs.Text,
+			Category:         models.CategoryViral,
+			ViralScore:       cs.ViralScore,
 			GenericPredScore: cs.ViralScore,
 			Scores: models.ClipScores{
 				Emotion:        0.70,
@@ -485,14 +486,14 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 // ── Existing handlers ─────────────────────────────────────────────────────────
 
 type shortDoneRequest struct {
-	JobID        string  `json:"job_id"`
-	ClipID       string  `json:"clipId"       binding:"required"`
-	OutputURL    string  `json:"outputUrl"`
-	ThumbnailURL string  `json:"thumbnailUrl"`
-	Duration     float64 `json:"duration"`
-	FileSizeBytes int64  `json:"fileSizeBytes"`
-	StyleApplied string  `json:"styleApplied"`
-	Error        string  `json:"error"`
+	JobID         string  `json:"job_id"`
+	ClipID        string  `json:"clipId"       binding:"required"`
+	OutputURL     string  `json:"outputUrl"`
+	ThumbnailURL  string  `json:"thumbnailUrl"`
+	Duration      float64 `json:"duration"`
+	FileSizeBytes int64   `json:"fileSizeBytes"`
+	StyleApplied  string  `json:"styleApplied"`
+	Error         string  `json:"error"`
 }
 
 func (h *InternalHandler) ShortDone(c *gin.Context) {
@@ -597,7 +598,10 @@ func (h *InternalHandler) ForecastDone(c *gin.Context) {
 }
 
 func truncateStr(s string, n int) string {
-	if len(s) <= n { return s }
+	if len(s) <= n {
+		return s
+	}
 	return s[:n]
 }
+
 var _ = scoring.PerformanceBand
