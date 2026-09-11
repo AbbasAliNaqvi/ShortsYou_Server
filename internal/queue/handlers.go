@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -203,12 +204,51 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	videoURL, err := h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
 	if err != nil {
-		log.Error().
+		if !strings.Contains(err.Error(), "NoSuchKey") {
+			log.Error().
+				Err(err).
+				Str("videoKey", videoKey).
+				Msg("failed to generate signed video URL")
+			return fmt.Errorf("get signed url: %w", err)
+		}
+
+		log.Warn().
 			Err(err).
 			Str("videoKey", videoKey).
-			Msg("failed to generate signed video URL")
+			Msg("raw video missing — downloading and uploading source")
 
-		return fmt.Errorf("get signed url: %w", err)
+		dl, downloadErr := downloader.Download(ctx, video.YouTubeVideoID)
+		if downloadErr != nil {
+			log.Error().Err(downloadErr).Msg("failed to recover raw video")
+			return fmt.Errorf("recover raw video: %w", downloadErr)
+		}
+		defer dl.Cleanup()
+
+		videoData, readErr := os.ReadFile(dl.FilePath)
+		if readErr != nil {
+			log.Error().Err(readErr).Msg("failed to read recovered raw video")
+			return fmt.Errorf("read recovered raw video: %w", readErr)
+		}
+
+		if _, uploadErr := h.storage.Upload(
+			ctx,
+			"raw-videos",
+			videoKey,
+			"video/mp4",
+			videoData,
+		); uploadErr != nil {
+			log.Error().Err(uploadErr).Msg("failed to upload recovered raw video")
+			return fmt.Errorf("upload recovered raw video: %w", uploadErr)
+		}
+
+		videoURL, err = h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("videoKey", videoKey).
+				Msg("failed to generate signed video URL after recovery")
+			return fmt.Errorf("get signed url after recovery: %w", err)
+		}
 	}
 
 	log.Info().Msg("signed video URL generated")
