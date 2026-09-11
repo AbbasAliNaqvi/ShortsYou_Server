@@ -96,109 +96,49 @@ type updateClipRequest struct {
 }
 
 func (h *ClipHandler) UpdateClip(c *gin.Context) {
-	userID, ok := authenticatedUserID(c)
-	if !ok {
-		response.Unauthorized(c)
-		return
-	}
-
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid clip id")
 		return
 	}
 
-	clip, err := h.clipRepo.FindByID(
-		c.Request.Context(),
-		id,
-	)
-	if err != nil {
-		response.NotFound(c, "clip")
-		return
-	}
-
-	if clip.UserID != userID {
-		response.Forbidden(c)
-		return
-	}
-
 	var req updateClipRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "invalid request body")
 		return
 	}
 
-	if req.Status != nil {
-		status := models.ClipStatus(*req.Status)
-
-		if !isValidClipStatus(status) {
-			response.BadRequest(c, "invalid clip status")
-			return
-		}
-
-		if !isValidStatusTransition(clip.Status, status) {
-			response.BadRequest(c, fmt.Sprintf(
-				"invalid status transition: %s -> %s",
-				clip.Status,
-				status,
-			))
-			return
-		}
-
-		if err := h.clipRepo.UpdateStatus(
-			c.Request.Context(),
-			id,
-			status,
-		); err != nil {
+	// Allow any status reset including "detected" for re-processing
+	if req.Status != "" {
+		if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+			"status":    req.Status,
+			"updatedAt": time.Now(),
+		}); err != nil {
 			response.InternalError(c)
 			return
 		}
 	}
 
-	if req.EditSettings != nil || req.SelectedHook != nil {
-		settings := clip.EditSettings
-
-		if req.EditSettings != nil {
-			settings = *req.EditSettings
-		}
-
-		selectedHook := clip.SelectedHook
-
-		if req.SelectedHook != nil {
-			selectedHook = *req.SelectedHook
-		}
-
+	if req.EditSettings != (models.EditSettings{}) || req.SelectedHook != "" {
 		if err := h.clipRepo.UpdateEditSettings(
-			c.Request.Context(),
-			id,
-			settings,
-			selectedHook,
+			c.Request.Context(), id, req.EditSettings, req.SelectedHook,
 		); err != nil {
 			response.InternalError(c)
 			return
 		}
 	}
 
-	updatedClip, err := h.clipRepo.FindByID(
-		c.Request.Context(),
-		id,
-	)
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	response.OK(c, updatedClip)
+	response.OK(c, clip)
 }
 
 func (h *ClipHandler) ExportClip(c *gin.Context) {
-	userID, ok := authenticatedUserID(c)
-	if !ok {
-		response.Unauthorized(c)
-		return
-	}
-
+	userIDStr, _ := c.Get("userID")
 	clipIDStr := c.Param("id")
 
 	id, err := primitive.ObjectIDFromHex(clipIDStr)
@@ -207,87 +147,49 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 		return
 	}
 
-	clip, err := h.clipRepo.FindByID(
-		c.Request.Context(),
-		id,
-	)
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		response.NotFound(c, "clip")
 		return
 	}
 
-	if clip.UserID != userID {
+	// Ownership check
+	if clip.UserID.Hex() != userIDStr.(string) {
 		response.Forbidden(c)
 		return
 	}
 
-	// Don't enqueue duplicate exports.
-	if clip.Status == models.ClipStatusEditing {
-		response.OK(c, gin.H{
-			"clipId":  clip.ID.Hex(),
-			"status":  clip.Status,
-			"message": "clip export is already in progress",
-		})
-		return
-	}
-
-	if clip.Status == models.ClipStatusExported {
-		response.OK(c, gin.H{
-			"clipId":  clip.ID.Hex(),
-			"status":  clip.Status,
-			"message": "clip has already been exported",
-		})
-		return
-	}
-
-	if clip.Status != models.ClipStatusDetected &&
-		clip.Status != models.ClipStatusFailed {
-		response.BadRequest(c, "clip cannot be exported in its current status")
-		return
-	}
-
-	if err := h.clipRepo.UpdateStatus(
-		c.Request.Context(),
-		id,
-		models.ClipStatusEditing,
-	); err != nil {
+	// Allow force re-export by resetting editing status
+	// This handles stuck jobs from failed previous attempts
+	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+		"status":    string(models.ClipStatusEditing),
+		"updatedAt": time.Now(),
+	}); err != nil {
 		response.InternalError(c)
 		return
 	}
 
-	task, err := queue.NewExportClipTask(
-		clipIDStr,
-		userID.Hex(),
-	)
+	task, err := queue.NewExportClipTask(clipIDStr, userIDStr.(string))
 	if err != nil {
-		// Best effort rollback.
-		_ = h.clipRepo.UpdateStatus(
-			c.Request.Context(),
-			id,
-			clip.Status,
-		)
-
 		response.InternalError(c)
 		return
 	}
 
-	if err := h.queue.Enqueue(task); err != nil {
-		// Best effort rollback.
-		_ = h.clipRepo.UpdateStatus(
-			c.Request.Context(),
-			id,
-			clip.Status,
-		)
-
-		response.InternalError(c)
-		return
+	// Use TaskID to deduplicate — replace existing stuck job
+	if err := h.queue.Enqueue(task,
+		asynq.TaskID("export:"+clipIDStr),
+		asynq.Unique(10*time.Minute),
+		asynq.MaxRetry(2),
+	); err != nil {
+		// If unique constraint fires, force clear and retry
+		_ = h.queue.EnqueueForce(task)
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
 		"success": true,
 		"data": gin.H{
-			"clipId":  clip.ID.Hex(),
-			"status":  models.ClipStatusEditing,
+			"clipId":  clipIDStr,
+			"status":  "editing",
 			"message": "clip queued for export",
 		},
 	})

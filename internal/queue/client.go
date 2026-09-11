@@ -29,3 +29,8 @@ func (c *Client) Enqueue(task *asynq.Task, opts ...asynq.Option) error {
 func (c *Client) Close() error {
 	return c.inner.Close()
 }
+
+func (c *Client) EnqueueForce(task *asynq.Task, opts ...asynq.Option) error {
+	_, err := c.inner.Enqueue(task, opts...)
+	return err
+}
