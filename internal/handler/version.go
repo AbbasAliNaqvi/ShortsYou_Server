@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 )
 
@@ -22,4 +23,12 @@ func Version(c *gin.Context) {
 		"os":        runtime.GOOS,
 		"arch":      runtime.GOARCH,
 	}, "")
+}
+
+func Debug(c *gin.Context, cfg *config.Config) {
+	c.JSON(200, gin.H{
+		"ml_audio_url": cfg.MLAudioServiceURL,
+		"ml_nlp_url":   cfg.MLNLPServiceURL,
+		"base_url":     cfg.BaseURL,
+	})
 }

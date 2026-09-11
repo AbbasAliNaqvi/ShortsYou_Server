@@ -20,6 +20,9 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 
 	r.GET("/health", healthHandler.Check)
 	r.GET("/version", handler.Version)
+	r.GET("/debug/config", func(c *gin.Context) {
+		handler.Debug(c, s.cfg)
+	})
 
 	authHandler := handler.NewAuthHandler(
 		s.cfg,
