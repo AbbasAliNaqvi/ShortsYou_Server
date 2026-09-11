@@ -107,7 +107,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fail("read file", err)
 	}
 
-	videoKey := downloader.VideoKey(p.UserID, p.VideoID)
+	videoKey := downloader.VideoKey(video.UserID.Hex(), video.ID.Hex())
 	videoURL, err := h.storage.Upload(ctx, "raw-videos", videoKey, "video/mp4", videoData)
 	if err != nil {
 		return fail("upload", err)
@@ -195,7 +195,7 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 	}
 
 	// Get a signed URL so the Python service can download the raw video.
-	videoKey := downloader.VideoKey(p.UserID, video.ID.Hex())
+	videoKey := downloader.VideoKey(video.UserID.Hex(), video.ID.Hex())
 
 	log.Info().
 		Str("videoKey", videoKey).
