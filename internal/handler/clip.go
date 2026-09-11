@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
+	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ClipHandler struct {
@@ -108,10 +108,10 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 		return
 	}
 
-	// Allow any status reset including "detected" for re-processing
-	if req.Status != "" {
+	// Allow any status reset including "detected" for re-processing.
+	if req.Status != nil && *req.Status != "" {
 		if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
-			"status":    req.Status,
+			"status":    *req.Status,
 			"updatedAt": time.Now(),
 		}); err != nil {
 			response.InternalError(c)
@@ -119,9 +119,24 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 		}
 	}
 
-	if req.EditSettings != (models.EditSettings{}) || req.SelectedHook != "" {
+	// Update edit settings and/or selected hook when provided.
+	if req.EditSettings != nil || req.SelectedHook != nil {
+		editSettings := models.EditSettings{}
+		selectedHook := ""
+
+		if req.EditSettings != nil {
+			editSettings = *req.EditSettings
+		}
+
+		if req.SelectedHook != nil {
+			selectedHook = *req.SelectedHook
+		}
+
 		if err := h.clipRepo.UpdateEditSettings(
-			c.Request.Context(), id, req.EditSettings, req.SelectedHook,
+			c.Request.Context(),
+			id,
+			editSettings,
+			selectedHook,
 		); err != nil {
 			response.InternalError(c)
 			return
