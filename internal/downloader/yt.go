@@ -3,6 +3,7 @@ package downloader
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,22 +32,38 @@ func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
 	outputTemplate := filepath.Join(tmpDir, "video.%(ext)s")
 	finalPath := filepath.Join(tmpDir, "video.mp4")
 
-	cmd := exec.CommandContext(ctx,
-		"yt-dlp",
-
+	args := []string{
 		"--quiet",
 		"--no-warnings",
-
 		"--format",
 		"bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
-
 		"--output",
 		outputTemplate,
-
 		"--merge-output-format",
 		"mp4",
+	}
 
-		url,
+	if encodedCookies := strings.TrimSpace(os.Getenv("YOUTUBE_COOKIES_BASE64")); encodedCookies != "" {
+		cookies, err := base64.StdEncoding.DecodeString(encodedCookies)
+		if err != nil {
+			cleanup()
+			return nil, fmt.Errorf("decode YOUTUBE_COOKIES_BASE64: %w", err)
+		}
+
+		cookiePath := filepath.Join(tmpDir, "youtube-cookies.txt")
+		if err := os.WriteFile(cookiePath, cookies, 0o600); err != nil {
+			cleanup()
+			return nil, fmt.Errorf("write YouTube cookies: %w", err)
+		}
+
+		args = append(args, "--cookies", cookiePath)
+	}
+
+	args = append(args, url)
+
+	cmd := exec.CommandContext(ctx,
+		"yt-dlp",
+		args...,
 	)
 
 	var stderr bytes.Buffer
