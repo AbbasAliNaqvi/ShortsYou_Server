@@ -148,46 +148,72 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	clipID, err := primitive.ObjectIDFromHex(p.ClipID)
 	if err != nil {
+		log.Error().Err(err).Msg("invalid clip ID")
 		return fmt.Errorf("invalid clipId: %w", err)
 	}
 
 	clip, err := h.clipRepo.FindByID(ctx, clipID)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to find clip")
 		return fmt.Errorf("find clip: %w", err)
 	}
 
+	log.Info().Msg("clip found")
+
 	video, err := h.videoRepo.FindByID(ctx, clip.VideoID)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to find video")
 		return fmt.Errorf("find video: %w", err)
 	}
 
-	// Generate a fresh AI hook if the selected hook is still the original transcript
+	log.Info().
+		Str("videoId", video.ID.Hex()).
+		Msg("video found")
+
+	// Generate a fresh AI hook if the selected hook is still the original transcript.
 	hookText := clip.SelectedHook
 	if hookText == "" || hookText == clip.OriginalHook {
 		log.Info().Msg("generating ai hook via llm rotator")
+
 		generated, err := h.llmRotator.Call(ctx, hookPrompt(clip.TranscriptText))
 		if err == nil && generated != "" {
 			hookText = generated
+
 			_ = h.clipRepo.UpdateFields(ctx, clipID, map[string]any{
 				"selectedHook": hookText,
 				"updatedAt":    time.Now(),
 			})
-			log.Info().Str("hook", truncate(hookText, 80)).Msg("ai hook generated")
+
+			log.Info().
+				Str("hook", truncate(hookText, 80)).
+				Msg("ai hook generated")
 		} else {
-			log.Warn().Err(err).Msg("hook generation failed — using original")
+			log.Warn().
+				Err(err).
+				Msg("hook generation failed — using original")
 		}
 	}
 
-	// Get a signed URL so the Python service can download the raw video
+	// Get a signed URL so the Python service can download the raw video.
 	videoKey := downloader.VideoKey(p.UserID, video.ID.Hex())
+
+	log.Info().
+		Str("videoKey", videoKey).
+		Msg("generating signed video URL")
+
 	videoURL, err := h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("videoKey", videoKey).
+			Msg("failed to generate signed video URL")
+
 		return fmt.Errorf("get signed url: %w", err)
 	}
 
-	// Map edit settings to style preset
-	style := styleFromEditSettings(clip.EditSettings)
+	log.Info().Msg("signed video URL generated")
 
+	style := styleFromEditSettings(clip.EditSettings)
 	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
 
 	editReq := map[string]any{
@@ -210,25 +236,49 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	data, err := json.Marshal(editReq)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to marshal edit request")
 		return fmt.Errorf("marshal edit request: %w", err)
 	}
 
+	editURL := h.cfg.MLAudioServiceURL + "/create-short"
+
+	log.Info().
+		Str("url", editURL).
+		Msg("calling edit service")
+
 	httpResp, err := http.Post(
-		h.cfg.MLAudioServiceURL+"/create-short",
+		editURL,
 		"application/json",
 		bytes.NewReader(data),
 	)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("url", editURL).
+			Msg("call edit service failed")
+
 		return fmt.Errorf("call edit service: %w", err)
 	}
+
 	defer httpResp.Body.Close()
 
+	body, _ := io.ReadAll(httpResp.Body)
+
 	if httpResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(httpResp.Body)
-		return fmt.Errorf("edit service returned %d: %s", httpResp.StatusCode, body)
+		log.Error().
+			Int("status", httpResp.StatusCode).
+			Str("body", string(body)).
+			Msg("edit service returned error")
+
+		return fmt.Errorf(
+			"edit service returned %d: %s",
+			httpResp.StatusCode,
+			body,
+		)
 	}
 
 	log.Info().
+		Int("status", httpResp.StatusCode).
 		Str("style", style).
 		Str("hook", truncate(hookText, 60)).
 		Msg("export job submitted to edit service")
@@ -347,8 +397,6 @@ func (h *TaskHandlers) HandleRetrainCPEP(ctx context.Context, t *asynq.Task) err
 
 	return nil
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 func hookPrompt(transcriptText string) string {
 	return `You are a viral short-form video strategist.
