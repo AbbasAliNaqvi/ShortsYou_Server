@@ -1,0 +1,21 @@
+:root {
+  --color-obsidian: #08090b;
+  --color-obsidian-soft: #0d0e11;
+  --color-obsidian-raised: #15171b;
+  --color-panel: rgba(15, 16, 20, 0.78);
+  --color-panel-solid: #111216;
+  --color-porcelain: #eee7e3;
+  --color-porcelain-muted: #a69d99;
+  --color-porcelain-dim: #706967;
+  --color-crimson-deep: #4b0b10;
+  --color-crimson-matte: #6f1116;
+  --color-crimson: #8f191d;
+  --color-crimson-soft: #b44643;
+  --color-rose: #c89188;
+  --color-success: #78bd91;
+  --shadow-jewel: 0 18px 42px -18px rgba(61, 5, 10, 0.92), inset 0 1px 0 rgba(255, 234, 230, 0.16);
+  --shadow-panel: 0 28px 70px -28px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(238, 231, 227, 0.1);
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: var(--font-hanken), "Helvetica Neue", sans-serif;
+  --font-mono: var(--font-jetbrains), "SFMono-Regular", Consolas, monospace;
+}

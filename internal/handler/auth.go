@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -161,11 +163,16 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		response.InternalError(c)
 		return
 	}
-
-	response.OK(c, gin.H{
-		"token": jwtToken,
-		"user":  saved,
-	})
+	frontendURL, err := url.Parse(h.cfg.FrontendURL)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	frontendURL.Path = strings.TrimRight(frontendURL.Path, "/") + "/dashboard"
+	query := frontendURL.Query()
+	query.Set("token", jwtToken)
+	frontendURL.RawQuery = query.Encode()
+	c.Redirect(http.StatusTemporaryRedirect, frontendURL.String())
 }
 
 // Me returns the authenticated user's profile.

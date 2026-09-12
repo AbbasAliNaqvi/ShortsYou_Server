@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Env     string
-	Port    string
-	BaseURL string
+	Env         string
+	Port        string
+	BaseURL     string
+	FrontendURL string
 
 	MongoURI    string
 	MongoDBName string
@@ -52,9 +53,10 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Env:     v.GetString("ENV"),
-		Port:    v.GetString("PORT"),
-		BaseURL: v.GetString("BASE_URL"),
+		Env:         v.GetString("ENV"),
+		Port:        v.GetString("PORT"),
+		BaseURL:     v.GetString("BASE_URL"),
+		FrontendURL: v.GetString("FRONTEND_URL"),
 
 		MongoURI:    v.GetString("MONGO_URI"),
 		MongoDBName: v.GetString("MONGO_DB_NAME"),
@@ -76,7 +78,7 @@ func Load() (*Config, error) {
 		MLAudioServiceURL: v.GetString("ML_AUDIO_SERVICE_URL"),
 
 		InternalAPIKey: v.GetString("INTERNAL_API_KEY"),
-		MLAPIKey: v.GetString("ML_API_KEY"),
+		MLAPIKey:       v.GetString("ML_API_KEY"),
 	}
 
 	for i := 1; i <= 5; i++ {
@@ -110,6 +112,10 @@ func Load() (*Config, error) {
 
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "http://localhost:" + cfg.Port
+	}
+
+	if cfg.FrontendURL == "" {
+		cfg.FrontendURL = "http://localhost:3000"
 	}
 
 	if cfg.MongoDBName == "" {
