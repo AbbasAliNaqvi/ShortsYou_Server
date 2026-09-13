@@ -51,15 +51,15 @@ func (c *Client) Token() *oauth2.Token {
 }
 
 type VideoMeta struct {
-	YouTubeVideoID  string
-	Title           string
-	Description     string
-	ThumbnailURL    string
-	PublishedAt     time.Time
-	DurationSeconds int64
-	ViewCount       int64
-	LikeCount       int64
-	CommentCount    int64
+	YouTubeVideoID  string    `json:"youtubeVideoId"`
+	Title           string    `json:"title"`
+	Description     string    `json:"description"`
+	ThumbnailURL    string    `json:"thumbnailUrl"`
+	PublishedAt     time.Time `json:"publishedAt"`
+	DurationSeconds int64     `json:"durationSeconds"`
+	ViewCount       int64     `json:"viewCount"`
+	LikeCount       int64     `json:"likeCount"`
+	CommentCount    int64     `json:"commentCount"`
 }
 
 func (c *Client) FetchMyVideos(ctx context.Context) ([]VideoMeta, error) {

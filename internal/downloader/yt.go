@@ -17,8 +17,12 @@ type Result struct {
 	Cleanup     func()
 }
 
+func WatchURL(youtubeVideoID string) string {
+	return "https://www.youtube.com/watch?v=" + youtubeVideoID
+}
+
 func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
-	url := "https://www.youtube.com/watch?v=" + youtubeVideoID
+	url := WatchURL(youtubeVideoID)
 
 	tmpDir, err := os.MkdirTemp("", "shortsyou-download-*")
 	if err != nil {

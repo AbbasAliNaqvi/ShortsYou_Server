@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/database"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
@@ -36,6 +38,24 @@ func (r *JobRepository) FindByJobID(ctx context.Context, jobID string) (*models.
 		return nil, fmt.Errorf("JobRepository.FindByJobID: %w", err)
 	}
 	return &job, nil
+}
+
+func (r *JobRepository) FindByUserID(ctx context.Context, userID primitive.ObjectID, limit int) ([]models.ProcessingJob, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	cursor, err := r.col.Find(ctx, bson.M{"userId": userID}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)))
+	if err != nil {
+		return nil, fmt.Errorf("JobRepository.FindByUserID: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var jobs []models.ProcessingJob
+	if err := cursor.All(ctx, &jobs); err != nil {
+		return nil, fmt.Errorf("JobRepository.FindByUserID decode: %w", err)
+	}
+	return jobs, nil
 }
 
 func (r *JobRepository) UpdateStatus(ctx context.Context, jobID, status, stage string, progress float64) error {

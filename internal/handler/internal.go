@@ -486,20 +486,36 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 // ── Existing handlers ─────────────────────────────────────────────────────────
 
 type shortDoneRequest struct {
-	JobID         string  `json:"job_id"`
-	ClipID        string  `json:"clipId"       binding:"required"`
-	OutputURL     string  `json:"outputUrl"`
-	ThumbnailURL  string  `json:"thumbnailUrl"`
-	Duration      float64 `json:"duration"`
-	FileSizeBytes int64   `json:"fileSizeBytes"`
-	StyleApplied  string  `json:"styleApplied"`
-	Error         string  `json:"error"`
+	JobID              string  `json:"job_id"`
+	ClipID             string  `json:"clipId"`
+	SnakeCaseClipID    string  `json:"clip_id"`
+	OutputURL          string  `json:"outputUrl"`
+	SnakeCaseOutputURL string  `json:"output_url"`
+	ThumbnailURL       string  `json:"thumbnailUrl"`
+	SnakeCaseThumbnail string  `json:"thumbnail_url"`
+	Duration           float64 `json:"duration"`
+	FileSizeBytes      int64   `json:"fileSizeBytes"`
+	StyleApplied       string  `json:"styleApplied"`
+	Error              string  `json:"error"`
 }
 
 func (h *InternalHandler) ShortDone(c *gin.Context) {
 	var req shortDoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "invalid request body")
+		return
+	}
+	if req.ClipID == "" {
+		req.ClipID = req.SnakeCaseClipID
+	}
+	if req.OutputURL == "" {
+		req.OutputURL = req.SnakeCaseOutputURL
+	}
+	if req.ThumbnailURL == "" {
+		req.ThumbnailURL = req.SnakeCaseThumbnail
+	}
+	if req.ClipID == "" {
+		response.BadRequest(c, "clipId or clip_id is required")
 		return
 	}
 
@@ -510,11 +526,14 @@ func (h *InternalHandler) ShortDone(c *gin.Context) {
 	}
 
 	if req.Error != "" {
-		_ = h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
-			"status":    "detected",
+		if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
+			"status":    string(models.ClipStatusFailed),
 			"errorLog":  req.Error,
 			"updatedAt": time.Now(),
-		})
+		}); err != nil {
+			response.InternalError(c)
+			return
+		}
 		response.OK(c, gin.H{"clipId": req.ClipID, "status": "failed"})
 		return
 	}

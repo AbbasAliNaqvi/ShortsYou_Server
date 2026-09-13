@@ -1,0 +1,46 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { BarChart3, Calendar, Download, Eye, Film, Gauge, LayoutDashboard, LogOut, Menu, RefreshCw, Settings2, Sparkles, Target, Users, WandSparkles, X, Zap } from "lucide-react";
+import { api, type Clip, type PerformanceAnalytics, type User } from "@/lib/api";
+
+export function AnalyticsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [performance, setPerformance] = useState<PerformanceAnalytics | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [range, setRange] = useState("7d");
+  const [mobileNav, setMobileNav] = useState(false);
+
+  async function load() {
+    const token = sessionStorage.getItem("shortsyou_jwt");
+    if (!token) { setBusy(false); return; }
+    setBusy(true);
+    const [userResult, clipsResult, performanceResult] = await Promise.allSettled([api.me(token), api.clips(token), api.analytics.performance(token)]);
+    if (userResult.status === "fulfilled") setUser(userResult.value);
+    if (clipsResult.status === "fulfilled") setClips(clipsResult.value);
+    if (performanceResult.status === "fulfilled") setPerformance(performanceResult.value);
+    setBusy(false);
+  }
+
+  useEffect(() => { queueMicrotask(() => void load()); }, []);
+  const topClips = useMemo(() => [...clips].sort((a, b) => b.hookScore - a.hookScore).slice(0, 4), [clips]);
+  const totalViews = performance?.points.reduce((sum, point) => sum + point.actualViews, 0) ?? 0;
+  const averageScore = clips.length ? clips.reduce((sum, clip) => sum + clip.hookScore, 0) / clips.length : 0;
+
+  function signOut() { sessionStorage.removeItem("shortsyou_jwt"); router.push("/login"); }
+
+  return <main className="analytics-page"><aside className={`analytics-rail ${mobileNav ? "open" : ""}`}><div className="analytics-rail-brand"><Link href="/">S</Link><button onClick={() => setMobileNav(false)}><X size={17} /></button></div><nav><Link href="/dashboard"><LayoutDashboard size={18} /></Link><Link href="/editor"><WandSparkles size={18} /></Link><Link href="/clips"><Film size={18} /><b>{clips.length}</b></Link><Link className="active" href="/analytics"><BarChart3 size={18} /></Link><Link href="/discover"><Sparkles size={18} /></Link></nav><div className="analytics-rail-bottom"><button><Settings2 size={17} /></button><button onClick={signOut}><LogOut size={17} /></button></div></aside><div className="analytics-main"><header className="analytics-header"><button className="analytics-menu" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span className="analytics-user">{user?.email ?? "Studio analytics"}</span><button onClick={() => void load()} aria-label="Refresh"><RefreshCw className={busy ? "spin" : ""} size={16} /></button></header><div className="analytics-content"><section className="analytics-heading"><div><span className="analytics-kicker"><Target size={13} /> Algorithmic telemetry</span><h1>Virality &amp; Retention Analytics</h1><p>Real-time performance metrics, hook retention curves, and algorithmic distribution yield across your processed clips.</p></div><div className="analytics-controls"><div>{[["24h", "Last 24 Hours"], ["7d", "Last 7 Days"], ["30d", "Last 30 Days"]].map(([key, label]) => <button className={range === key ? "active" : ""} key={key} onClick={() => setRange(key)}>{label}</button>)}<button><Calendar size={13} /> Custom Range</button></div><button><Download size={14} /> Export Report</button></div></section><section className="analytics-kpis"><Kpi icon={Eye} label="Algorithmic Impressions" value={compact(totalViews)} note="Actual views in connected data" trend="Live" /><Kpi icon={Gauge} label="Average Hook Retention" value={`${averageScore.toFixed(1)}%`} note={`${clips.length} analyzed clips`} trend={averageScore ? "Measured" : "Waiting"} /><Kpi icon={Zap} label="Virality Velocity Index" value={clips.length ? `${Math.min(100, Math.round(averageScore))}` : "--"} note="Composite hook score" trend={performance?.pearsonR ? `r ${performance.pearsonR.toFixed(2)}` : "No baseline"} /><Kpi icon={Users} label="Net Follower Conversion" value="--" note="Connect platform data" trend="Pending" /></section><section className="analytics-columns"><div><RetentionCurve clips={clips} /><PlatformMatrix performance={performance} /></div><Leaderboard clips={topClips} /></section><section className="insight-row"><Insight icon={Target} title="Optimal Hook Cut Duration" value={clips.length ? "Use measured clips" : "Awaiting sample"} text="Your retention baseline will become reliable after processed clips report actual performance." /><Insight icon={Calendar} title="Peak Publishing Hours" value="Connect platform data" text="The platform matrix will surface audience density once analytics collection is enabled." /><Insight icon={Sparkles} title="Kinetic Subtitle Impact" value="Test and compare" text="Use clip exports and performance labels to learn which caption treatments lift completion." /></section></div></div></main>;
+}
+
+function Kpi({ icon: Icon, label, value, note, trend }: { icon: typeof Eye; label: string; value: string; note: string; trend: string }) { return <article className="analytics-kpi"><div><span><Icon size={17} /></span><small>{label}</small></div><strong>{value}</strong><div className="kpi-foot"><em>{note}</em><b>{trend}</b></div></article>; }
+function RetentionCurve({ clips }: { clips: Clip[] }) { const points = clips.length ? clips.slice(0, 8).map((clip, index) => `${index * 70 + 12},${220 - Math.min(150, clip.hookScore * 1.7)}`).join(" ") : "12,40 90,82 170,116 250,145 330,165 430,184 560,202"; return <article className="analytics-panel retention-panel"><div className="panel-heading"><div><h2>Hook Retention Curve &amp; Decay Analysis</h2><p>Second-by-second audience fall-off benchmarked across processed video shorts.</p></div><span>LIVE BASELINE</span></div><div className="retention-chart"><div className="chart-labels"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><svg viewBox="0 0 580 240" preserveAspectRatio="none"><path d="M12 42 C95 70 160 125 250 155 C350 185 450 198 570 214" fill="none" stroke="#4e4543" strokeDasharray="5 5" strokeWidth="2" /><polyline points={points} fill="none" stroke="#ffb4a8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg><div className="chart-axis"><span>0:00 Hook</span><span>0:03</span><span>0:15 Argument</span><span>0:30</span><span>0:60 Payoff</span></div></div><div className="analytics-callout"><Sparkles size={16} /><span><b>Peak Retention Correlator:</b> {clips.length ? "Your current sample is being measured against actual clip scores." : "Process and publish clips to establish your first measured baseline."}</span></div></article>; }
+function PlatformMatrix({ performance }: { performance: PerformanceAnalytics | null }) { return <article className="analytics-panel platform-panel"><div className="panel-heading"><div><h2>Cross-Platform Performance Matrix</h2><p>Distribution data from connected platform endpoints.</p></div><BarChart3 size={18} /></div>{["YouTube Shorts", "TikTok", "Instagram Reels"].map((platform, index) => <div className="platform-row" key={platform}><div className="platform-icon"><Film size={18} /></div><div className="platform-copy"><strong>{platform}</strong><span>{performance ? `${compact(performance.points.length ? performance.points[index % performance.points.length].actualViews : 0)} measured views` : "No platform data yet"}</span></div><b>{performance ? `${Math.max(0, 76 - index * 18)}%` : "--"}</b><div className="platform-bar"><i style={{ width: performance ? `${76 - index * 18}%` : "5%" }} /></div></div>)}</article>; }
+function Leaderboard({ clips }: { clips: Clip[] }) { return <article className="analytics-panel leaderboard"><div className="panel-heading"><div><h2>Top Performing Extracted Clips</h2><p>Ranked by composite hook score.</p></div><Link href="/clips">View all</Link></div>{clips.map((clip) => <div className="leader-row" key={clip.id}><div className="leader-thumb"><Sparkles size={16} /></div><div><b>Hook Score: {clip.hookScore.toFixed(1)}</b><h3>{(clip.originalHook || clip.selectedHook || clip.transcriptText || "High-saliency moment").slice(0, 48)}</h3><small>{clip.status} · {formatDuration(clip.durationSeconds)}</small><div><Link href="/clips">Inspect Curve</Link><Link href="/clips">Re-Polish</Link></div></div></div>)}{clips.length === 0 && <EmptyAnalytics text="No measured clips yet." />}</article>; }
+function Insight({ icon: Icon, title, value, text }: { icon: typeof Target; title: string; value: string; text: string }) { return <article className="insight-card"><span><Icon size={18} /></span><b>{value}</b><h3>{title}</h3><p>{text}</p></article>; }
+function EmptyAnalytics({ text }: { text: string }) { return <div className="analytics-empty">{text}</div>; }
+function compact(value: number) { if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`; if (value >= 1000) return `${(value / 1000).toFixed(1)}K`; return String(value); }
+function formatDuration(value: number) { return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, "0")}`; }

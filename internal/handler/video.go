@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,13 +26,22 @@ type VideoHandler struct {
 	oauthCfg  *oauth2.Config
 }
 
+type ingestRequest struct {
+	URL        string `json:"url" binding:"required"`
+	Transcribe *bool  `json:"transcribe"`
+}
+
+type processVideoRequest struct {
+	Transcribe *bool `json:"transcribe"`
+}
+
 func NewVideoHandler(
 	videoRepo *repository.VideoRepository,
-	userRepo  *repository.UserRepository,
+	userRepo *repository.UserRepository,
 	queueClient *queue.Client,
-	oauthCfg  *oauth2.Config,
-	jobRepo   *repository.JobRepository,
-	cfg       *config.Config,
+	oauthCfg *oauth2.Config,
+	jobRepo *repository.JobRepository,
+	cfg *config.Config,
 ) *VideoHandler {
 	return &VideoHandler{
 		videoRepo: videoRepo,
@@ -217,11 +228,45 @@ func (h *VideoHandler) ListVideos(c *gin.Context) {
 	response.OK(c, videos)
 }
 
+// GenerateVideo queues AI transcription and clip discovery for a video already
+// saved in the user's library (own channel or a selected public channel).
+func (h *VideoHandler) GenerateVideo(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	videoID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+	video, err := h.videoRepo.FindByID(c.Request.Context(), videoID)
+	if err != nil || video.UserID != userID {
+		response.NotFound(c, "video")
+		return
+	}
+	if video.ProcessingStatus == models.StatusTranscribing || video.ProcessingStatus == models.StatusAnalyzing || video.ProcessingStatus == models.StatusDownloading {
+		response.OK(c, gin.H{"videoId": video.ID.Hex(), "status": video.ProcessingStatus, "message": "AI generation is already in progress"})
+		return
+	}
+	if err := h.videoRepo.UpdateStatus(c.Request.Context(), videoID, models.StatusPending, ""); err != nil {
+		response.InternalError(c)
+		return
+	}
+	task, err := queue.NewProcessVideoTask(video.ID.Hex(), userID.Hex())
+	if err != nil || h.queue.Enqueue(task) != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, gin.H{"videoId": video.ID.Hex(), "status": "processing", "message": "AI generation queued"})
+}
+
 // POST /api/v1/channels/:channelId/videos/:youtubeVideoId/process
 func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 	userIDStr, _ := c.Get("userID")
-	channelID    := c.Param("channelId")
-	ytVideoID    := c.Param("youtubeVideoId")
+	channelID := c.Param("channelId")
+	ytVideoID := c.Param("youtubeVideoId")
 
 	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
 	if err != nil {
@@ -229,13 +274,28 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 		return
 	}
 
-	// Check if this video was already processed by this user
+	transcribe := true
+	if fromIngest, exists := c.Get("transcribe"); exists {
+		transcribe = fromIngest.(bool)
+	} else if c.Request.ContentLength != 0 {
+		var req processVideoRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "invalid processing options")
+			return
+		}
+		if req.Transcribe != nil {
+			transcribe = *req.Transcribe
+		}
+	}
+
+	// A selected public video is stored once per user. Reusing the existing
+	// document keeps the Videos library stable when a creator is revisited.
 	existing, _ := h.videoRepo.FindByYouTubeID(c.Request.Context(), ytVideoID, userID)
-	if existing != nil && existing.ProcessingStatus == models.StatusCompleted {
+	if existing != nil {
 		response.OK(c, gin.H{
-			"message": "video already processed",
+			"message": "video already in your library",
 			"videoId": existing.ID.Hex(),
-			"status":  "completed",
+			"status":  existing.ProcessingStatus,
 		})
 		return
 	}
@@ -257,7 +317,7 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 
 	// Create Video document in MongoDB
 	videoID := primitive.NewObjectID()
-	jobID   := primitive.NewObjectID().Hex()
+	jobID := primitive.NewObjectID().Hex()
 
 	video := models.Video{
 		ID:               videoID,
@@ -283,15 +343,34 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 
 	// Create job tracking document
 	job := models.ProcessingJob{
-		JobID:   jobID,
-		UserID:  userID,
-		VideoID: videoID,
-		Status:  models.JobStatusQueued,
-		Stage:   "queued",
+		JobID:    jobID,
+		UserID:   userID,
+		VideoID:  videoID,
+		Status:   models.JobStatusQueued,
+		Stage:    "queued",
 		Progress: 0,
 	}
 	if err := h.jobRepo.Create(c.Request.Context(), job); err != nil {
 		response.InternalError(c)
+		return
+	}
+
+	if !transcribe {
+		if err := h.videoRepo.UpdateStatus(c.Request.Context(), videoID, models.StatusCompleted, "transcription skipped by user"); err != nil {
+			response.InternalError(c)
+			return
+		}
+		if err := h.jobRepo.Complete(c.Request.Context(), jobID, 0); err != nil {
+			response.InternalError(c)
+			return
+		}
+		response.OK(c, gin.H{
+			"jobId":   jobID,
+			"videoId": videoID.Hex(),
+			"title":   meta.Title,
+			"status":  "completed",
+			"message": "video saved; transcription was skipped",
+		})
 		return
 	}
 
@@ -315,12 +394,66 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 	})
 }
 
+// IngestURL accepts a YouTube watch or short URL from the studio dashboard.
+func (h *VideoHandler) IngestURL(c *gin.Context) {
+	var req ingestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "youtube url is required")
+		return
+	}
+
+	parsed, err := url.Parse(strings.TrimSpace(req.URL))
+	if err != nil {
+		response.BadRequest(c, "invalid youtube url")
+		return
+	}
+
+	videoID := parsed.Query().Get("v")
+	host := strings.ToLower(parsed.Hostname())
+	if videoID == "" && (host == "youtu.be" || host == "www.youtu.be") {
+		videoID = strings.Trim(parsed.Path, "/")
+	}
+	if videoID == "" && (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") {
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		if len(parts) == 2 && (parts[0] == "shorts" || parts[0] == "embed" || parts[0] == "live") {
+			videoID = parts[1]
+		}
+	}
+	if videoID == "" || strings.ContainsAny(videoID, " /?#") {
+		response.BadRequest(c, "use a youtube watch or short url")
+		return
+	}
+
+	transcribe := true
+	if req.Transcribe != nil {
+		transcribe = *req.Transcribe
+	}
+	c.Set("transcribe", transcribe)
+	c.Params = gin.Params{{Key: "channelId", Value: "direct"}, {Key: "youtubeVideoId", Value: videoID}}
+	h.ProcessPublicVideo(c)
+}
+
 // GET /api/v1/jobs/:jobId
 func (h *VideoHandler) GetJobStatus(c *gin.Context) {
+	userIDValue, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c)
+		return
+	}
+	userID, err := primitive.ObjectIDFromHex(userIDValue.(string))
+	if err != nil {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
 	jobID := c.Param("jobId")
 
 	job, err := h.jobRepo.FindByJobID(c.Request.Context(), jobID)
 	if err != nil {
+		response.NotFound(c, "job")
+		return
+	}
+	if job.UserID != userID {
 		response.NotFound(c, "job")
 		return
 	}
@@ -334,4 +467,27 @@ func (h *VideoHandler) GetJobStatus(c *gin.Context) {
 		"clipsFound": job.ClipsFound,
 		"error":      job.Error,
 	})
+}
+
+// ListJobs returns recent processing jobs for the authenticated dashboard.
+func (h *VideoHandler) ListJobs(c *gin.Context) {
+	userIDValue, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c)
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(userIDValue.(string))
+	if err != nil {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+
+	jobs, err := h.jobRepo.FindByUserID(c.Request.Context(), userID, 20)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, jobs)
 }

@@ -50,6 +50,7 @@ type EditSettings struct {
 	ColorGrade      string `bson:"colorGrade" json:"colorGrade"`
 	MusicMood       string `bson:"musicMood" json:"musicMood"`
 	CaptionStyle    string `bson:"captionStyle" json:"captionStyle"`
+	Layout          string `bson:"layout" json:"layout"`
 	RemoveSilences  bool   `bson:"removeSilences" json:"removeSilences"`
 	RemoveFillers   bool   `bson:"removeFillers" json:"removeFillers"`
 }

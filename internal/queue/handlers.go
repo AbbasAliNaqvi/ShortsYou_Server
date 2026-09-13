@@ -1,14 +1,9 @@
 package queue
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -17,6 +12,7 @@ import (
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/downloader"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/edit"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/ml"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
@@ -38,6 +34,7 @@ type TaskHandlers struct {
 	storage    *storage.SupabaseClient
 	llmRotator *llm.Rotator
 	queue      *Client
+	editClient *edit.Client
 }
 
 func NewTaskHandlers(
@@ -65,6 +62,7 @@ func NewTaskHandlers(
 		storage:    supabase,
 		llmRotator: llmRotator,
 		queue:      queue,
+		editClient: edit.NewClient(cfg.EditServiceURL),
 	}
 }
 
@@ -93,27 +91,14 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	// Stage 1 — Download and upload to Supabase
-	log.Info().Msg("downloading video")
+	// Keep raw source media out of Supabase. Its Free tier has a hard 50 MB
+	// upload limit, while the downstream services can download a YouTube URL
+	// directly into their own temporary working directory.
+	log.Info().Msg("preparing YouTube source URL")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
 
-	dl, err := downloader.Download(ctx, video.YouTubeVideoID)
-	if err != nil {
-		return fail("download", err)
-	}
-	defer dl.Cleanup()
-
-	videoData, err := os.ReadFile(dl.FilePath)
-	if err != nil {
-		return fail("read file", err)
-	}
-
-	videoKey := downloader.VideoKey(video.UserID.Hex(), video.ID.Hex())
-	videoURL, err := h.storage.Upload(ctx, "raw-videos", videoKey, "video/mp4", videoData)
-	if err != nil {
-		return fail("upload", err)
-	}
-	log.Info().Str("url", videoURL).Msg("video uploaded")
+	videoURL := downloader.WatchURL(video.YouTubeVideoID)
+	log.Info().Str("url", videoURL).Msg("YouTube source URL ready")
 
 	// Stage 2 — Fire async transcription
 	// Results come back via /api/internal/transcription/done
@@ -195,130 +180,41 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		}
 	}
 
-	// Get a signed URL so the Python service can download the raw video.
-	videoKey := downloader.VideoKey(video.UserID.Hex(), video.ID.Hex())
-
-	log.Info().
-		Str("videoKey", videoKey).
-		Msg("generating signed video URL")
-
-	videoURL, err := h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
-	if err != nil {
-		if !strings.Contains(err.Error(), "NoSuchKey") {
-			log.Error().
-				Err(err).
-				Str("videoKey", videoKey).
-				Msg("failed to generate signed video URL")
-			return fmt.Errorf("get signed url: %w", err)
-		}
-
-		log.Warn().
-			Err(err).
-			Str("videoKey", videoKey).
-			Msg("raw video missing — downloading and uploading source")
-
-		dl, downloadErr := downloader.Download(ctx, video.YouTubeVideoID)
-		if downloadErr != nil {
-			log.Error().Err(downloadErr).Msg("failed to recover raw video")
-			return fmt.Errorf("recover raw video: %w", downloadErr)
-		}
-		defer dl.Cleanup()
-
-		videoData, readErr := os.ReadFile(dl.FilePath)
-		if readErr != nil {
-			log.Error().Err(readErr).Msg("failed to read recovered raw video")
-			return fmt.Errorf("read recovered raw video: %w", readErr)
-		}
-
-		if _, uploadErr := h.storage.Upload(
-			ctx,
-			"raw-videos",
-			videoKey,
-			"video/mp4",
-			videoData,
-		); uploadErr != nil {
-			log.Error().Err(uploadErr).Msg("failed to upload recovered raw video")
-			return fmt.Errorf("upload recovered raw video: %w", uploadErr)
-		}
-
-		videoURL, err = h.storage.SignedURL(ctx, "raw-videos", videoKey, 3600)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("videoKey", videoKey).
-				Msg("failed to generate signed video URL after recovery")
-			return fmt.Errorf("get signed url after recovery: %w", err)
-		}
-	}
-
-	log.Info().Msg("signed video URL generated")
+	// The renderer downloads this source locally with yt-dlp; only its final
+	// short and thumbnail are uploaded to Supabase.
+	videoURL := downloader.WatchURL(video.YouTubeVideoID)
+	log.Info().Str("url", videoURL).Msg("YouTube source URL ready for renderer")
 
 	style := styleFromEditSettings(clip.EditSettings)
 	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
 
-	editReq := map[string]any{
-		"job_id":          p.ClipID,
-		"clip_id":         p.ClipID,
-		"user_id":         p.UserID,
-		"video_url":       videoURL,
-		"start_time":      clip.StartTime,
-		"end_time":        clip.EndTime,
-		"style":           style,
-		"hook_text":       hookText,
-		"music_mood":      moodFromSettings(clip.EditSettings),
-		"remove_silences": clip.EditSettings.RemoveSilences,
-		"remove_fillers":  clip.EditSettings.RemoveFillers,
-		"callback_url":    callbackURL,
-		"callback_key":    h.cfg.InternalAPIKey,
-		"layout":          layoutFromSettings(clip.EditSettings),
-		"emotion_type":    clip.EmotionType,
+	editReq := edit.CreateShortRequest{
+		JobID: p.ClipID, ClipID: p.ClipID, UserID: p.UserID, VideoURL: videoURL,
+		StartTime: clip.StartTime, EndTime: clip.EndTime, Style: style, HookText: hookText,
+		MusicMood: moodFromSettings(clip.EditSettings), RemoveSilences: clip.EditSettings.RemoveSilences,
+		RemoveFillers: clip.EditSettings.RemoveFillers, CallbackURL: callbackURL,
+		CallbackKey: h.cfg.InternalAPIKey, Layout: layoutFromSettings(clip.EditSettings),
+		BackgroundStyle: backgroundFromSettings(clip.EditSettings), ColorGrade: gradeFromSettings(clip.EditSettings),
+		CaptionStyle: captionFromSettings(clip.EditSettings),
+		EmotionType:  clip.EmotionType, SFXEvents: []edit.SFXEvent{},
 	}
-
-	data, err := json.Marshal(editReq)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to marshal edit request")
-		return fmt.Errorf("marshal edit request: %w", err)
-	}
-
-	editURL := h.cfg.MLAudioServiceURL + "/create-short"
 
 	log.Info().
-		Str("url", editURL).
+		Str("url", h.cfg.EditServiceURL+"/create-short").
 		Msg("calling edit service")
 
-	httpResp, err := http.Post(
-		editURL,
-		"application/json",
-		bytes.NewReader(data),
-	)
+	accepted, err := h.editClient.CreateShort(ctx, editReq)
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("url", editURL).
+			Str("url", h.cfg.EditServiceURL+"/create-short").
 			Msg("call edit service failed")
-
-		return fmt.Errorf("call edit service: %w", err)
-	}
-
-	defer httpResp.Body.Close()
-
-	body, _ := io.ReadAll(httpResp.Body)
-
-	if httpResp.StatusCode != http.StatusOK {
-		log.Error().
-			Int("status", httpResp.StatusCode).
-			Str("body", string(body)).
-			Msg("edit service returned error")
-
-		return fmt.Errorf(
-			"edit service returned %d: %s",
-			httpResp.StatusCode,
-			body,
-		)
+		return err
 	}
 
 	log.Info().
-		Int("status", httpResp.StatusCode).
+		Str("renderJobId", accepted.JobID).
+		Int("etaSeconds", accepted.ETASeconds).
 		Str("style", style).
 		Str("hook", truncate(hookText, 60)).
 		Msg("export job submitted to edit service")
@@ -461,6 +357,27 @@ func styleFromEditSettings(s models.EditSettings) string {
 	}
 }
 
+func backgroundFromSettings(s models.EditSettings) string {
+	if s.BackgroundStyle != "" && s.BackgroundStyle != "two_frame" {
+		return s.BackgroundStyle
+	}
+	return "blur"
+}
+
+func gradeFromSettings(s models.EditSettings) string {
+	if s.ColorGrade != "" {
+		return s.ColorGrade
+	}
+	return "warm"
+}
+
+func captionFromSettings(s models.EditSettings) string {
+	if s.CaptionStyle != "" {
+		return s.CaptionStyle
+	}
+	return "bold"
+}
+
 func moodFromSettings(s models.EditSettings) string {
 	if s.MusicMood != "" {
 		return s.MusicMood
@@ -493,6 +410,9 @@ func truncate(s string, n int) string {
 }
 
 func layoutFromSettings(s models.EditSettings) string {
+	if s.Layout != "" {
+		return s.Layout
+	}
 	if s.BackgroundStyle == "two_frame" {
 		return "two_frame"
 	}

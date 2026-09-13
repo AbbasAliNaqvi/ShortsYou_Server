@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { AppNav } from "@/components/Navigation/AppNav";
 
 const hanken = Hanken_Grotesk({
   variable: "--font-hanken",
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${hanken.variable} ${playfair.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><AppNav />{children}</body>
     </html>
   );
 }

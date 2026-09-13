@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,20 +19,100 @@ import (
 )
 
 type ClipHandler struct {
-	clipRepo *repository.ClipRepository
-	queue    *queue.Client
-	supabase *storage.SupabaseClient
+	clipRepo  *repository.ClipRepository
+	videoRepo *repository.VideoRepository
+	queue     *queue.Client
+	supabase  *storage.SupabaseClient
+}
+
+type manualClipRequest struct {
+	StartTime    float64             `json:"startTime"`
+	EndTime      float64             `json:"endTime"`
+	HookText     string              `json:"hookText"`
+	EditSettings models.EditSettings `json:"editSettings"`
+}
+
+// CreateManual creates and renders a creator-selected range without waiting
+// for transcription or AI analysis.
+func (h *ClipHandler) CreateManual(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	videoID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+	var req manualClipRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.EndTime <= req.StartTime || req.StartTime < 0 {
+		response.BadRequest(c, "provide valid startTime and endTime")
+		return
+	}
+	video, err := h.videoRepo.FindByIDAndUserID(c.Request.Context(), videoID, userID)
+	if err != nil || video == nil {
+		response.NotFound(c, "video")
+		return
+	}
+	if video.DurationSeconds > 0 && req.EndTime > float64(video.DurationSeconds) {
+		response.BadRequest(c, "endTime exceeds the source video duration")
+		return
+	}
+	settings := normalizedEditSettings(req.EditSettings)
+	clip := models.Clip{ID: primitive.NewObjectID(), VideoID: videoID, UserID: userID, StartTime: req.StartTime, EndTime: req.EndTime, DurationSeconds: req.EndTime - req.StartTime, TranscriptText: req.HookText, OriginalHook: req.HookText, SelectedHook: req.HookText, Category: models.CategoryNarrative, EditSettings: settings, Status: models.ClipStatusEditing}
+	if err := h.clipRepo.BulkInsert(c.Request.Context(), []models.Clip{clip}); err != nil {
+		response.InternalError(c)
+		return
+	}
+	task, err := queue.NewExportClipTask(clip.ID.Hex(), userID.Hex())
+	if err != nil || h.queue.Enqueue(task, asynq.TaskID("export:"+clip.ID.Hex()), asynq.MaxRetry(2)) != nil {
+		_ = h.clipRepo.UpdateStatus(c.Request.Context(), clip.ID, models.ClipStatusFailed)
+		response.InternalError(c)
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"success": true, "data": gin.H{"clipId": clip.ID.Hex(), "status": "editing", "message": "manual short rendering started"}})
+}
+
+func normalizedEditSettings(settings models.EditSettings) models.EditSettings {
+	if !allowedEditOption(settings.BackgroundStyle, "blur", "dark_gradient", "original", "brand_color", "two_frame") {
+		settings.BackgroundStyle = "blur"
+	}
+	if !allowedEditOption(settings.ColorGrade, "warm", "cool", "vibrant", "cinematic", "natural") {
+		settings.ColorGrade = "warm"
+	}
+	if !allowedEditOption(settings.MusicMood, "energetic", "calm", "motivational", "dramatic", "neutral", "none") {
+		settings.MusicMood = "energetic"
+	}
+	if !allowedEditOption(settings.CaptionStyle, "bold", "karaoke", "minimal") {
+		settings.CaptionStyle = "bold"
+	}
+	if !allowedEditOption(settings.Layout, "standard", "two_frame", "multi_face", "auto_face") {
+		settings.Layout = "standard"
+	}
+	return settings
+}
+
+func allowedEditOption(value string, options ...string) bool {
+	for _, option := range options {
+		if value == option {
+			return true
+		}
+	}
+	return false
 }
 
 func NewClipHandler(
 	clipRepo *repository.ClipRepository,
+	videoRepo *repository.VideoRepository,
 	queueClient *queue.Client,
 	supabase *storage.SupabaseClient,
 ) *ClipHandler {
 	return &ClipHandler{
-		clipRepo: clipRepo,
-		queue:    queueClient,
-		supabase: supabase,
+		clipRepo:  clipRepo,
+		videoRepo: videoRepo,
+		queue:     queueClient,
+		supabase:  supabase,
 	}
 }
 
@@ -96,6 +177,12 @@ type updateClipRequest struct {
 }
 
 func (h *ClipHandler) UpdateClip(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid clip id")
@@ -105,6 +192,16 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 	var req updateClipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "invalid request body")
+		return
+	}
+
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.NotFound(c, "clip")
+		return
+	}
+	if clip.UserID != userID {
+		response.NotFound(c, "clip")
 		return
 	}
 
@@ -125,7 +222,7 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 		selectedHook := ""
 
 		if req.EditSettings != nil {
-			editSettings = *req.EditSettings
+			editSettings = normalizedEditSettings(*req.EditSettings)
 		}
 
 		if req.SelectedHook != nil {
@@ -143,7 +240,7 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 		}
 	}
 
-	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	clip, err = h.clipRepo.FindByID(c.Request.Context(), id)
 	if err != nil {
 		response.InternalError(c)
 		return
@@ -173,6 +270,17 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 		response.Forbidden(c)
 		return
 	}
+	if clip.Status == models.ClipStatusEditing {
+		c.JSON(http.StatusAccepted, gin.H{
+			"success": true,
+			"data": gin.H{
+				"clipId":  clipIDStr,
+				"status":  "editing",
+				"message": "clip export is already in progress",
+			},
+		})
+		return
+	}
 
 	// Allow force re-export by resetting editing status
 	// This handles stuck jobs from failed previous attempts
@@ -190,14 +298,28 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 		return
 	}
 
-	// Use TaskID to deduplicate — replace existing stuck job
+	// A stable task ID prevents double clicks or browser retries from rendering
+	// the same clip twice. Never force a duplicate task: it creates competing
+	// FFmpeg jobs which overwrite each other's output and callback state.
 	if err := h.queue.Enqueue(task,
 		asynq.TaskID("export:"+clipIDStr),
 		asynq.Unique(10*time.Minute),
 		asynq.MaxRetry(2),
 	); err != nil {
-		// If unique constraint fires, force clear and retry
-		_ = h.queue.EnqueueForce(task)
+		if errors.Is(err, asynq.ErrTaskIDConflict) || errors.Is(err, asynq.ErrDuplicateTask) {
+			c.JSON(http.StatusAccepted, gin.H{
+				"success": true,
+				"data": gin.H{
+					"clipId":  clipIDStr,
+					"status":  "editing",
+					"message": "clip export is already queued",
+				},
+			})
+			return
+		}
+		_ = h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusFailed)
+		response.InternalError(c)
+		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
@@ -320,28 +442,33 @@ func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
 		return
 	}
 
+	downloadBucket := queue.ProcessedClipBucket
 	objectKey, err := extractProcessedObjectKey(
 		clip.SupabaseShortURL,
-		queue.ProcessedClipBucket,
+		downloadBucket,
 	)
 	if err != nil {
-		fmt.Printf(
-			"[download] invalid stored output URL: %v\n",
-			err,
-		)
-		response.InternalError(c)
-		return
+		// The current renderer stores clips in the existing "videos" bucket
+		// under a processed-clips/ prefix. Support that canonical output URL
+		// while retaining compatibility with a dedicated processed-clips bucket.
+		downloadBucket = "videos"
+		objectKey, err = extractProcessedObjectKey(clip.SupabaseShortURL, downloadBucket)
+		if err != nil {
+			fmt.Printf("[download] invalid stored output URL: %v\n", err)
+			response.InternalError(c)
+			return
+		}
 	}
 
 	fmt.Printf(
 		"[download] bucket=%s object=%s\n",
-		queue.ProcessedClipBucket,
+		downloadBucket,
 		objectKey,
 	)
 
 	signedURL, err := h.supabase.SignedURL(
 		c.Request.Context(),
-		queue.ProcessedClipBucket,
+		downloadBucket,
 		objectKey,
 		3600,
 	)

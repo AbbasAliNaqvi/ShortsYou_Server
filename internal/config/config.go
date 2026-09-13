@@ -31,6 +31,7 @@ type Config struct {
 
 	MLNLPServiceURL   string
 	MLAudioServiceURL string
+	EditServiceURL    string
 
 	InternalAPIKey string
 
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 
 		MLNLPServiceURL:   v.GetString("ML_NLP_SERVICE_URL"),
 		MLAudioServiceURL: v.GetString("ML_AUDIO_SERVICE_URL"),
+		EditServiceURL:    v.GetString("EDIT_SERVICE_URL"),
 
 		InternalAPIKey: v.GetString("INTERNAL_API_KEY"),
 		MLAPIKey:       v.GetString("ML_API_KEY"),
@@ -132,6 +134,10 @@ func Load() (*Config, error) {
 
 	if cfg.MLAudioServiceURL == "" {
 		cfg.MLAudioServiceURL = "http://localhost:8001"
+	}
+	if cfg.EditServiceURL == "" {
+		// Keep ML_AUDIO_SERVICE_URL as a backwards-compatible alias.
+		cfg.EditServiceURL = cfg.MLAudioServiceURL
 	}
 
 	if len(cfg.AllowedOrigins) == 0 && cfg.Env == "development" {

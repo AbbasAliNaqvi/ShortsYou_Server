@@ -9,7 +9,6 @@ import (
 	yt "google.golang.org/api/youtube/v3"
 )
 
-
 // Works for any public YouTube channel.
 type PublicClient struct {
 	svc *yt.Service
@@ -37,11 +36,19 @@ type ChannelResult struct {
 
 // SearchChannel finds a YouTube channel by name, handle, or URL.
 func (c *PublicClient) SearchChannel(ctx context.Context, query string) (*ChannelResult, error) {
+	channels, err := c.SearchChannels(ctx, query, 1)
+	if err != nil || len(channels) == 0 {
+		return nil, fmt.Errorf("channel not found: %s", query)
+	}
+	return &channels[0], nil
+}
+
+func (c *PublicClient) SearchChannels(ctx context.Context, query string, maxResults int64) ([]ChannelResult, error) {
 	resp, err := c.svc.Search.
 		List([]string{"snippet"}).
 		Q(query).
 		Type("channel").
-		MaxResults(1).
+		MaxResults(maxResults).
 		Context(ctx).
 		Do()
 	if err != nil {
@@ -51,42 +58,52 @@ func (c *PublicClient) SearchChannel(ctx context.Context, query string) (*Channe
 		return nil, fmt.Errorf("channel not found: %s", query)
 	}
 
-	channelID := resp.Items[0].Snippet.ChannelId
+	ids := make([]string, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		ids = append(ids, item.Snippet.ChannelId)
+	}
 
 	details, err := c.svc.Channels.
 		List([]string{"snippet", "statistics"}).
-		Id(channelID).
+		Id(ids...).
 		Context(ctx).
 		Do()
 	if err != nil {
 		return nil, fmt.Errorf("channels.list: %w", err)
 	}
-	if len(details.Items) == 0 {
-		return nil, fmt.Errorf("channel details not found")
-	}
 
-	ch := details.Items[0]
-
-	thumbnailURL := ""
-	if ch.Snippet.Thumbnails != nil {
-		if ch.Snippet.Thumbnails.High != nil {
-			thumbnailURL = ch.Snippet.Thumbnails.High.Url
-		} else if ch.Snippet.Thumbnails.Default != nil {
-			thumbnailURL = ch.Snippet.Thumbnails.Default.Url
+	byID := make(map[string]ChannelResult, len(details.Items))
+	for _, ch := range details.Items {
+		thumbnailURL := ""
+		if ch.Snippet.Thumbnails != nil {
+			if ch.Snippet.Thumbnails.High != nil {
+				thumbnailURL = ch.Snippet.Thumbnails.High.Url
+			} else if ch.Snippet.Thumbnails.Default != nil {
+				thumbnailURL = ch.Snippet.Thumbnails.Default.Url
+			}
+		}
+		byID[ch.Id] = ChannelResult{
+			ChannelID:       ch.Id,
+			Title:           ch.Snippet.Title,
+			Description:     ch.Snippet.Description,
+			ThumbnailURL:    thumbnailURL,
+			SubscriberCount: ch.Statistics.SubscriberCount,
+			VideoCount:      ch.Statistics.VideoCount,
+			ViewCount:       ch.Statistics.ViewCount,
+			CustomURL:       ch.Snippet.CustomUrl,
+			IsOwned:         false,
 		}
 	}
-
-	return &ChannelResult{
-		ChannelID:       ch.Id,
-		Title:           ch.Snippet.Title,
-		Description:     ch.Snippet.Description,
-		ThumbnailURL:    thumbnailURL,
-		SubscriberCount: ch.Statistics.SubscriberCount,
-		VideoCount:      ch.Statistics.VideoCount,
-		ViewCount:       ch.Statistics.ViewCount,
-		CustomURL:       ch.Snippet.CustomUrl,
-		IsOwned:         false,
-	}, nil
+	// Channels.list does not promise to retain Search.list's relevance order.
+	// Rebuild the result in the original search order so the first candidate is
+	// consistently the best match shown to the user.
+	results := make([]ChannelResult, 0, len(ids))
+	for _, id := range ids {
+		if result, ok := byID[id]; ok {
+			results = append(results, result)
+		}
+	}
+	return results, nil
 }
 
 // FetchPublicVideos returns the most viewed videos from any public channel.

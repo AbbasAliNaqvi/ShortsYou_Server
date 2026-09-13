@@ -40,9 +40,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		authHandler.GoogleCallback,
 	)
 
-	channelHandler := handler.NewChannelHandler(
-		s.cfg,
-	)
+	channelHandler := handler.NewChannelHandler(s.cfg, s.userRepo)
 
 	r.GET(
 		"/api/v1/channels/search",
@@ -115,11 +113,22 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	protected.Use(
 		middleware.JWTAuth(s.cfg.JWTSecret),
 	)
+	editHandler := handler.NewEditHandler(s.cfg.EditServiceURL)
 
 	{
 		protected.GET(
+			"/edit/health",
+			editHandler.Health,
+		)
+
+		protected.GET(
 			"/auth/me",
 			authHandler.Me,
+		)
+
+		protected.PUT(
+			"/channels/:channelId/studio",
+			channelHandler.AddToStudio,
 		)
 
 		videoHandler := handler.NewVideoHandler(
@@ -136,9 +145,19 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			videoHandler.SyncChannel,
 		)
 
+		protected.POST(
+			"/videos/ingest",
+			videoHandler.IngestURL,
+		)
+
 		protected.GET(
 			"/videos",
 			videoHandler.ListVideos,
+		)
+
+		protected.POST(
+			"/videos/:id/generate",
+			videoHandler.GenerateVideo,
 		)
 
 		protected.POST(
@@ -151,11 +170,18 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			videoHandler.GetJobStatus,
 		)
 
+		protected.GET(
+			"/jobs",
+			videoHandler.ListJobs,
+		)
+
 		clipHandler := handler.NewClipHandler(
 			s.clipRepo,
+			s.videoRepo,
 			s.queueClient,
 			s.supabase,
 		)
+		protected.POST("/videos/:id/clips/manual", clipHandler.CreateManual)
 
 		protected.POST(
 			"/clips/:id/export",

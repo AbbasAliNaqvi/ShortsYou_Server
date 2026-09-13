@@ -49,6 +49,24 @@ func (r *UserRepository) FindByGoogleID(
 	return &user, nil
 }
 
+func (r *UserRepository) UpdateChannel(ctx context.Context, userID, channelID, channelName string) error {
+	oid, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("UpdateChannel invalid id: %w", err)
+	}
+	result, err := r.col.UpdateByID(ctx, oid, bson.M{"$set": bson.M{
+		"channelId":   channelID,
+		"channelName": channelName,
+		"updatedAt":   time.Now(),
+	}})
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}
 func (r *UserRepository) FindByID(
 	ctx context.Context,
 	id string,
