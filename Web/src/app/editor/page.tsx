@@ -13,7 +13,7 @@ export default function EditorVideoPicker() {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token) { router.replace("/login"); return; }
     api.videos(token).then(setVideos).catch((error) => setNotice(error instanceof Error ? error.message : "Unable to load your videos.")).finally(() => setLoading(false));
   }, [router]);

@@ -62,7 +62,7 @@ export function PlaceholderDashboard() {
   const [exportingClip, setExportingClip] = useState<string | null>(null);
 
   async function loadDashboard() {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       setLoading(false);
       setError(
@@ -96,8 +96,14 @@ export function PlaceholderDashboard() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     if (token) {
-      sessionStorage.setItem("shortsyou_jwt", token);
+      localStorage.setItem("shortsyou_jwt", token);
       window.history.replaceState({}, document.title, "/dashboard");
+    } else {
+      const legacyToken = sessionStorage.getItem("shortsyou_jwt");
+      if (legacyToken) {
+        localStorage.setItem("shortsyou_jwt", legacyToken);
+        sessionStorage.removeItem("shortsyou_jwt");
+      }
     }
     queueMicrotask(() => void loadDashboard());
   }, []);
@@ -120,13 +126,13 @@ export function PlaceholderDashboard() {
     .slice(0, 4);
 
   function signOut() {
-    sessionStorage.removeItem("shortsyou_jwt");
+    localStorage.removeItem("shortsyou_jwt");
     router.push("/login");
   }
 
   async function handleIngest(event: FormEvent) {
     event.preventDefault();
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !sourceUrl.trim()) return;
     const transcribe = window.confirm(
       "Do you want transcription?\n\nOK = Yes, transcribe this video\nCancel = No, save it without transcription",
@@ -156,7 +162,7 @@ export function PlaceholderDashboard() {
   }
 
   async function createShort(clipId: string) {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token) return;
     setExportingClip(clipId);
     setNotice("Creating your short...");

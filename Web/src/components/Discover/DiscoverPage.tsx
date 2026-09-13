@@ -43,7 +43,7 @@ export function DiscoverPage() {
   }
 
   async function queueVideos(videoIds: string[]) {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !channel) { setMessage("Sign in again before queueing a creator video."); return; }
     const transcribe = false;
     setBusy(true); setMessage(`Adding ${videoIds.length} video${videoIds.length === 1 ? "" : "s"} to your selected videos...`);
@@ -53,7 +53,7 @@ export function DiscoverPage() {
   }
 
   async function addChannelAndQueue() {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !channel) { setMessage("Sign in again before adding a channel."); return; }
     setBusy(true);
     try {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -120,9 +121,26 @@ const features = [
 ] as const;
 
 export function HomeDashboard() {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [studioActive, setStudioActive] = useState(false);
   const [exported, setExported] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem("shortsyou_jwt")) router.replace("/dashboard");
+  }, [router]);
+
+  function launchStudio() {
+    router.push(localStorage.getItem("shortsyou_jwt") ? "/dashboard" : "/login");
+  }
+
+  function toggleFilm() {
+    setStudioActive((active) => !active);
+    document.getElementById("studio-preview")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }
   return (
     <div className="studio-page">
       <div className="ambient ambient-one" />
@@ -155,7 +173,7 @@ export function HomeDashboard() {
             Sign In
           </Link>
           <Link className="button button-outline" href="/register">
-            Start Now <ArrowRight size={14} />
+            Sign Up <ArrowRight size={14} />
           </Link>
           <button
             className="mobile-menu"
@@ -183,13 +201,13 @@ export function HomeDashboard() {
             <div className="hero-actions">
               <button
                 className="button button-primary"
-                onClick={() => setStudioActive(true)}
+                onClick={launchStudio}
               >
                 Launch Studio <Zap size={16} />
               </button>
               <button
                 className="button button-glass"
-                onClick={() => setStudioActive(!studioActive)}
+                onClick={toggleFilm}
               >
                 <CirclePlay size={18} />{" "}
                 {studioActive ? "Pause Film" : "Watch 90-sec Film"}{" "}
@@ -217,6 +235,7 @@ export function HomeDashboard() {
             active={studioActive}
             exported={exported}
             onExport={() => setExported(true)}
+            onToggle={toggleFilm}
           />
         </section>
         <section className="section shell">
@@ -467,13 +486,16 @@ function StudioTerminal({
   active,
   exported,
   onExport,
+  onToggle,
 }: {
   active: boolean;
   exported: boolean;
   onExport: () => void;
+  onToggle: () => void;
 }) {
   return (
     <div
+      id="studio-preview"
       className={`terminal-wrap reveal reveal-late ${active ? "terminal-live" : ""}`}
     >
       <div className="terminal studio-glass">
@@ -517,7 +539,7 @@ function StudioTerminal({
             <span>00:48.00</span>
           </div>
           <div className="controls-row">
-            <button>
+            <button onClick={onToggle} aria-label={active ? "Pause preview" : "Play preview"}>
               <Play size={12} />
             </button>
             <span className="mono">9:16　 16:9</span>

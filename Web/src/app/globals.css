@@ -141,3 +141,35 @@ button { cursor: pointer; }
 
 /* Keep only the shared frosted rail visible; page rails remain available in code but do not compete visually. */
 .workspace-rail,.clips-rail,.analytics-rail { display: none !important; }
+
+/* Give dashboards a genuinely wide canvas while retaining a comfortable reading gutter. */
+.workspace-content,.clips-content,.videos-intro,.video-section,.editor-title,.editor-grid,.picker-hero,.picker-videos,.picker-empty,.picker-notice {
+  width: min(1780px, calc(100% - 56px)) !important;
+}
+.workspace-main,.clips-main,.analytics-main,.videos-page,.editor-page,.editor-picker,.discover-page {
+  min-width: 0;
+}
+
+/* Keep authentication actions reachable on the landing page at phone widths. */
+@media (max-width: 640px) {
+  .studio-nav { padding: 0 14px; }
+  .brand { gap: 7px; font-size: 15px; }
+  .brand-mark { width: 30px; height: 30px; }
+  .nav-actions { gap: 4px; }
+  .nav-actions .sign-in,
+  .nav-actions .button-outline {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 8px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .nav-actions .button-outline svg { display: none; }
+  .mobile-menu {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+}

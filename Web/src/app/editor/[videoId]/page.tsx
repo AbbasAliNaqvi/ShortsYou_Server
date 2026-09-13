@@ -55,7 +55,7 @@ export default function CustomShortEditor() {
   });
 
   useEffect(() => {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
 
     if (!token) {
       router.replace("/login");
@@ -111,7 +111,7 @@ export default function CustomShortEditor() {
   }
 
   async function render() {
-    const token = sessionStorage.getItem("shortsyou_jwt");
+    const token = localStorage.getItem("shortsyou_jwt");
 
     if (!token || !video) {
       return;

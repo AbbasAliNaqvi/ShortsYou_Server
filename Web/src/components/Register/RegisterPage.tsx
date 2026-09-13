@@ -87,7 +87,7 @@ export function RegisterPage() {
         </div>
         <div className="auth-header-actions">
           <span>Already have a seat?</span>
-          <Link href="/">Sign In</Link>
+          <Link href="/login">Sign In</Link>
           <button aria-label="Help">
             <CircleHelp size={16} />
           </button>
