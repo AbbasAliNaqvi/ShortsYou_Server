@@ -150,7 +150,6 @@ button { cursor: pointer; }
   min-width: 0;
 }
 
-/* Keep authentication actions reachable on the landing page at phone widths. */
 @media (max-width: 640px) {
   .studio-nav { padding: 0 14px; }
   .brand { gap: 7px; font-size: 15px; }
@@ -173,3 +172,4 @@ button { cursor: pointer; }
     padding: 0;
   }
 }
+
