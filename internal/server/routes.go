@@ -20,9 +20,11 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 
 	r.GET("/health", healthHandler.Check)
 	r.GET("/version", handler.Version)
-	r.GET("/debug/config", func(c *gin.Context) {
-		handler.Debug(c, s.cfg)
-	})
+	if s.cfg.Env != "production" {
+		r.GET("/debug/config", func(c *gin.Context) {
+			handler.Debug(c, s.cfg)
+		})
+	}
 
 	authHandler := handler.NewAuthHandler(
 		s.cfg,
@@ -59,6 +61,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		s.personaRepo,
 		s.trendRepo,
 		s.transcriptRepo,
+		s.jobRepo,
 		s.llmRotator,
 		s.cfg,
 		s.log,
@@ -153,6 +156,11 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		protected.GET(
 			"/videos",
 			videoHandler.ListVideos,
+		)
+
+		protected.GET(
+			"/videos/:id/transcript",
+			internalHandler.GetTranscript,
 		)
 
 		protected.POST(

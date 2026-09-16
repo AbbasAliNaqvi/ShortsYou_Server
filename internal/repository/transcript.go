@@ -16,21 +16,32 @@ import (
 
 // StoredTranscript holds raw Whisper output while waiting for analysis callback.
 type StoredTranscript struct {
-	ID          primitive.ObjectID       `bson:"_id,omitempty"`
-	VideoID     string                   `bson:"videoId"`
-	UserID      string                   `bson:"userId"`
-	Segments    []StoredSegment          `bson:"segments"`
-	FillerWords []StoredFillerWord       `bson:"fillerWords"`
-	SilenceGaps []StoredSilenceGap       `bson:"silenceGaps"`
-	Language    string                   `bson:"language"`
-	CreatedAt   time.Time                `bson:"createdAt"`
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	VideoID     string             `bson:"videoId"`
+	UserID      string             `bson:"userId"`
+	Segments    []StoredSegment    `bson:"segments"`
+	FillerWords []StoredFillerWord `bson:"fillerWords"`
+	SilenceGaps []StoredSilenceGap `bson:"silenceGaps"`
+	Language    string             `bson:"language"`
+	CreatedAt   time.Time          `bson:"createdAt"`
 }
 
 type StoredSegment struct {
-	Index int     `bson:"index" json:"index"`
-	Start float64 `bson:"start" json:"start"`
-	End   float64 `bson:"end"   json:"end"`
-	Text  string  `bson:"text"  json:"text"`
+	Index int          `bson:"index" json:"index"`
+	Start float64      `bson:"start" json:"start"`
+	End   float64      `bson:"end"   json:"end"`
+	Text  string       `bson:"text"  json:"text"`
+	Words []StoredWord `bson:"words" json:"words"`
+}
+
+// StoredWord retains Whisper timestamps for filler-aware editing and future
+// re-analysis. It must not be discarded between the transcription callback and
+// the analysis request.
+type StoredWord struct {
+	Word        string  `bson:"word"        json:"word"`
+	Start       float64 `bson:"start"       json:"start"`
+	End         float64 `bson:"end"         json:"end"`
+	Probability float64 `bson:"probability" json:"probability"`
 }
 
 type StoredFillerWord struct {

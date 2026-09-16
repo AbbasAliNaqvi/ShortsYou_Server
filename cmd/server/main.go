@@ -99,7 +99,6 @@ func main() {
 	abRepo := repository.NewABExperimentRepository(mongo)
 	transcriptRepo := repository.NewTranscriptRepository(mongo)
 
-
 	// Services
 	oauthCfg := auth.NewOAuthConfig(cfg)
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
@@ -113,6 +112,7 @@ func main() {
 			cfg.MLAudioServiceURL,
 			cfg.MLAPIKey,
 			cfg.BaseURL,
+			cfg.InternalAPIKey,
 		)
 	}
 

@@ -885,26 +885,105 @@ export function HomeDashboard() {
         </section>
       </main>
 
-      <footer className="sy-footer sy-shell">
-        <div className="sy-footer-top">
-          <span className="sy-footer-brand">
-            Shorts<em>You</em>
-          </span>
-          <span className="sy-mono sy-footer-status">
-            <i /> All systems operational
-          </span>
-        </div>
-        <div className="sy-footer-links">
-          {navItems.map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`}>
-              {item}
-            </a>
-          ))}
-          <a href="#">Security</a>
-          <a href="#">Privacy</a>
-        </div>
-        <div className="sy-footer-bottom sy-mono sy-muted">
-          © {new Date().getFullYear()} ShortsYou Inc. Built for elite media operators.
+      <footer style={{ background: '#f5f4f1', padding: '64px 0 40px', borderTop: '1px solid #e8e7e4' }}>
+        <div className="c">
+
+          {/* Columns row */}
+          <div className="footer-top" style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 40, paddingBottom: 56,
+            borderBottom: '1px solid #e0ddd8', marginBottom: 56,
+          }}>
+            {[
+              { h: 'PLATFORM',    links: ['Dashboard', 'Discover', 'Clips', 'Analytics', 'Editor'] },
+              { h: 'DEVELOPERS',  links: ['API Docs', 'Webhooks', 'Job Queue', 'System Status', 'Changelog'] },
+              { h: 'COMPANY',     links: ['About', 'Blog', 'Careers', 'Press', 'Legal'] },
+            ].map(col => (
+              <div key={col.h}>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: '0.14em',
+                  color: '#c0bdb8', marginBottom: 20, textTransform: 'uppercase',
+                }}>
+                  {col.h}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {col.links.map(l => (
+                    <a key={l} href="#" className="footer-link">{l}</a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Big wordmark + cities + contact — LAM layout */}
+          <div className="footer-bottom" style={{
+            display: 'grid', gridTemplateColumns: '1fr auto',
+            gap: 40, alignItems: 'flex-end',
+          }}>
+            <div>
+              {/* HUGE wordmark */}
+              <div style={{
+                fontSize: 'clamp(52px, 9vw, 128px)',
+                fontWeight: 900, letterSpacing: '-0.05em',
+                lineHeight: 1, color: '#0a0a0a', marginBottom: 14,
+              }}>
+                ShortsYou™
+              </div>
+              {/* Cities — exactly like LAM */}
+              <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+                {['MUM', 'BLR', 'DEL', 'NYC', 'SF'].map(city => (
+                  <span key={city} style={{
+                    fontSize: 12, color: '#c0bdb8',
+                    letterSpacing: '0.08em', fontWeight: 500,
+                  }}>{city}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Contact — right side */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                fontSize: 10, color: '#c0bdb8', letterSpacing: '0.14em',
+                marginBottom: 10, textTransform: 'uppercase',
+              }}>Contact</div>
+              <a href="mailto:hello@shortsyou.ai" style={{
+                display: 'block', fontSize: 14, fontWeight: 600,
+                color: '#0a0a0a', marginBottom: 14, letterSpacing: '0.02em',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#630404')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#0a0a0a')}
+              >
+                HELLO@SHORTSYOU.AI
+              </a>
+              <div style={{ display: 'flex', gap: 20, justifyContent: 'flex-end' }}>
+                {['INSTAGRAM', 'LINKEDIN', 'TWITTER'].map(s => (
+                  <a key={s} href="#" className="social-link">{s}</a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom strip */}
+          <div style={{
+            marginTop: 40, paddingTop: 24, borderTop: '1px solid #e8e7e4',
+            display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', flexWrap: 'wrap', gap: 12,
+          }}>
+            <span style={{ fontSize: 12, color: '#c0bdb8' }}>
+              © 2026 ShortsYou Inc. All rights reserved.
+            </span>
+            <div style={{ display: 'flex', gap: 20 }}>
+              {['Privacy', 'Terms', 'Security', 'Sitemap'].map(l => (
+                <a key={l} href="#" style={{
+                  fontSize: 12, color: '#c0bdb8', transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#888')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#c0bdb8')}
+                >{l}</a>
+              ))}
+            </div>
+          </div>
         </div>
       </footer>
 

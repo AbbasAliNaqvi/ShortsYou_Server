@@ -37,3 +37,29 @@ environment variable named `YOUTUBE_COOKIES_BASE64`. Set it to the base64-encode
 Netscape cookies file exported from a YouTube account that can view the video.
 The server uses it only while downloading and removes the temporary cookie file
 afterward. Do not commit the cookies file or its decoded contents.
+
+## Transcription and analysis integration
+
+The server treats ML work as an asynchronous, callback-driven pipeline. Configure
+the friend service without committing its bearer token:
+
+```bash
+ML_NLP_SERVICE_URL=https://shortsyou.onrender.com/api/v1
+ML_API_KEY=your_transcription_service_bearer_token
+BASE_URL=https://your-public-go-server.example
+INTERNAL_API_KEY=a-long-shared-callback-secret
+```
+
+For each video the server sends `/transcribe` `job_id`, `videoId`, `userId`,
+`audioUrl`, and `language`. Once a transcript is ready, the ML service must POST
+the transcript to `BASE_URL/api/internal/transcription/done`; the Go server then
+persists the full word timestamps and starts `/analyze`. Analysis must POST its
+results to `BASE_URL/api/internal/analysis/done`.
+
+Callbacks are authenticated with either `X-Internal-Key`,
+`X-Internal-API-Key`, or `Authorization: Bearer <INTERNAL_API_KEY>`. Both callback
+URLs must be public HTTPS URLs reachable by the Render service. The pasted ML
+router only acknowledges `/transcribe`; if its background service does not send
+the transcription callback, it needs that callback added before the pipeline can
+complete—the database entry in the ML service alone is not visible to this Go
+server.

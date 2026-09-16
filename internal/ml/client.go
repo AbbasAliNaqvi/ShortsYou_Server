@@ -13,17 +13,19 @@ import (
 type Client struct {
 	nlpURL       string
 	audioURL     string
-	apiKey       string
+	apiKey       string // outbound ML service bearer token
 	callbackBase string
+	callbackKey  string // inbound ShortsYou callback secret
 	http         *http.Client
 }
 
-func NewClient(nlpURL, audioURL, apiKey, callbackBase string) *Client {
+func NewClient(nlpURL, audioURL, apiKey, callbackBase, callbackKey string) *Client {
 	return &Client{
 		nlpURL:       nlpURL,
 		audioURL:     audioURL,
 		apiKey:       apiKey,
 		callbackBase: callbackBase,
+		callbackKey:  callbackKey,
 		http:         &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -40,17 +42,23 @@ func (c *Client) Transcribe(
 	req TranscribeRequest,
 ) (*TranscribeResponse, error) {
 	type asyncReq struct {
+		JobID       string `json:"job_id"`
 		VideoID     string `json:"videoId"`
+		UserID      string `json:"userId"`
 		AudioURL    string `json:"audioUrl"`
+		Language    string `json:"language,omitempty"`
 		CallbackURL string `json:"callbackUrl,omitempty"`
 		InternalKey string `json:"internalKey,omitempty"`
 	}
 
 	body := asyncReq{
+		JobID:       req.JobID,
 		VideoID:     req.VideoID,
+		UserID:      req.UserID,
 		AudioURL:    req.AudioURL,
+		Language:    req.Language,
 		CallbackURL: c.callbackBase + "/api/internal/transcription/done",
-		InternalKey: c.apiKey,
+		InternalKey: c.callbackKey,
 	}
 
 	var resp AcceptedResponse
@@ -88,7 +96,7 @@ func (c *Client) Analyze(ctx context.Context, req AnalyzeRequest) (*AnalyzeRespo
 	}
 
 	body := asyncReq{
-		JobID:       req.VideoID,
+		JobID:       req.JobID,
 		VideoID:     req.VideoID,
 		UserID:      req.UserID,
 		Language:    req.Language,
@@ -96,7 +104,7 @@ func (c *Client) Analyze(ctx context.Context, req AnalyzeRequest) (*AnalyzeRespo
 		FillerWords: req.FillerWords,
 		SilenceGaps: req.SilenceGaps,
 		CallbackURL: c.callbackBase + "/api/internal/analysis/done",
-		InternalKey: c.apiKey,
+		InternalKey: c.callbackKey,
 	}
 
 	var resp AcceptedResponse

@@ -176,6 +176,7 @@ func (h *VideoHandler) SyncChannel(c *gin.Context) {
 		task, err := queue.NewProcessVideoTask(
 			video.ID.Hex(),
 			userIDStr,
+			"",
 		)
 		if err != nil {
 			continue
@@ -250,16 +251,25 @@ func (h *VideoHandler) GenerateVideo(c *gin.Context) {
 		response.OK(c, gin.H{"videoId": video.ID.Hex(), "status": video.ProcessingStatus, "message": "AI generation is already in progress"})
 		return
 	}
+	jobID := primitive.NewObjectID().Hex()
+	if err := h.jobRepo.Create(c.Request.Context(), models.ProcessingJob{
+		JobID: jobID, UserID: userID, VideoID: videoID,
+		Status: models.JobStatusQueued, Stage: "queued", Progress: 0,
+	}); err != nil {
+		response.InternalError(c)
+		return
+	}
 	if err := h.videoRepo.UpdateStatus(c.Request.Context(), videoID, models.StatusPending, ""); err != nil {
 		response.InternalError(c)
 		return
 	}
-	task, err := queue.NewProcessVideoTask(video.ID.Hex(), userID.Hex())
+	task, err := queue.NewProcessVideoTask(video.ID.Hex(), userID.Hex(), jobID)
 	if err != nil || h.queue.Enqueue(task) != nil {
+		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue processing job")
 		response.InternalError(c)
 		return
 	}
-	response.OK(c, gin.H{"videoId": video.ID.Hex(), "status": "processing", "message": "AI generation queued"})
+	response.OK(c, gin.H{"jobId": jobID, "videoId": video.ID.Hex(), "status": "processing", "message": "AI generation queued"})
 }
 
 // POST /api/v1/channels/:channelId/videos/:youtubeVideoId/process
@@ -375,12 +385,13 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 	}
 
 	// Enqueue the processing job
-	task, err := queue.NewProcessVideoTask(videoID.Hex(), userIDStr.(string))
+	task, err := queue.NewProcessVideoTask(videoID.Hex(), userIDStr.(string), jobID)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
 	if err := h.queue.Enqueue(task); err != nil {
+		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue processing job")
 		response.InternalError(c)
 		return
 	}

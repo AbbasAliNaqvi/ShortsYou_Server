@@ -98,3 +98,43 @@ func (r *JobRepository) Fail(ctx context.Context, jobID, errMsg string) error {
 	)
 	return err
 }
+
+// UpdateByVideoID updates the most recent pipeline job for a video. Callbacks
+// are keyed by videoId by the external ML service, not by our internal job ID.
+func (r *JobRepository) UpdateByVideoID(ctx context.Context, videoID string, status, stage string, progress float64, clipsFound int, errMsg string) error {
+	id, err := primitive.ObjectIDFromHex(videoID)
+	if err != nil {
+		return fmt.Errorf("JobRepository.UpdateByVideoID: invalid video id: %w", err)
+	}
+	fields := bson.M{
+		"status":     status,
+		"stage":      stage,
+		"progress":   progress,
+		"clipsFound": clipsFound,
+		"error":      errMsg,
+	}
+	if status == models.JobStatusCompleted || status == models.JobStatusFailed {
+		now := time.Now()
+		fields["completedAt"] = now
+	}
+	var latest models.ProcessingJob
+	if err := r.col.FindOne(
+		ctx,
+		bson.M{"videoId": id},
+		options.FindOne().SetSort(bson.D{{Key: "createdAt", Value: -1}}),
+	).Decode(&latest); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil
+		}
+		return fmt.Errorf("JobRepository.UpdateByVideoID find: %w", err)
+	}
+	_, err = r.col.UpdateOne(
+		ctx,
+		bson.M{"_id": latest.ID},
+		bson.M{"$set": fields},
+	)
+	if err != nil {
+		return fmt.Errorf("JobRepository.UpdateByVideoID: %w", err)
+	}
+	return nil
+}

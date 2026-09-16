@@ -32,15 +32,21 @@ export async function apiRequest<T>(
 }
 
 export const api = {
+  health: () => apiRequest<Health>("/health"),
   me: (token: string) => apiRequest<User>("/api/v1/auth/me", { token }),
   videos: (token: string) => apiRequest<Video[]>("/api/v1/videos", { token }),
+  transcript: (token: string, videoId: string) =>
+    apiRequest<Transcript>(
+      `/api/v1/videos/${encodeURIComponent(videoId)}/transcript`,
+      { token },
+    ),
   syncVideos: (token: string) =>
     apiRequest<{ synced: number; queued: number }>("/api/v1/videos/sync", {
       method: "POST",
       token,
     }),
   generateVideo: (token: string, videoId: string) =>
-    apiRequest<{ videoId: string; status: string; message: string }>(
+    apiRequest<{ jobId: string; videoId: string; status: string; message: string }>(
       `/api/v1/videos/${encodeURIComponent(videoId)}/generate`,
       { method: "POST", token },
     ),
@@ -89,7 +95,25 @@ export const api = {
       { method: "PUT", body: JSON.stringify({ name }), token },
     ),
   clips: (token: string) => apiRequest<Clip[]>("/api/v1/clips", { token }),
+  pendingClips: (token: string) =>
+    apiRequest<ClipCollection>("/api/v1/clips/pending", { token }),
+  approvedClips: (token: string) =>
+    apiRequest<ClipCollection>("/api/v1/clips/approved", { token }),
+  clip: (token: string, clipId: string) =>
+    apiRequest<Clip>(`/api/v1/clips/${encodeURIComponent(clipId)}`, { token }),
+  approveClip: (token: string, clipId: string) =>
+    apiRequest<ClipAction>(`/api/v1/clips/${encodeURIComponent(clipId)}/approve`, {
+      method: "PATCH",
+      token,
+    }),
+  rejectClip: (token: string, clipId: string) =>
+    apiRequest<ClipAction>(`/api/v1/clips/${encodeURIComponent(clipId)}/reject`, {
+      method: "PATCH",
+      token,
+    }),
   jobs: (token: string) => apiRequest<Job[]>("/api/v1/jobs", { token }),
+  job: (token: string, jobId: string) =>
+    apiRequest<Job>(`/api/v1/jobs/${encodeURIComponent(jobId)}`, { token }),
   exportClip: (token: string, clipId: string) =>
     apiRequest<{ clipId: string; status: string }>(
       `/api/v1/clips/${clipId}/export`,
@@ -123,6 +147,12 @@ export const api = {
   analytics: {
     dna: (token: string) =>
       apiRequest<unknown>("/api/v1/analytics/dna", { token }),
+    knowledgeGraph: (token: string) =>
+      apiRequest<unknown>("/api/v1/analytics/knowledge-graph", { token }),
+    contentGaps: (token: string) =>
+      apiRequest<unknown>("/api/v1/analytics/content-gaps", { token }),
+    personas: (token: string) =>
+      apiRequest<unknown>("/api/v1/analytics/personas", { token }),
     trends: (token: string) =>
       apiRequest<unknown>("/api/v1/analytics/trend-forecast", { token }),
     performance: (token: string) =>
@@ -131,7 +161,16 @@ export const api = {
       }),
     modelAccuracy: (token: string) =>
       apiRequest<ModelAccuracy>("/api/v1/analytics/model-accuracy", { token }),
+    abTests: (token: string) =>
+      apiRequest<unknown>("/api/v1/analytics/ab-tests", { token }),
   },
+};
+
+export type Health = {
+  status: "ok" | "degraded";
+  uptime: string;
+  runtime: string;
+  dependencies: Record<string, { status: string; error?: string }>;
 };
 
 export type User = {
@@ -154,6 +193,29 @@ export type Video = {
   sourceType?: string;
   sourceChannelId?: string;
 };
+export type TranscriptWord = {
+  word: string;
+  start: number;
+  end: number;
+  probability: number;
+};
+export type TranscriptSegment = {
+  index: number;
+  start: number;
+  end: number;
+  text: string;
+  words: TranscriptWord[];
+};
+export type Transcript = {
+  id: string;
+  videoId: string;
+  userId: string;
+  language: string;
+  segments: TranscriptSegment[];
+  fillerWords: TranscriptWord[];
+  silenceGaps: { start: number; end: number; duration: number }[];
+  createdAt: string;
+};
 export type Clip = {
   id: string;
   videoId: string;
@@ -170,6 +232,8 @@ export type Clip = {
   selectedThumbnail?: string;
   thumbnailOptions?: string[];
 };
+export type ClipCollection = { clips: Clip[]; count: number };
+export type ClipAction = { clipId: string; status: string; message: string };
 export type EditSettings = {
   backgroundStyle: string;
   colorGrade: string;

@@ -24,6 +24,7 @@ const (
 type ProcessVideoPayload struct {
 	VideoID string `json:"videoId"`
 	UserID  string `json:"userId"`
+	JobID   string `json:"jobId,omitempty"`
 }
 
 type ExportClipPayload struct {
@@ -41,10 +42,11 @@ type RetrainCPEPPayload struct {
 	UserID string `json:"userId"`
 }
 
-func NewProcessVideoTask(videoID, userID string) (*asynq.Task, error) {
+func NewProcessVideoTask(videoID, userID, jobID string) (*asynq.Task, error) {
 	payload, err := json.Marshal(ProcessVideoPayload{
 		VideoID: videoID,
 		UserID:  userID,
+		JobID:   jobID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal ProcessVideoPayload: %w", err)

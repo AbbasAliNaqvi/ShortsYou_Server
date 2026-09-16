@@ -184,5 +184,14 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("at least one GROQ_KEY is required")
 	}
 
+	if cfg.Env == "production" {
+		if strings.TrimSpace(cfg.MLAPIKey) == "" {
+			return fmt.Errorf("ML_API_KEY is required in production")
+		}
+		if strings.Contains(cfg.BaseURL, "localhost") || strings.HasPrefix(cfg.BaseURL, "http://") {
+			return fmt.Errorf("BASE_URL must be a public HTTPS URL in production so ML callbacks can reach this server")
+		}
+	}
+
 	return nil
 }

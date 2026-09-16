@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,7 @@ type InternalHandler struct {
 	personaRepo    *repository.PersonaRepository
 	trendRepo      *repository.TrendForecastRepository
 	transcriptRepo *repository.TranscriptRepository
+	jobRepo        *repository.JobRepository
 	llmRotator     *llm.Rotator
 	cfg            *config.Config
 	log            zerolog.Logger
@@ -41,6 +43,7 @@ func NewInternalHandler(
 	personaRepo *repository.PersonaRepository,
 	trendRepo *repository.TrendForecastRepository,
 	transcriptRepo *repository.TranscriptRepository,
+	jobRepo *repository.JobRepository,
 	llmRotator *llm.Rotator,
 	cfg *config.Config,
 	log zerolog.Logger,
@@ -53,6 +56,7 @@ func NewInternalHandler(
 		personaRepo:    personaRepo,
 		trendRepo:      trendRepo,
 		transcriptRepo: transcriptRepo,
+		jobRepo:        jobRepo,
 		llmRotator:     llmRotator,
 		cfg:            cfg,
 		log:            log,
@@ -91,6 +95,7 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 			"errorLog":         req.Error,
 			"updatedAt":        time.Now(),
 		})
+		_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusFailed, "transcription_failed", 1, 0, req.Error)
 		response.OK(c, gin.H{"status": "error recorded"})
 		return
 	}
@@ -103,6 +108,7 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 			"clipsDetected":    0,
 			"updatedAt":        time.Now(),
 		})
+		_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusCompleted, "completed", 1, 0, "")
 		response.OK(c, gin.H{"status": "completed", "clips": 0})
 		return
 	}
@@ -129,6 +135,7 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 		"processingStatus": "analyzing",
 		"updatedAt":        time.Now(),
 	})
+	_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusAnalyzing, "analyzing", 0.6, 0, "")
 
 	// Fire async /analyze call — do not block the response
 	go h.fireAnalyze(req.VideoID, req.UserID, req.Language, req.Segments, req.FillerWords, req.SilenceGaps)
@@ -140,6 +147,48 @@ func (h *InternalHandler) TranscriptionDone(c *gin.Context) {
 	})
 }
 
+// GetTranscript exposes the completed transcript to its owner. The external
+// transcription service is never contacted from the browser; the browser only
+// reads the copy persisted after a verified internal callback.
+func (h *InternalHandler) GetTranscript(c *gin.Context) {
+	videoID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+	userIDValue, ok := c.Get("userID")
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	userIDString, ok := userIDValue.(string)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	userID, err := primitive.ObjectIDFromHex(userIDString)
+	if err != nil {
+		response.Unauthorized(c)
+		return
+	}
+	video, err := h.videoRepo.FindByID(c.Request.Context(), videoID)
+	if err != nil || video == nil || video.UserID != userID {
+		response.NotFound(c, "video")
+		return
+	}
+	transcript, err := h.transcriptRepo.FindByVideoID(c.Request.Context(), videoID.Hex())
+	if err != nil {
+		h.log.Error().Err(err).Str("videoId", videoID.Hex()).Msg("failed to load transcript")
+		response.InternalError(c)
+		return
+	}
+	if transcript == nil {
+		response.NotFound(c, "transcript")
+		return
+	}
+	response.OK(c, transcript)
+}
+
 // fireAnalyze calls Mayank's /analyze endpoint in a goroutine.
 func (h *InternalHandler) fireAnalyze(
 	videoID, userID, language string,
@@ -148,11 +197,11 @@ func (h *InternalHandler) fireAnalyze(
 	silenceGaps []repository.StoredSilenceGap,
 ) {
 	type analyzeSegment struct {
-		Index int     `json:"index"`
-		Start float64 `json:"start"`
-		End   float64 `json:"end"`
-		Text  string  `json:"text"`
-		Words []any   `json:"words"`
+		Index int                     `json:"index"`
+		Start float64                 `json:"start"`
+		End   float64                 `json:"end"`
+		Text  string                  `json:"text"`
+		Words []repository.StoredWord `json:"words"`
 	}
 
 	segs := make([]analyzeSegment, len(segments))
@@ -162,7 +211,7 @@ func (h *InternalHandler) fireAnalyze(
 			Start: s.Start,
 			End:   s.End,
 			Text:  s.Text,
-			Words: []any{},
+			Words: s.Words,
 		}
 	}
 
@@ -178,9 +227,15 @@ func (h *InternalHandler) fireAnalyze(
 		"internalKey": h.cfg.InternalAPIKey,
 	}
 
-	data, _ := json.Marshal(body)
+	data, err := json.Marshal(body)
+	if err != nil {
+		h.log.Error().Err(err).Str("videoId", videoID).Msg("failed to encode analyze request")
+		return
+	}
 
-	req, err := http.NewRequest(http.MethodPost,
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		h.cfg.MLNLPServiceURL+"/analyze",
 		bytes.NewReader(data),
 	)
@@ -201,11 +256,23 @@ func (h *InternalHandler) fireAnalyze(
 	defer resp.Body.Close()
 
 	raw, _ := io.ReadAll(resp.Body)
-	h.log.Info().
+	logEvent := h.log.Info()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		logEvent = h.log.Error()
+	}
+	logEvent.
 		Str("videoId", videoID).
 		Int("status", resp.StatusCode).
-		Str("body", string(raw)).
+		Int("responseBytes", len(raw)).
 		Msg("analyze fired")
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if id, parseErr := primitive.ObjectIDFromHex(videoID); parseErr == nil {
+			_ = h.videoRepo.UpdateFields(context.Background(), id, map[string]any{
+				"processingStatus": "failed", "errorLog": "analysis service rejected request", "updatedAt": time.Now(),
+			})
+		}
+		_ = h.jobRepo.UpdateByVideoID(context.Background(), videoID, models.JobStatusFailed, "analysis_submission_failed", 1, 0, "analysis service rejected request")
+	}
 }
 
 // ── Analysis Done ─────────────────────────────────────────────────────────────
@@ -259,6 +326,7 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			"errorLog":         req.Error,
 			"updatedAt":        time.Now(),
 		})
+		_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusFailed, "analysis_failed", 1, 0, req.Error)
 		response.OK(c, gin.H{"status": "error recorded"})
 		return
 	}
@@ -375,6 +443,7 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			"clipsDetected":    0,
 			"updatedAt":        time.Now(),
 		})
+		_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusCompleted, "completed", 1, 0, "")
 		response.OK(c, gin.H{"status": "completed", "clips": 0})
 		return
 	}
@@ -473,6 +542,7 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 		"clipsDetected":    len(clips),
 		"updatedAt":        time.Now(),
 	})
+	_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusCompleted, "completed", 1, len(clips), "")
 
 	log.Info().Int("clips", len(clips)).Msg("video processing completed with real ML data")
 

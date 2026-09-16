@@ -1,8 +1,11 @@
 package ml
 
 type TranscribeRequest struct {
+	JobID    string `json:"job_id"`
 	VideoID  string `json:"videoId"`
+	UserID   string `json:"userId"`
 	AudioURL string `json:"audioUrl"`
+	Language string `json:"language"`
 }
 
 type WordTimestamp struct {
@@ -26,11 +29,11 @@ type SilenceGap struct {
 }
 
 type TranscriptSegment struct {
-	Index       int             `json:"index"`
-	Start       float64         `json:"start"`
-	End         float64         `json:"end"`
-	Text        string          `json:"text"`
-	Words       []WordTimestamp `json:"words"`
+	Index int             `json:"index"`
+	Start float64         `json:"start"`
+	End   float64         `json:"end"`
+	Text  string          `json:"text"`
+	Words []WordTimestamp `json:"words"`
 }
 
 type TranscribeResponse struct {
@@ -39,7 +42,6 @@ type TranscribeResponse struct {
 	SilenceGaps []SilenceGap        `json:"silenceGaps"`
 	Language    string              `json:"language"`
 }
-
 
 type AnalyzeRequest struct {
 	JobID       string              `json:"job_id"`
@@ -73,7 +75,6 @@ type AnalyzeResponse struct {
 	TopicDistribution []TopicWeight     `json:"topicDistribution"`
 }
 
-
 type SegmentWindow struct {
 	Index int     `json:"index"`
 	Start float64 `json:"start"`
@@ -99,7 +100,6 @@ type EmotionResponse struct {
 	Segments []EmotionSegment `json:"segments"`
 }
 
-
 type GenerateShortRequest struct {
 	ClipID      string  `json:"clipId"`
 	UserID      string  `json:"userId"`
@@ -113,7 +113,6 @@ type GenerateShortResponse struct {
 	OutputURL string  `json:"outputUrl"`
 	Duration  float64 `json:"duration"`
 }
-
 
 type TrainCPEPRequest struct {
 	UserID string `json:"userId"`

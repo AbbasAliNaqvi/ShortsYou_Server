@@ -637,9 +637,19 @@ func extractProcessedObjectKey(outputURL, bucket string) (string, error) {
 }
 
 func (h *ClipHandler) ApproveClip(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid clip id")
+		return
+	}
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	if err != nil || clip == nil || clip.UserID != userID {
+		response.NotFound(c, "clip")
 		return
 	}
 
@@ -665,9 +675,19 @@ func (h *ClipHandler) ApproveClip(c *gin.Context) {
 }
 
 func (h *ClipHandler) RejectClip(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		response.BadRequest(c, "invalid clip id")
+		return
+	}
+	clip, err := h.clipRepo.FindByID(c.Request.Context(), id)
+	if err != nil || clip == nil || clip.UserID != userID {
+		response.NotFound(c, "clip")
 		return
 	}
 

@@ -88,6 +88,9 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	fail := func(stage string, err error) error {
 		log.Error().Err(err).Str("stage", stage).Msg("processing failed")
 		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusFailed, err.Error())
+		if p.JobID != "" {
+			_ = h.jobRepo.Fail(ctx, p.JobID, err.Error())
+		}
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
@@ -96,6 +99,9 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	// directly into their own temporary working directory.
 	log.Info().Msg("preparing YouTube source URL")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
+	if p.JobID != "" {
+		_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
+	}
 
 	videoURL := downloader.WatchURL(video.YouTubeVideoID)
 	log.Info().Str("url", videoURL).Msg("YouTube source URL ready")
@@ -104,10 +110,16 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	// Results come back via /api/internal/transcription/done
 	log.Info().Msg("requesting transcription from ML service")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusTranscribing, "")
+	if p.JobID != "" {
+		_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusTranscribing, "transcribing", 0.25)
+	}
 
 	_, err = h.mlClient.Transcribe(ctx, ml.TranscribeRequest{
+		JobID:    p.JobID,
 		VideoID:  p.VideoID,
+		UserID:   p.UserID,
 		AudioURL: videoURL,
+		Language: "auto",
 	})
 	if err != nil {
 		return fail("transcribe", err)
