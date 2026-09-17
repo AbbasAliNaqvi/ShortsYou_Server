@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
+import { notify } from "@/components/Notifications/NotificationCenter";
 
 const navItems = [
   [Sparkles, "Studio"],
@@ -131,6 +132,7 @@ export function PlaceholderDashboard() {
           ? `${result.title} queued for AI analysis.`
           : `${result.title} was saved without transcription.`,
       );
+      notify("Video added to your studio", transcribe ? "Analysis has started. We’ll let you know when clips are ready." : "The video is ready for manual editing.", "success");
       await loadDashboard();
     } catch (ingestError) {
       setNotice(
@@ -144,7 +146,7 @@ export function PlaceholderDashboard() {
   async function ingestSearchResult(video: PublicVideo) {
     const token = localStorage.getItem("shortsyou_jwt"); if (!token) return;
     setSourceUrl(`https://youtube.com/watch?v=${video.youtubeVideoId}`);
-    try { const result = await api.ingest(token, `https://youtube.com/watch?v=${video.youtubeVideoId}`, true); setVideoResults([]); setNotice(`${result.title} queued for AI analysis.`); await loadDashboard(); }
+    try { const result = await api.ingest(token, `https://youtube.com/watch?v=${video.youtubeVideoId}`, true); setVideoResults([]); setNotice(`${result.title} queued for AI analysis.`); notify("Selected video added", "AI analysis has started. You can keep working anywhere in ShortsYou.", "success"); await loadDashboard(); }
     catch (error) { setNotice(error instanceof Error ? error.message : "Unable to queue this video."); }
   }
 
