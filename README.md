@@ -46,7 +46,7 @@ the friend service without committing its bearer token:
 ```bash
 ML_NLP_SERVICE_URL=https://shortsyou.onrender.com/api/v1
 ML_API_KEY=your_transcription_service_bearer_token
-BASE_URL=https://your-public-go-server.example
+BASE_URL=https://shortsyou-server.onrender.com
 INTERNAL_API_KEY=a-long-shared-callback-secret
 ```
 

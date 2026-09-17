@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -247,7 +248,13 @@ func (h *VideoHandler) GenerateVideo(c *gin.Context) {
 		response.NotFound(c, "video")
 		return
 	}
-	if video.ProcessingStatus == models.StatusTranscribing || video.ProcessingStatus == models.StatusAnalyzing || video.ProcessingStatus == models.StatusDownloading {
+	// Pending is the initial state of a video that has not been generated yet.
+	// A stale active state must be recoverable: otherwise a timed-out callback
+	// leaves the user with no way to regenerate clips.
+	isActive := video.ProcessingStatus == models.StatusTranscribing ||
+		video.ProcessingStatus == models.StatusAnalyzing ||
+		video.ProcessingStatus == models.StatusDownloading
+	if isActive && (video.UpdatedAt.IsZero() || time.Since(video.UpdatedAt) < 15*time.Minute) {
 		response.OK(c, gin.H{"videoId": video.ID.Hex(), "status": video.ProcessingStatus, "message": "AI generation is already in progress"})
 		return
 	}

@@ -230,10 +230,13 @@ func (h *InternalHandler) fireAnalyze(
 	data, err := json.Marshal(body)
 	if err != nil {
 		h.log.Error().Err(err).Str("videoId", videoID).Msg("failed to encode analyze request")
+		h.markAnalysisSubmissionFailed(videoID, err)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	// The NLP endpoint accepts work asynchronously, but can still take more
+	// than 30 seconds to send response headers under load.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		h.cfg.MLNLPServiceURL+"/analyze",
@@ -241,16 +244,18 @@ func (h *InternalHandler) fireAnalyze(
 	)
 	if err != nil {
 		h.log.Error().Err(err).Str("videoId", videoID).Msg("failed to build analyze request")
+		h.markAnalysisSubmissionFailed(videoID, err)
 		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+h.cfg.MLAPIKey)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 2 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
 		h.log.Error().Err(err).Str("videoId", videoID).Msg("analyze call failed")
+		h.markAnalysisSubmissionFailed(videoID, err)
 		return
 	}
 	defer resp.Body.Close()
@@ -266,13 +271,21 @@ func (h *InternalHandler) fireAnalyze(
 		Int("responseBytes", len(raw)).
 		Msg("analyze fired")
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		if id, parseErr := primitive.ObjectIDFromHex(videoID); parseErr == nil {
-			_ = h.videoRepo.UpdateFields(context.Background(), id, map[string]any{
-				"processingStatus": "failed", "errorLog": "analysis service rejected request", "updatedAt": time.Now(),
-			})
-		}
-		_ = h.jobRepo.UpdateByVideoID(context.Background(), videoID, models.JobStatusFailed, "analysis_submission_failed", 1, 0, "analysis service rejected request")
+		h.markAnalysisSubmissionFailed(videoID, fmt.Errorf("analysis service returned HTTP %d", resp.StatusCode))
 	}
+}
+
+// markAnalysisSubmissionFailed prevents a failed handoff from leaving a video
+// permanently in "analyzing". The user can then retry generation from the UI.
+func (h *InternalHandler) markAnalysisSubmissionFailed(videoID string, cause error) {
+	if id, err := primitive.ObjectIDFromHex(videoID); err == nil {
+		_ = h.videoRepo.UpdateFields(context.Background(), id, map[string]any{
+			"processingStatus": models.StatusFailed,
+			"errorLog":         "analysis submission failed: " + cause.Error(),
+			"updatedAt":        time.Now(),
+		})
+	}
+	_ = h.jobRepo.UpdateByVideoID(context.Background(), videoID, models.JobStatusFailed, "analysis_submission_failed", 1, 0, cause.Error())
 }
 
 // ── Analysis Done ─────────────────────────────────────────────────────────────
