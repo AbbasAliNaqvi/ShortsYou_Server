@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -94,17 +96,33 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	// Keep raw source media out of Supabase. Its Free tier has a hard 50 MB
-	// upload limit, while the downstream services can download a YouTube URL
-	// directly into their own temporary working directory.
-	log.Info().Msg("preparing YouTube source URL")
+	// A YouTube watch URL is HTML, not an audio stream. Download only the
+	// compressed audio rendition and publish it for the transcription worker;
+	// Deepgram can then fetch it with the correct media content type.
+	log.Info().Msg("preparing transcription audio")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
 	if p.JobID != "" {
 		_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
 	}
 
-	videoURL := downloader.WatchURL(video.YouTubeVideoID)
-	log.Info().Str("url", videoURL).Msg("YouTube source URL ready")
+	audio, err := downloader.DownloadAudio(ctx, video.YouTubeVideoID)
+	if err != nil {
+		return fail("download transcription audio", err)
+	}
+	defer audio.Cleanup()
+	audioBytes, err := os.ReadFile(audio.FilePath)
+	if err != nil {
+		return fail("read transcription audio", err)
+	}
+	const maxTranscriptionAudioBytes = 45 << 20 // Supabase Free upload limit is 50 MB.
+	if len(audioBytes) > maxTranscriptionAudioBytes {
+		return fail("download transcription audio", fmt.Errorf("audio track is %d MB; maximum supported size is %d MB", len(audioBytes)>>20, maxTranscriptionAudioBytes>>20))
+	}
+	audioURL, err := h.storage.Upload(ctx, "videos", filepath.Join("transcription-audio", p.UserID, p.VideoID+".m4a"), audio.ContentType, audioBytes)
+	if err != nil {
+		return fail("upload transcription audio", err)
+	}
+	log.Info().Int("audioBytes", len(audioBytes)).Msg("transcription audio ready")
 
 	// Stage 2 — Fire async transcription
 	// Results come back via /api/internal/transcription/done
@@ -118,7 +136,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		JobID:    p.JobID,
 		VideoID:  p.VideoID,
 		UserID:   p.UserID,
-		AudioURL: videoURL,
+		AudioURL: audioURL,
 		Language: "auto",
 	})
 	if err != nil {
