@@ -182,6 +182,7 @@ export type User = {
 };
 export type Video = {
   id: string;
+  youtubeVideoId?: string;
   title: string;
   description?: string;
   thumbnailUrl?: string;

@@ -25,18 +25,19 @@ import (
 )
 
 type TaskHandlers struct {
-	log        zerolog.Logger
-	cfg        *config.Config
-	videoRepo  *repository.VideoRepository
-	clipRepo   *repository.ClipRepository
-	fmRepo     *repository.FeatureMatrixRepository
-	userRepo   *repository.UserRepository
-	jobRepo    *repository.JobRepository
-	mlClient   ml.Service
-	storage    *storage.SupabaseClient
-	llmRotator *llm.Rotator
-	queue      *Client
-	editClient *edit.Client
+	log            zerolog.Logger
+	cfg            *config.Config
+	videoRepo      *repository.VideoRepository
+	clipRepo       *repository.ClipRepository
+	fmRepo         *repository.FeatureMatrixRepository
+	userRepo       *repository.UserRepository
+	jobRepo        *repository.JobRepository
+	transcriptRepo *repository.TranscriptRepository
+	mlClient       ml.Service
+	storage        *storage.SupabaseClient
+	llmRotator     *llm.Rotator
+	queue          *Client
+	editClient     *edit.Client
 }
 
 func NewTaskHandlers(
@@ -46,6 +47,7 @@ func NewTaskHandlers(
 	fmRepo *repository.FeatureMatrixRepository,
 	userRepo *repository.UserRepository,
 	jobRepo *repository.JobRepository,
+	transcriptRepo *repository.TranscriptRepository,
 	mlClient ml.Service,
 	supabase *storage.SupabaseClient,
 	llmRotator *llm.Rotator,
@@ -53,18 +55,19 @@ func NewTaskHandlers(
 	cfg *config.Config,
 ) *TaskHandlers {
 	return &TaskHandlers{
-		log:        log,
-		cfg:        cfg,
-		videoRepo:  videoRepo,
-		clipRepo:   clipRepo,
-		fmRepo:     fmRepo,
-		userRepo:   userRepo,
-		jobRepo:    jobRepo,
-		mlClient:   mlClient,
-		storage:    supabase,
-		llmRotator: llmRotator,
-		queue:      queue,
-		editClient: edit.NewClient(cfg.EditServiceURL),
+		log:            log,
+		cfg:            cfg,
+		videoRepo:      videoRepo,
+		clipRepo:       clipRepo,
+		fmRepo:         fmRepo,
+		userRepo:       userRepo,
+		jobRepo:        jobRepo,
+		transcriptRepo: transcriptRepo,
+		mlClient:       mlClient,
+		storage:        supabase,
+		llmRotator:     llmRotator,
+		queue:          queue,
+		editClient:     edit.NewClient(cfg.EditServiceURL),
 	}
 }
 
@@ -217,18 +220,31 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	style := styleFromEditSettings(clip.EditSettings)
 	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
+	captionWords := h.captionWordsForClip(ctx, video.ID.Hex(), clip.StartTime, clip.EndTime)
+	if len(captionWords) == 0 {
+		log.Warn().Str("captionSource", "none").Msg("rendering without spoken captions: no stored transcript words for clip")
+	} else {
+		log.Info().Str("captionSource", "transcription_service").Int("captionWords", len(captionWords)).Msg("render will use stored transcription captions")
+	}
 
 	editReq := edit.CreateShortRequest{
 		JobID: p.ClipID, ClipID: p.ClipID, UserID: p.UserID, VideoURL: videoURL,
 		StartTime: clip.StartTime, EndTime: clip.EndTime, Style: style, HookText: hookText,
-		MusicMood: moodFromSettings(clip.EditSettings), RemoveSilences: clip.EditSettings.RemoveSilences,
+		CaptionWords: captionWords,
+		MusicMood:    moodFromSettings(clip.EditSettings), RemoveSilences: clip.EditSettings.RemoveSilences,
 		RemoveFillers: clip.EditSettings.RemoveFillers, CallbackURL: callbackURL,
 		CallbackKey: h.cfg.InternalAPIKey, Layout: layoutFromSettings(clip.EditSettings),
 		BackgroundStyle: backgroundFromSettings(clip.EditSettings), ColorGrade: gradeFromSettings(clip.EditSettings),
 		CaptionStyle: captionFromSettings(clip.EditSettings),
 		EmotionType:  clip.EmotionType, SFXEvents: []edit.SFXEvent{},
 	}
-
+	if len(captionWords) > 0 && (editReq.RemoveSilences || editReq.RemoveFillers) {
+		// The caption clock is based on the original clip. A destructive edit
+		// needs a timestamp remapping pass before it can safely be enabled.
+		editReq.RemoveSilences = false
+		editReq.RemoveFillers = false
+		log.Info().Msg("caption timestamps present; disabling destructive cleanup to preserve sync")
+	}
 	log.Info().
 		Str("url", h.cfg.EditServiceURL+"/create-short").
 		Msg("calling edit service")
@@ -250,6 +266,41 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		Msg("export job submitted to edit service")
 
 	return nil
+}
+
+func (h *TaskHandlers) captionWordsForClip(ctx context.Context, videoID string, start, end float64) []edit.CaptionWord {
+	transcript, err := h.transcriptRepo.FindByVideoID(ctx, videoID)
+	if err != nil || transcript == nil {
+		if err != nil {
+			h.log.Warn().Err(err).Str("videoId", videoID).Msg("load transcript captions")
+		}
+		return nil
+	}
+	words := make([]edit.CaptionWord, 0)
+	for _, segment := range transcript.Segments {
+		for _, word := range segment.Words {
+			if word.Word == "" || word.End <= start || word.Start >= end {
+				continue
+			}
+			words = append(words, edit.CaptionWord{
+				Word: word.Word, Start: maxFloat(0, word.Start-start), End: minFloat(end-start, word.End-start),
+			})
+		}
+	}
+	return words
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // HandleCollectAnalytics fires 48 hours after a clip is published.

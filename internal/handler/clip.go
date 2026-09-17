@@ -60,6 +60,11 @@ func (h *ClipHandler) CreateManual(c *gin.Context) {
 		return
 	}
 	settings := normalizedEditSettings(req.EditSettings)
+	// Word timestamps are relative to the original clip. Removing sections
+	// without remapping those timestamps makes captions drift, so this editor
+	// prioritizes caption sync over destructive cuts.
+	settings.RemoveSilences = false
+	settings.RemoveFillers = false
 	clip := models.Clip{ID: primitive.NewObjectID(), VideoID: videoID, UserID: userID, StartTime: req.StartTime, EndTime: req.EndTime, DurationSeconds: req.EndTime - req.StartTime, TranscriptText: req.HookText, OriginalHook: req.HookText, SelectedHook: req.HookText, Category: models.CategoryNarrative, EditSettings: settings, Status: models.ClipStatusEditing}
 	if err := h.clipRepo.BulkInsert(c.Request.Context(), []models.Clip{clip}); err != nil {
 		response.InternalError(c)

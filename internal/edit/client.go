@@ -17,27 +17,38 @@ type SFXEvent struct {
 	AtSecond float64 `json:"at_second"`
 }
 
+// CaptionWord is a word-level timestamp produced by the transcription service.
+// It is relative to the exported clip, not the source video.
+type CaptionWord struct {
+	Word  string  `json:"word"`
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+}
+
 // CreateShortRequest mirrors the FastAPI CreateShortRequest contract.
 type CreateShortRequest struct {
-	JobID           string     `json:"job_id"`
-	ClipID          string     `json:"clip_id"`
-	UserID          string     `json:"user_id"`
-	VideoURL        string     `json:"video_url"`
-	StartTime       float64    `json:"start_time"`
-	EndTime         float64    `json:"end_time"`
-	Style           string     `json:"style"`
-	HookText        string     `json:"hook_text,omitempty"`
-	MusicMood       string     `json:"music_mood,omitempty"`
-	RemoveSilences  bool       `json:"remove_silences"`
-	RemoveFillers   bool       `json:"remove_fillers"`
-	CallbackURL     string     `json:"callback_url"`
-	CallbackKey     string     `json:"callback_key"`
-	Layout          string     `json:"layout"`
-	BackgroundStyle string     `json:"background_style,omitempty"`
-	ColorGrade      string     `json:"color_grade,omitempty"`
-	CaptionStyle    string     `json:"caption_style,omitempty"`
-	EmotionType     string     `json:"emotion_type"`
-	SFXEvents       []SFXEvent `json:"sfx_events"`
+	JobID     string  `json:"job_id"`
+	ClipID    string  `json:"clip_id"`
+	UserID    string  `json:"user_id"`
+	VideoURL  string  `json:"video_url"`
+	StartTime float64 `json:"start_time"`
+	EndTime   float64 `json:"end_time"`
+	Style     string  `json:"style"`
+	HookText  string  `json:"hook_text,omitempty"`
+	// CaptionWords are supplied only by the transcription service. The renderer
+	// never transcribes video itself; an empty slice means no spoken captions.
+	CaptionWords    []CaptionWord `json:"caption_words"`
+	MusicMood       string        `json:"music_mood,omitempty"`
+	RemoveSilences  bool          `json:"remove_silences"`
+	RemoveFillers   bool          `json:"remove_fillers"`
+	CallbackURL     string        `json:"callback_url"`
+	CallbackKey     string        `json:"callback_key"`
+	Layout          string        `json:"layout"`
+	BackgroundStyle string        `json:"background_style,omitempty"`
+	ColorGrade      string        `json:"color_grade,omitempty"`
+	CaptionStyle    string        `json:"caption_style,omitempty"`
+	EmotionType     string        `json:"emotion_type"`
+	SFXEvents       []SFXEvent    `json:"sfx_events"`
 }
 
 type CreateShortResponse struct {

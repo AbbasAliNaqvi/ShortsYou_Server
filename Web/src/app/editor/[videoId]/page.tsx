@@ -13,6 +13,7 @@ import {
   Sparkles,
   Subtitles,
   WandSparkles,
+  Play,
 } from "lucide-react";
 import { api, type EditSettings, type Video } from "@/lib/api";
 
@@ -43,6 +44,7 @@ export default function CustomShortEditor() {
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(30);
   const [hook, setHook] = useState("");
+  const [previewStart, setPreviewStart] = useState(0);
 
   const [settings, setSettings] = useState<EditSettings>({
     backgroundStyle: "blur",
@@ -95,6 +97,7 @@ export default function CustomShortEditor() {
     () => Math.max(0, end - start),
     [start, end],
   );
+  const hasPlayablePreview = Boolean(video?.youtubeVideoId);
 
   // EditSettings.layout is optional in the API type,
   // so provide a safe fallback for rendering.
@@ -108,6 +111,16 @@ export default function CustomShortEditor() {
       ...current,
       [key]: value,
     }));
+  }
+
+  function setStartBound(value: number) {
+    const next = clamp(value, 0, Math.max(0, end - 0.1));
+    setStart(next);
+    setPreviewStart(next);
+  }
+
+  function setEndBound(value: number) {
+    setEnd(clamp(value, start + 0.1, duration || 60));
   }
 
   async function render() {
@@ -223,7 +236,15 @@ export default function CustomShortEditor() {
       <div className="editor-grid">
         <section className="editor-preview">
           <div className="phone-preview">
-            {video.thumbnailUrl ? (
+            {hasPlayablePreview ? (
+              <iframe
+                key={`${video.youtubeVideoId}-${Math.floor(previewStart)}`}
+                src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.youtubeVideoId!)}?start=${Math.floor(previewStart)}&autoplay=0&rel=0&modestbranding=1`}
+                title={`Preview of ${video.title}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : video.thumbnailUrl ? (
               <img
                 src={video.thumbnailUrl}
                 alt=""
@@ -247,6 +268,13 @@ export default function CustomShortEditor() {
             </span>
           </div>
 
+          <div className="preview-status">
+            <Play size={14} />
+            {hasPlayablePreview
+              ? "Source preview — use the timeline to choose the cut"
+              : "A stream preview is unavailable for this source; the selected range will still render."}
+          </div>
+
           <div className="timeline">
             <div>
               <label>
@@ -257,9 +285,7 @@ export default function CustomShortEditor() {
                   max={Math.max(0, end - 0.1)}
                   step="0.1"
                   value={start}
-                  onChange={(e) =>
-                    setStart(Number(e.target.value))
-                  }
+                  onChange={(e) => setStartBound(Number(e.target.value))}
                 />
               </label>
 
@@ -271,28 +297,33 @@ export default function CustomShortEditor() {
                   max={duration || undefined}
                   step="0.1"
                   value={end}
-                  onChange={(e) =>
-                    setEnd(Number(e.target.value))
-                  }
+                  onChange={(e) => setEndBound(Number(e.target.value))}
                 />
               </label>
             </div>
 
-            <input
-              aria-label="Clip end"
+            <div className="range-pair" aria-label="Selected clip range">
+              <input
+              aria-label="Clip start"
               type="range"
-              min="1"
+              min="0"
               max={duration || 60}
-              value={end}
+              step="0.1"
+              value={start}
               onChange={(e) =>
-                setEnd(
-                  Math.max(
-                    start + 0.1,
-                    Number(e.target.value),
-                  ),
-                )
+                setStartBound(Number(e.target.value))
               }
             />
+              <input
+                aria-label="Clip end"
+                type="range"
+                min="0.1"
+                max={duration || 60}
+                step="0.1"
+                value={end}
+                onChange={(e) => setEndBound(Number(e.target.value))}
+              />
+            </div>
 
             <small>
               Choose the exact moment to turn into a
@@ -348,7 +379,7 @@ export default function CustomShortEditor() {
 
           <Control
             icon={<Subtitles size={17} />}
-            title="Captions & hook"
+            title="Captions"
           >
             <label className="field-label">
               Opening hook
@@ -362,6 +393,8 @@ export default function CustomShortEditor() {
                 placeholder="Stop the scroll…"
               />
             </label>
+
+            <p className="assist-note">The opening hook is a separate headline shown for the first three seconds. Spoken captions come from your saved transcription—no second transcription runs during export.</p>
 
             <div className="choice-row">
               {[
@@ -394,7 +427,7 @@ export default function CustomShortEditor() {
             title="Polish"
           >
             <label className="field-label">
-              Music mood
+              Music track mood
 
               <select
                 value={settings.musicMood}
@@ -448,7 +481,7 @@ export default function CustomShortEditor() {
             </div>
 
             <label className="field-label">
-              Background
+              Canvas background
 
               <select
                 value={settings.backgroundStyle}
@@ -472,27 +505,7 @@ export default function CustomShortEditor() {
               </select>
             </label>
 
-            <Toggle
-              label="Remove pauses"
-              checked={settings.removeSilences}
-              onChange={(checked) =>
-                update(
-                  "removeSilences",
-                  checked,
-                )
-              }
-            />
-
-            <Toggle
-              label="Remove filler words"
-              checked={settings.removeFillers}
-              onChange={(checked) =>
-                update(
-                  "removeFillers",
-                  checked,
-                )
-              }
-            />
+            <p className="assist-note">Pause and filler cutting are disabled here because cuts made after transcription shift word timestamps. Keeping the source timing intact makes exported captions frame-accurate.</p>
           </Control>
         </aside>
       </div>
@@ -521,34 +534,13 @@ function Control({
   );
 }
 
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="toggle">
-      <span>{label}</span>
-
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) =>
-          onChange(e.target.checked)
-        }
-      />
-
-      <i />
-    </label>
-  );
-}
-
 function format(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(
     Math.floor(seconds % 60),
   ).padStart(2, "0")}`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(Math.max(value, min), max);
 }

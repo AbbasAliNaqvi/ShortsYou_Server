@@ -122,7 +122,7 @@ func main() {
 
 	taskHandlers := queue.NewTaskHandlers(
 		log, videoRepo, clipRepo, fmRepo, userRepo,
-		jobRepo, mlClient, supabase, llmRotator, queueClient, cfg,
+		jobRepo, transcriptRepo, mlClient, supabase, llmRotator, queueClient, cfg,
 	)
 	worker.Register(queue.TypeProcessVideo, taskHandlers.HandleProcessVideo)
 	worker.Register(queue.TypeExportClip, taskHandlers.HandleExportClip)
