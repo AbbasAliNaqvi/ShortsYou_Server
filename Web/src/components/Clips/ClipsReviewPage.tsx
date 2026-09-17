@@ -25,6 +25,7 @@ import {
   WandSparkles,
   X,
   Zap,
+  Trash2,
 } from "lucide-react";
 import { api, type Clip, type User, type Video } from "@/lib/api";
 
@@ -124,6 +125,15 @@ export function ClipsReviewPage() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function removeClip(clip: Clip) {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token || !window.confirm("Remove this clip?")) return;
+    setBusy(clip.id);
+    try { await api.deleteClip(token, clip.id); setSelected((ids) => ids.filter((id) => id !== clip.id)); setNotice("Clip removed."); await refresh(); }
+    catch (error) { setNotice(error instanceof Error ? error.message : "Could not remove the clip."); }
+    finally { setBusy(null); }
   }
 
   async function publishSelected() {
@@ -298,6 +308,7 @@ export function ClipsReviewPage() {
                 }
                 onExport={() => void exportClip(clip.id)}
                 onDownload={() => void downloadClip(clip.id)}
+                onDelete={() => void removeClip(clip)}
                 index={index}
               />
             ))}
@@ -349,6 +360,7 @@ function ClipCard({
   onSelect,
   onExport,
   onDownload,
+  onDelete,
   index,
 }: {
   clip: Clip;
@@ -358,6 +370,7 @@ function ClipCard({
   onSelect: () => void;
   onExport: () => void;
   onDownload: () => void;
+  onDelete: () => void;
   index: number;
 }) {
   const image =
@@ -429,6 +442,7 @@ function ClipCard({
           >
             <ArrowDownToLine size={13} /> Download
           </button>
+          <button className="clip-delete" onClick={onDelete} disabled={busy} aria-label="Remove clip"><Trash2 size={13} /></button>
         </div>
       </div>
     </article>

@@ -92,6 +92,24 @@ func (r *ClipRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*
 	return &clip, nil
 }
 
+// DeleteByIDAndUserID removes one clip without allowing cross-account deletion.
+func (r *ClipRepository) DeleteByIDAndUserID(ctx context.Context, id, userID primitive.ObjectID) (bool, error) {
+	result, err := r.col.DeleteOne(ctx, bson.M{"_id": id, "userId": userID})
+	if err != nil {
+		return false, fmt.Errorf("delete clip: %w", err)
+	}
+	return result.DeletedCount == 1, nil
+}
+
+// DeleteByVideoID removes the clips derived from a source video.
+func (r *ClipRepository) DeleteByVideoID(ctx context.Context, videoID, userID primitive.ObjectID) error {
+	_, err := r.col.DeleteMany(ctx, bson.M{"videoId": videoID, "userId": userID})
+	if err != nil {
+		return fmt.Errorf("delete video clips: %w", err)
+	}
+	return nil
+}
+
 // UpdateStatus changes the processing status of a clip.
 func (r *ClipRepository) UpdateStatus(ctx context.Context, id primitive.ObjectID, status models.ClipStatus) error {
 	_, err := r.col.UpdateByID(ctx, id, bson.M{

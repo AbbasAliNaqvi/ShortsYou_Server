@@ -136,6 +136,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 
 		videoHandler := handler.NewVideoHandler(
 			s.videoRepo,
+			s.clipRepo,
 			s.userRepo,
 			s.queueClient,
 			s.oauthCfg,
@@ -157,6 +158,9 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			"/videos",
 			videoHandler.ListVideos,
 		)
+		protected.GET("/videos/search", videoHandler.SearchYouTubeVideos)
+
+		protected.DELETE("/videos/:id", videoHandler.DeleteVideo)
 
 		protected.GET(
 			"/videos/:id/transcript",
@@ -240,6 +244,8 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			"/clips/:id",
 			clipHandler.UpdateClip,
 		)
+
+		protected.DELETE("/clips/:id", clipHandler.DeleteClip)
 
 		analyticsHandler := handler.NewAnalyticsHandler(
 			s.dnaRepo,

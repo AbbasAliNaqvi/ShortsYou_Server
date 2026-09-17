@@ -20,6 +20,7 @@ import (
 
 type VideoHandler struct {
 	videoRepo *repository.VideoRepository
+	clipRepo  *repository.ClipRepository
 	userRepo  *repository.UserRepository
 	jobRepo   *repository.JobRepository
 	queue     *queue.Client
@@ -38,6 +39,7 @@ type processVideoRequest struct {
 
 func NewVideoHandler(
 	videoRepo *repository.VideoRepository,
+	clipRepo *repository.ClipRepository,
 	userRepo *repository.UserRepository,
 	queueClient *queue.Client,
 	oauthCfg *oauth2.Config,
@@ -46,6 +48,7 @@ func NewVideoHandler(
 ) *VideoHandler {
 	return &VideoHandler{
 		videoRepo: videoRepo,
+		clipRepo:  clipRepo,
 		userRepo:  userRepo,
 		jobRepo:   jobRepo,
 		queue:     queueClient,
@@ -228,6 +231,56 @@ func (h *VideoHandler) ListVideos(c *gin.Context) {
 	}
 
 	response.OK(c, videos)
+}
+
+// SearchYouTubeVideos exposes a title/topic lookup for the direct ingest flow.
+func (h *VideoHandler) SearchYouTubeVideos(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("q"))
+	if query == "" {
+		response.BadRequest(c, "query parameter q is required")
+		return
+	}
+	client, err := youtube.NewPublicClient(c.Request.Context(), h.cfg.YoutubeAPIKey)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	videos, err := client.SearchVideos(c.Request.Context(), query, 8)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, videos)
+}
+
+// DeleteVideo removes a source video and every clip generated from it.
+func (h *VideoHandler) DeleteVideo(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	videoID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+	video, err := h.videoRepo.FindByIDAndUserID(c.Request.Context(), videoID, userID)
+	if err != nil || video == nil {
+		response.NotFound(c, "video")
+		return
+	}
+	// Delete clips first so a deleted source can never leave visible clips behind.
+	if err := h.clipRepo.DeleteByVideoID(c.Request.Context(), videoID, userID); err != nil {
+		response.InternalError(c)
+		return
+	}
+	deleted, err := h.videoRepo.DeleteByIDAndUserID(c.Request.Context(), videoID, userID)
+	if err != nil || !deleted {
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, gin.H{"videoId": videoID.Hex(), "message": "video and its clips removed"})
 }
 
 // GenerateVideo queues AI transcription and clip discovery for a video already

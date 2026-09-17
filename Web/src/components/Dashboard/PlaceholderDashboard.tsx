@@ -2,13 +2,12 @@
 /* External creator and Supabase assets are intentionally rendered without Next's image proxy. */
 /* eslint-disable @next/next/no-img-element */
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Activity,
   BarChart3,
-  Check,
   ChevronRight,
   Clapperboard,
   Copy,
@@ -25,7 +24,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import { api, type Clip, type Job, type User, type Video } from "@/lib/api";
+import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
 
 const navItems = [
   [Sparkles, "Studio"],
@@ -39,13 +38,6 @@ const fallbackThumbs = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBHiTExBHrxUrsYBNiUSvkGp2yOfc2dwHvXRaSGDLBcpX30E1hjR7xkWr6fih9VUZiKIOfKliZyWPOW87ojjgvrCudlZRpBETkTA8eHK73UQh-ttEV5ECNQ7HeolEKsckr98hTS_QNBkZ6wbbW7zNR3HxcXYI4HZLEgjJW8IoQ0cxvLdYxu9jgIQB5luVUPZa8c4tp2lQeo5DdLfsmlS3ByJhZpc1YLnzRRKdNM6TJTO-I6W3jw-c8U",
 ];
 
-type Stats = {
-  shorts: number;
-  activeJobs: number;
-  views: number;
-  processed: number;
-};
-
 export function PlaceholderDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -55,6 +47,7 @@ export function PlaceholderDashboard() {
   const [activeNav, setActiveNav] = useState("Studio");
   const [menuOpen, setMenuOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState("");
+  const [videoResults, setVideoResults] = useState<PublicVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -108,19 +101,6 @@ export function PlaceholderDashboard() {
     queueMicrotask(() => void loadDashboard());
   }, []);
 
-  const stats = useMemo<Stats>(
-    () => ({
-      shorts: clips.length,
-      activeJobs: jobs.filter(
-        (job) => !["completed", "failed"].includes(job.status),
-      ).length,
-      views: videos.reduce((sum, video) => sum + (video.viewCount || 0), 0),
-      processed: videos.filter(
-        (video) => video.processingStatus === "completed",
-      ).length,
-    }),
-    [clips, jobs, videos],
-  );
   const recommendations = [...clips]
     .sort((a, b) => b.viralScore - a.viralScore)
     .slice(0, 4);
@@ -134,6 +114,11 @@ export function PlaceholderDashboard() {
     event.preventDefault();
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !sourceUrl.trim()) return;
+    if (!/^https?:\/\//i.test(sourceUrl.trim())) {
+      try { setVideoResults(await api.searchVideos(token, sourceUrl.trim())); setNotice("Choose a video to add to your studio."); }
+      catch (error) { setNotice(error instanceof Error ? error.message : "No videos found."); }
+      return;
+    }
     const transcribe = window.confirm(
       "Do you want transcription?\n\nOK = Yes, transcribe this video\nCancel = No, save it without transcription",
     );
@@ -154,6 +139,13 @@ export function PlaceholderDashboard() {
           : "Unable to queue this source.",
       );
     }
+  }
+
+  async function ingestSearchResult(video: PublicVideo) {
+    const token = localStorage.getItem("shortsyou_jwt"); if (!token) return;
+    setSourceUrl(`https://youtube.com/watch?v=${video.youtubeVideoId}`);
+    try { const result = await api.ingest(token, `https://youtube.com/watch?v=${video.youtubeVideoId}`, true); setVideoResults([]); setNotice(`${result.title} queued for AI analysis.`); await loadDashboard(); }
+    catch (error) { setNotice(error instanceof Error ? error.message : "Unable to queue this video."); }
   }
 
   function copySource() {
@@ -223,6 +215,8 @@ export function PlaceholderDashboard() {
             onCopy={copySource}
             onSubmit={handleIngest}
           />
+          {videoResults.length > 0 && <section className="video-search-results"><div><span>Video results</span><button onClick={() => setVideoResults([])}>Clear</button></div>{videoResults.map((video) => <article key={video.youtubeVideoId}><img src={video.thumbnailUrl} alt="" /><section><small>{video.durationSeconds ? `${Math.floor(video.durationSeconds / 60)}:${String(video.durationSeconds % 60).padStart(2, "0")}` : "YouTube video"}</small><h3>{video.title}</h3><p>{video.description}</p></section><button onClick={() => void ingestSearchResult(video)}>Select video</button></article>)}</section>}
+          {!loading && <Recommendations clips={recommendations} videos={videos} exportingClip={exportingClip} onCreateShort={createShort} />}
           {error && (
             <div className="dashboard-error">
               {error} <Link href="/login">Return to sign in</Link>
@@ -232,14 +226,7 @@ export function PlaceholderDashboard() {
             <LoadingDashboard />
           ) : (
             <>
-              <Stats stats={stats} />
               <Jobs jobs={jobs} videos={videos} />
-              <Recommendations
-                clips={recommendations}
-                videos={videos}
-                exportingClip={exportingClip}
-                onCreateShort={createShort}
-              />
               <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
             </>
           )}
@@ -434,39 +421,6 @@ function IngestPanel({
   );
 }
 
-function Stats({ stats }: { stats: Stats }) {
-  const items = [
-    [Clapperboard, stats.shorts, "Shorts Extracted", "This workspace"],
-    [
-      Check,
-      `${stats.processed}/${stats.activeJobs + stats.processed}`,
-      "Videos Processed",
-      "Pipeline completion",
-    ],
-    [WandSparkles, stats.activeJobs, "Active Jobs", "4K processing pipeline"],
-    [
-      BarChart3,
-      compactNumber(stats.views),
-      "Source Views",
-      "Across synced videos",
-    ],
-  ] as const;
-  return (
-    <section className="workspace-stats">
-      {items.map(([Icon, value, label, note]) => (
-        <article key={label}>
-          <span className="stat-icon">
-            <Icon size={17} />
-          </span>
-          <strong>{value}</strong>
-          <small>{label}</small>
-          <em>{note}</em>
-        </article>
-      ))}
-    </section>
-  );
-}
-
 function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
   const active = jobs.filter(
     (job) => !["completed", "failed"].includes(job.status),
@@ -549,15 +503,13 @@ function Recommendations({
           const rendering =
             exportingClip === clip.id || clip.status === "editing";
           const rendered = ["exported", "published"].includes(clip.status);
+          const playableURL = clip.supabaseShortUrl || clip.supabaseRawClipUrl;
           return (
             <article className="recommendation-card" key={clip.id}>
               <div className="recommendation-media">
-                <img src={thumb} alt="" />
+                {playableURL ? <video src={playableURL} controls playsInline preload="metadata" poster={thumb} /> : <img src={thumb} alt="" />}
                 <span>{Math.round(clip.viralScore)} / 100</span>
-                <small>
-                  Est. reach ·{" "}
-                  {compactNumber(Math.round(clip.viralScore * 12000))}
-                </small>
+                <small>{playableURL ? "Ready to watch" : rendered ? "Video is preparing" : "Select to render"}</small>
               </div>
               <div className="recommendation-copy">
                 <small>
@@ -583,7 +535,7 @@ function Recommendations({
                   ) : (
                     <Plus size={14} />
                   )}
-                  {rendered ? " Quick Polish" : " Create Short"}
+                  {rendered ? " Re-render short" : " Create Short"}
                 </button>
               </div>
             </article>
@@ -692,11 +644,6 @@ function initials(name?: string) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-function compactNumber(value: number) {
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-  return String(value);
 }
 function formatDuration(value: number) {
   return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, "0")}`;

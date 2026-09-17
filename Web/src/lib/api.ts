@@ -35,6 +35,10 @@ export const api = {
   health: () => apiRequest<Health>("/health"),
   me: (token: string) => apiRequest<User>("/api/v1/auth/me", { token }),
   videos: (token: string) => apiRequest<Video[]>("/api/v1/videos", { token }),
+  searchVideos: (token: string, query: string) =>
+    apiRequest<PublicVideo[]>(`/api/v1/videos/search?q=${encodeURIComponent(query)}`, { token }),
+  deleteVideo: (token: string, videoId: string) =>
+    apiRequest<{ videoId: string; message: string }>(`/api/v1/videos/${encodeURIComponent(videoId)}`, { method: "DELETE", token }),
   transcript: (token: string, videoId: string) =>
     apiRequest<Transcript>(
       `/api/v1/videos/${encodeURIComponent(videoId)}/transcript`,
@@ -106,6 +110,8 @@ export const api = {
       method: "PATCH",
       token,
     }),
+  deleteClip: (token: string, clipId: string) =>
+    apiRequest<{ clipId: string; message: string }>(`/api/v1/clips/${encodeURIComponent(clipId)}`, { method: "DELETE", token }),
   rejectClip: (token: string, clipId: string) =>
     apiRequest<ClipAction>(`/api/v1/clips/${encodeURIComponent(clipId)}/reject`, {
       method: "PATCH",
@@ -232,6 +238,8 @@ export type Clip = {
   createdAt: string;
   selectedThumbnail?: string;
   thumbnailOptions?: string[];
+  supabaseShortUrl?: string;
+  supabaseRawClipUrl?: string;
 };
 export type ClipCollection = { clips: Clip[]; count: number };
 export type ClipAction = { clipId: string; status: string; message: string };

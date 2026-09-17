@@ -217,6 +217,14 @@ func (r *VideoRepository) FindByIDAndUserID(
 	return &video, nil
 }
 
+func (r *VideoRepository) DeleteByIDAndUserID(ctx context.Context, id, userID primitive.ObjectID) (bool, error) {
+	result, err := r.col.DeleteOne(ctx, bson.M{"_id": id, "userId": userID})
+	if err != nil {
+		return false, fmt.Errorf("delete video: %w", err)
+	}
+	return result.DeletedCount == 1, nil
+}
+
 func (r *VideoRepository) UpdateStatus(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -259,7 +267,6 @@ func (r *VideoRepository) UpdateStatus(
 	return nil
 }
 
-
 func (r *VideoRepository) UpdateFields(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -286,7 +293,6 @@ func (r *VideoRepository) UpdateFields(
 
 	return nil
 }
-
 
 func (r *VideoRepository) UpdateTranscription(
 	ctx context.Context,

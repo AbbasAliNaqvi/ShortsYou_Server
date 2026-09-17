@@ -106,6 +106,25 @@ func (c *PublicClient) SearchChannels(ctx context.Context, query string, maxResu
 	return results, nil
 }
 
+// SearchVideos finds public YouTube videos by title or topic and expands search
+// results into the metadata required for a source-preview card.
+func (c *PublicClient) SearchVideos(ctx context.Context, query string, maxResults int64) ([]VideoMeta, error) {
+	resp, err := c.svc.Search.List([]string{"id"}).Q(query).Type("video").MaxResults(maxResults).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("search videos: %w", err)
+	}
+	ids := make([]string, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item.Id != nil && item.Id.VideoId != "" {
+			ids = append(ids, item.Id.VideoId)
+		}
+	}
+	if len(ids) == 0 {
+		return []VideoMeta{}, nil
+	}
+	return c.fetchPublicDetails(ctx, ids)
+}
+
 // FetchPublicVideos returns the most viewed videos from any public channel.
 func (c *PublicClient) FetchPublicVideos(ctx context.Context, channelID string, maxResults int64) ([]VideoMeta, error) {
 	resp, err := c.svc.Search.

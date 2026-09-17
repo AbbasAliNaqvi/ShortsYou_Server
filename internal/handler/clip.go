@@ -175,6 +175,29 @@ func (h *ClipHandler) GetClip(c *gin.Context) {
 	response.OK(c, clip)
 }
 
+func (h *ClipHandler) DeleteClip(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid clip id")
+		return
+	}
+	deleted, err := h.clipRepo.DeleteByIDAndUserID(c.Request.Context(), id, userID)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	if !deleted {
+		response.NotFound(c, "clip")
+		return
+	}
+	response.OK(c, gin.H{"clipId": id.Hex(), "message": "clip removed"})
+}
+
 type updateClipRequest struct {
 	SelectedHook *string              `json:"selectedHook"`
 	EditSettings *models.EditSettings `json:"editSettings"`
