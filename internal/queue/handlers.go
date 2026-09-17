@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -67,7 +65,7 @@ func NewTaskHandlers(
 		storage:        supabase,
 		llmRotator:     llmRotator,
 		queue:          queue,
-		editClient:     edit.NewClient(cfg.EditServiceURL),
+		editClient:     edit.NewClient(cfg.EditServiceURL, cfg.InternalAPIKey),
 	}
 }
 
@@ -99,33 +97,24 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	// A YouTube watch URL is HTML, not an audio stream. Download only the
-	// compressed audio rendition and publish it for the transcription worker;
-	// Deepgram can then fetch it with the correct media content type.
+	// A Render datacenter IP is frequently challenged by YouTube. Fetch audio
+	// through the media worker (the same host that renders the source) and use
+	// its public Supabase object for transcription.
 	log.Info().Msg("preparing transcription audio")
 	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
 	if p.JobID != "" {
 		_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
 	}
 
-	audio, err := downloader.DownloadAudio(ctx, video.YouTubeVideoID)
+	audio, err := h.editClient.ExtractAudio(ctx, edit.ExtractAudioRequest{
+		VideoURL: downloader.WatchURL(video.YouTubeVideoID),
+		UserID:   p.UserID,
+		VideoID:  p.VideoID,
+	})
 	if err != nil {
-		return fail("download transcription audio", err)
+		return fail("extract transcription audio with media worker", err)
 	}
-	defer audio.Cleanup()
-	audioBytes, err := os.ReadFile(audio.FilePath)
-	if err != nil {
-		return fail("read transcription audio", err)
-	}
-	const maxTranscriptionAudioBytes = 45 << 20 // Supabase Free upload limit is 50 MB.
-	if len(audioBytes) > maxTranscriptionAudioBytes {
-		return fail("download transcription audio", fmt.Errorf("audio track is %d MB; maximum supported size is %d MB", len(audioBytes)>>20, maxTranscriptionAudioBytes>>20))
-	}
-	audioURL, err := h.storage.Upload(ctx, "videos", filepath.Join("transcription-audio", p.UserID, p.VideoID+".m4a"), audio.ContentType, audioBytes)
-	if err != nil {
-		return fail("upload transcription audio", err)
-	}
-	log.Info().Int("audioBytes", len(audioBytes)).Msg("transcription audio ready")
+	log.Info().Int("audioBytes", audio.Bytes).Msg("transcription audio ready from media worker")
 
 	// Stage 2 — Fire async transcription
 	// Results come back via /api/internal/transcription/done
@@ -139,7 +128,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		JobID:    p.JobID,
 		VideoID:  p.VideoID,
 		UserID:   p.UserID,
-		AudioURL: audioURL,
+		AudioURL: audio.AudioURL,
 		Language: "auto",
 	})
 	if err != nil {

@@ -57,6 +57,19 @@ type CreateShortResponse struct {
 	ETASeconds int    `json:"eta_seconds"`
 }
 
+// ExtractAudioRequest asks the media worker to fetch a YouTube audio track.
+// This keeps bot-sensitive yt-dlp traffic off the public API host.
+type ExtractAudioRequest struct {
+	VideoURL string `json:"video_url"`
+	UserID   string `json:"user_id"`
+	VideoID  string `json:"video_id"`
+}
+
+type ExtractAudioResponse struct {
+	AudioURL string `json:"audio_url"`
+	Bytes    int    `json:"bytes"`
+}
+
 type HealthResponse struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
@@ -64,14 +77,19 @@ type HealthResponse struct {
 }
 
 type Client struct {
-	baseURL string
-	http    *http.Client
+	baseURL     string
+	internalKey string
+	http        *http.Client
 }
 
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL string, internalKeys ...string) *Client {
 	// The renderer accepts jobs immediately, but a busy local FFmpeg worker can
 	// briefly delay the event loop. Do not re-submit the same render prematurely.
-	return &Client{baseURL: strings.TrimRight(baseURL, "/"), http: &http.Client{Timeout: 2 * time.Minute}}
+	internalKey := ""
+	if len(internalKeys) > 0 {
+		internalKey = internalKeys[0]
+	}
+	return &Client{baseURL: strings.TrimRight(baseURL, "/"), internalKey: internalKey, http: &http.Client{Timeout: 2 * time.Minute}}
 }
 
 func (c *Client) CreateShort(ctx context.Context, request CreateShortRequest) (*CreateShortResponse, error) {
@@ -81,6 +99,17 @@ func (c *Client) CreateShort(ctx context.Context, request CreateShortRequest) (*
 	}
 	if !response.Accepted || response.JobID == "" {
 		return nil, fmt.Errorf("edit service did not accept render job %q", request.JobID)
+	}
+	return &response, nil
+}
+
+func (c *Client) ExtractAudio(ctx context.Context, request ExtractAudioRequest) (*ExtractAudioResponse, error) {
+	var response ExtractAudioResponse
+	if err := c.doJSON(ctx, http.MethodPost, "/extract-audio", request, &response); err != nil {
+		return nil, err
+	}
+	if response.AudioURL == "" {
+		return nil, fmt.Errorf("edit service returned no transcription audio URL")
 	}
 	return &response, nil
 }
@@ -111,6 +140,9 @@ func (c *Client) doJSON(ctx context.Context, method, path string, input, output 
 	}
 	if input != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.internalKey != "" {
+		req.Header.Set("X-Internal-API-Key", c.internalKey)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
