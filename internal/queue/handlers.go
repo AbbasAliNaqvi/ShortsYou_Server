@@ -88,6 +88,14 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("find video: %w", err)
 	}
 
+	// Persist auto-create flag so the analysis callback will auto-export top clips.
+	if p.AutoCreate && !video.AutoCreate {
+		_ = h.videoRepo.UpdateFields(ctx, videoID, map[string]any{
+			"autoCreate": true,
+			"updatedAt":  time.Now(),
+		})
+	}
+
 	fail := func(stage string, err error) error {
 		log.Error().Err(err).Str("stage", stage).Msg("processing failed")
 		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusFailed, err.Error())

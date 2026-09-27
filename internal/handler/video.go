@@ -504,6 +504,213 @@ func (h *VideoHandler) IngestURL(c *gin.Context) {
 	h.ProcessPublicVideo(c)
 }
 
+// AutoCreate queues AI transcription, clip discovery, AND auto-export for a
+// video already saved in the user's library. This is the "one-button magic"
+// that goes from saved video → ready-to-download shorts with zero manual steps.
+// POST /api/v1/videos/:id/auto-create
+func (h *VideoHandler) AutoCreate(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	videoID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid video id")
+		return
+	}
+	video, err := h.videoRepo.FindByID(c.Request.Context(), videoID)
+	if err != nil || video.UserID != userID {
+		response.NotFound(c, "video")
+		return
+	}
+
+	// Mark the video for auto-creation so the analysis callback auto-exports.
+	if err := h.videoRepo.UpdateFields(c.Request.Context(), videoID, map[string]any{
+		"autoCreate":       true,
+		"processingStatus": string(models.StatusPending),
+		"updatedAt":        time.Now(),
+	}); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	jobID := primitive.NewObjectID().Hex()
+	if err := h.jobRepo.Create(c.Request.Context(), models.ProcessingJob{
+		JobID: jobID, UserID: userID, VideoID: videoID,
+		Status: models.JobStatusQueued, Stage: "auto_create_queued", Progress: 0,
+	}); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	task, err := queue.NewProcessVideoTask(video.ID.Hex(), userID.Hex(), jobID, true)
+	if err != nil || h.queue.Enqueue(task) != nil {
+		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue auto-create job")
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, gin.H{
+		"jobId":   jobID,
+		"videoId": video.ID.Hex(),
+		"status":  "auto_creating",
+		"message": "AI Auto-Create started — your shorts will appear ready to download",
+	})
+}
+
+type autoCreateIngestRequest struct {
+	URL string `json:"url" binding:"required"`
+}
+
+// AutoCreateIngest accepts a YouTube URL and does EVERYTHING: ingest → transcription
+// → AI analysis → clip detection → hook generation → auto-export top clips.
+// The ultimate single-action endpoint.
+// POST /api/v1/videos/auto-create
+func (h *VideoHandler) AutoCreateIngest(c *gin.Context) {
+	var req autoCreateIngestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "youtube url is required")
+		return
+	}
+
+	parsed, err := url.Parse(strings.TrimSpace(req.URL))
+	if err != nil {
+		response.BadRequest(c, "invalid youtube url")
+		return
+	}
+
+	ytVideoID := parsed.Query().Get("v")
+	host := strings.ToLower(parsed.Hostname())
+	if ytVideoID == "" && (host == "youtu.be" || host == "www.youtu.be") {
+		ytVideoID = strings.Trim(parsed.Path, "/")
+	}
+	if ytVideoID == "" && (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") {
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		if len(parts) == 2 && (parts[0] == "shorts" || parts[0] == "embed" || parts[0] == "live") {
+			ytVideoID = parts[1]
+		}
+	}
+	if ytVideoID == "" || strings.ContainsAny(ytVideoID, " /?#") {
+		response.BadRequest(c, "use a youtube watch or short url")
+		return
+	}
+
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+
+	// Check if already exists
+	existing, _ := h.videoRepo.FindByYouTubeID(c.Request.Context(), ytVideoID, userID)
+	if existing != nil {
+		// Set auto-create on existing video and start the pipeline
+		if err := h.videoRepo.UpdateFields(c.Request.Context(), existing.ID, map[string]any{
+			"autoCreate":       true,
+			"processingStatus": string(models.StatusPending),
+			"updatedAt":        time.Now(),
+		}); err != nil {
+			response.InternalError(c)
+			return
+		}
+		jobID := primitive.NewObjectID().Hex()
+		if err := h.jobRepo.Create(c.Request.Context(), models.ProcessingJob{
+			JobID: jobID, UserID: userID, VideoID: existing.ID,
+			Status: models.JobStatusQueued, Stage: "auto_create_queued", Progress: 0,
+		}); err != nil {
+			response.InternalError(c)
+			return
+		}
+		task, err := queue.NewProcessVideoTask(existing.ID.Hex(), userID.Hex(), jobID, true)
+		if err != nil || h.queue.Enqueue(task) != nil {
+			_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue auto-create job")
+			response.InternalError(c)
+			return
+		}
+		response.OK(c, gin.H{
+			"jobId":   jobID,
+			"videoId": existing.ID.Hex(),
+			"title":   existing.Title,
+			"status":  "auto_creating",
+			"message": "AI Auto-Create started on existing video",
+		})
+		return
+	}
+
+	// Fetch video metadata from YouTube
+	ytClient, err := youtube.NewPublicClient(c.Request.Context(), h.cfg.YoutubeAPIKey)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	videos, err := ytClient.FetchPublicVideoDetails(c.Request.Context(), []string{ytVideoID})
+	if err != nil || len(videos) == 0 {
+		response.NotFound(c, "youtube video")
+		return
+	}
+
+	meta := videos[0]
+
+	videoID := primitive.NewObjectID()
+	jobID := primitive.NewObjectID().Hex()
+
+	video := models.Video{
+		ID:               videoID,
+		UserID:           userID,
+		YouTubeVideoID:   ytVideoID,
+		Title:            meta.Title,
+		Description:      meta.Description,
+		ThumbnailURL:     meta.ThumbnailURL,
+		DurationSeconds:  meta.DurationSeconds,
+		ViewCount:        meta.ViewCount,
+		LikeCount:        meta.LikeCount,
+		CommentCount:     meta.CommentCount,
+		PublishedAt:      meta.PublishedAt,
+		ProcessingStatus: models.StatusPending,
+		SourceType:       "public",
+		SourceChannelID:  "direct",
+		AutoCreate:       true,
+	}
+
+	if err := h.videoRepo.Insert(c.Request.Context(), video); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	job := models.ProcessingJob{
+		JobID:    jobID,
+		UserID:   userID,
+		VideoID:  videoID,
+		Status:   models.JobStatusQueued,
+		Stage:    "auto_create_queued",
+		Progress: 0,
+	}
+	if err := h.jobRepo.Create(c.Request.Context(), job); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	task, err := queue.NewProcessVideoTask(videoID.Hex(), userID.Hex(), jobID, true)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.queue.Enqueue(task); err != nil {
+		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue auto-create job")
+		response.InternalError(c)
+		return
+	}
+
+	response.OK(c, gin.H{
+		"jobId":   jobID,
+		"videoId": videoID.Hex(),
+		"title":   meta.Title,
+		"status":  "auto_creating",
+		"message": "AI Auto-Create started — transcription, analysis, hook generation, and rendering will happen automatically",
+	})
+}
+
 // GET /api/v1/jobs/:jobId
 func (h *VideoHandler) GetJobStatus(c *gin.Context) {
 	userIDValue, exists := c.Get("userID")

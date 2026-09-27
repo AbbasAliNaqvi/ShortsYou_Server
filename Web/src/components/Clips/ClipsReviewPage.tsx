@@ -140,6 +140,10 @@ export function ClipsReviewPage() {
     for (const clipId of selected) await publishClip(clipId);
     setSelected([]);
   }
+  async function exportSelected() {
+    for (const clipId of selected) await exportClip(clipId);
+    setSelected([]);
+  }
   function signOut() {
     localStorage.removeItem("shortsyou_jwt");
     router.push("/login");
@@ -203,28 +207,24 @@ export function ClipsReviewPage() {
           <section className="clips-hero">
             <div>
               <span className="clips-kicker">
-                <Sparkles size={13} /> Curated footage · {clips.length} clips
-                ready
+                <Sparkles size={13} /> AI-Created Shorts · {clips.length} ready
               </span>
               <h1>
-                Clips Review &amp;
+                Your AI-Created
                 <br />
-                <em>Publishing Studio</em>
+                <em>Shorts Collection</em>
               </h1>
               <p>
-                Polish, export, and publish your highest-saliency moments with a
-                controlled production workflow.
+                Every short here was intelligently found, scored, and crafted by
+                our AI engine. Review, polish, and publish your strongest moments.
               </p>
             </div>
             <div className="clips-actions">
-              {/* <Link href="/editor" className="primary">
-                <WandSparkles size={15} /> Open Custom Editor
-              </Link> */}
-              <button>
-                <Radio size={15} /> Auto-Schedule Queue
-              </button>
-              <button>
-                <Download size={15} /> Export All 4K
+              <Link href="/videos" className="clips-action-link">
+                <Film size={15} /> Source videos
+              </Link>
+              <button disabled={!selected.length} onClick={() => void exportSelected()}>
+                <Download size={15} /> Export selected ({selected.length})
               </button>
               <button
                 className="primary"
@@ -239,7 +239,7 @@ export function ClipsReviewPage() {
             <Metric
               icon={Film}
               value={`${clips.length}`}
-              label="Extracted Clips"
+              label="AI-Created Shorts"
               note={`${videos.length} source videos`}
             />
             <Metric
@@ -316,12 +316,12 @@ export function ClipsReviewPage() {
           {visible.length === 0 && (
             <div className="clips-empty">
               <Clapperboard size={24} />
-              <h2>No clips match this view</h2>
+              <h2>No AI-created shorts yet</h2>
               <p>
-                Process a YouTube video from the discovery studio to create
-                reviewable shorts.
+                Paste a YouTube URL in the Studio and let AI create your shorts
+                automatically — they&apos;ll appear here when ready.
               </p>
-              <Link href="/discover">Find a creator or video</Link>
+              <Link href="/dashboard">Go to AI Studio</Link>
             </div>
           )}
         </div>
@@ -415,7 +415,7 @@ function ClipCard({
         <h3>{title.slice(0, 100)}</h3>
         <p>
           {clip.status} ·{" "}
-          {clip.semanticLabels?.slice(0, 2).join(" · ") || "AI hook detected"}
+          {clip.semanticLabels?.slice(0, 2).join(" · ") || "AI-created"}
         </p>
         <div className="clip-platforms">
           <span>Shorts</span>
@@ -430,9 +430,9 @@ function ClipCard({
               <WandSparkles size={13} />
             )}{" "}
             {isRendering
-              ? "Rendering…"
+              ? "AI is rendering…"
               : isRendered
-                ? "Quick Polish"
+                ? "Re-render"
                 : "Create Short"}
           </button>
           <button

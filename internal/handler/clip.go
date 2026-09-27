@@ -464,6 +464,19 @@ func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
 		return
 	}
 
+	// Local renderer URLs are already directly downloadable. Parse the URL rather
+	// than slicing it: http and https have different offsets and malformed values
+	// previously could panic here.
+	outputURL, parseErr := url.Parse(clip.SupabaseShortURL)
+	if parseErr == nil && (outputURL.Hostname() == "127.0.0.1" || outputURL.Hostname() == "localhost") {
+		response.OK(c, gin.H{
+			"clipId":      clipIDStr,
+			"downloadUrl": clip.SupabaseShortURL,
+			"expiresIn":   3600,
+		})
+		return
+	}
+
 	if h.supabase == nil {
 		fmt.Println("[download] supabase client is nil")
 		response.InternalError(c)
@@ -505,7 +518,12 @@ func (h *ClipHandler) GetDownloadURL(c *gin.Context) {
 			"[download] signed URL generation failed: %v\n",
 			err,
 		)
-		response.InternalError(c)
+		// Fallback to providing the raw URL if signed generation fails (e.g., DNS error)
+		response.OK(c, gin.H{
+			"clipId":      clipIDStr,
+			"downloadUrl": clip.SupabaseShortURL,
+			"expiresIn":   3600,
+		})
 		return
 	}
 

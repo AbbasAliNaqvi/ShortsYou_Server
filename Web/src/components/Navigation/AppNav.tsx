@@ -88,9 +88,9 @@ export function AppNav() {
       </nav>
       
       <div className="app-nav-bottom">
-        <button title="Console">
+        <Link title="API documentation" href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050"}/docs`} target="_blank" rel="noreferrer">
           <Terminal size={17} />
-        </button>
+        </Link>
         <Link title="Profile" href="/dashboard">
           <UserCircle size={18} />
         </Link>

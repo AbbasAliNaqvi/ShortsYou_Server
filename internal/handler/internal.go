@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/llm"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/scoring"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
@@ -31,6 +34,7 @@ type InternalHandler struct {
 	transcriptRepo *repository.TranscriptRepository
 	jobRepo        *repository.JobRepository
 	llmRotator     *llm.Rotator
+	queueClient    *queue.Client
 	cfg            *config.Config
 	log            zerolog.Logger
 }
@@ -45,6 +49,7 @@ func NewInternalHandler(
 	transcriptRepo *repository.TranscriptRepository,
 	jobRepo *repository.JobRepository,
 	llmRotator *llm.Rotator,
+	queueClient *queue.Client,
 	cfg *config.Config,
 	log zerolog.Logger,
 ) *InternalHandler {
@@ -58,6 +63,7 @@ func NewInternalHandler(
 		transcriptRepo: transcriptRepo,
 		jobRepo:        jobRepo,
 		llmRotator:     llmRotator,
+		queueClient:    queueClient,
 		cfg:            cfg,
 		log:            log,
 	}
@@ -550,6 +556,46 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 		log.Warn().Err(err).Msg("failed to insert feature matrix — non-fatal")
 	}
 
+	// ── Auto-Create: auto-export top clips ────────────────────────────────
+	// When the video was flagged for auto-creation, automatically queue
+	// export renders for the top 3 clips by viral score. This is the core
+	// of the "one-click magic" — the user never has to manually export.
+	autoExported := 0
+	if video != nil && video.AutoCreate && h.queueClient != nil {
+		// Sort clips by viral score descending to export the best ones
+		sorted := make([]models.Clip, len(clips))
+		copy(sorted, clips)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].ViralScore > sorted[j].ViralScore
+		})
+
+		maxAutoExport := 3
+		if len(sorted) < maxAutoExport {
+			maxAutoExport = len(sorted)
+		}
+
+		for _, clip := range sorted[:maxAutoExport] {
+			task, err := queue.NewExportClipTask(clip.ID.Hex(), clip.UserID.Hex())
+			if err != nil {
+				log.Warn().Err(err).Str("clipId", clip.ID.Hex()).Msg("auto-export: failed to create task")
+				continue
+			}
+			if err := h.queueClient.Enqueue(task,
+				asynq.TaskID("export:"+clip.ID.Hex()),
+				asynq.MaxRetry(2),
+			); err != nil {
+				log.Warn().Err(err).Str("clipId", clip.ID.Hex()).Msg("auto-export: enqueue failed")
+				continue
+			}
+			_ = h.clipRepo.UpdateStatus(c.Request.Context(), clip.ID, models.ClipStatusEditing)
+			autoExported++
+			log.Info().
+				Str("clipId", clip.ID.Hex()).
+				Float64("viralScore", clip.ViralScore).
+				Msg("auto-export: clip queued for rendering")
+		}
+	}
+
 	_ = h.videoRepo.UpdateFields(c.Request.Context(), videoID, map[string]any{
 		"processingStatus": "completed",
 		"clipsDetected":    len(clips),
@@ -557,12 +603,13 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 	})
 	_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusCompleted, "completed", 1, len(clips), "")
 
-	log.Info().Int("clips", len(clips)).Msg("video processing completed with real ML data")
+	log.Info().Int("clips", len(clips)).Int("autoExported", autoExported).Msg("video processing completed with real ML data")
 
 	response.OK(c, gin.H{
-		"status":  "completed",
-		"videoId": req.VideoID,
-		"clips":   len(clips),
+		"status":       "completed",
+		"videoId":      req.VideoID,
+		"clips":        len(clips),
+		"autoExported": autoExported,
 	})
 }
 

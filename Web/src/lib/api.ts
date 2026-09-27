@@ -75,6 +75,16 @@ export const api = {
       "/api/v1/videos/ingest",
       { method: "POST", body: JSON.stringify({ url, transcribe }), token },
     ),
+  autoCreate: (token: string, videoId: string) =>
+    apiRequest<{ jobId: string; videoId: string; status: string; message: string }>(
+      `/api/v1/videos/${encodeURIComponent(videoId)}/auto-create`,
+      { method: "POST", token },
+    ),
+  autoCreateIngest: (token: string, url: string) =>
+    apiRequest<{ jobId: string; videoId: string; title: string; status: string; message: string }>(
+      "/api/v1/videos/auto-create",
+      { method: "POST", body: JSON.stringify({ url }), token },
+    ),
   processPublicVideo: (
     token: string,
     channelId: string,

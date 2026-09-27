@@ -51,6 +51,19 @@ type CreateShortRequest struct {
 	SFXEvents       []SFXEvent    `json:"sfx_events"`
 }
 
+// MarshalJSON ensures slice fields are never serialised as JSON null.
+// The FastAPI renderer rejects null where it expects a list.
+func (r CreateShortRequest) MarshalJSON() ([]byte, error) {
+	if r.CaptionWords == nil {
+		r.CaptionWords = []CaptionWord{}
+	}
+	if r.SFXEvents == nil {
+		r.SFXEvents = []SFXEvent{}
+	}
+	type Alias CreateShortRequest
+	return json.Marshal(Alias(r))
+}
+
 type CreateShortResponse struct {
 	JobID      string `json:"job_id"`
 	Accepted   bool   `json:"accepted"`

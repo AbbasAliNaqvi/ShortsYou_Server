@@ -13,6 +13,11 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.Use(middleware.CORS(s.cfg.AllowedOrigins))
 	r.Use(middleware.RateLimit(100))
 
+	// Public API reference. Scalar loads the same-origin OpenAPI document, so it
+	// works behind a reverse proxy without a separate documentation service.
+	r.GET("/openapi.json", gin.WrapF(openAPISpecHandler))
+	r.GET("/docs", gin.WrapF(scalarDocsHandler))
+
 	healthHandler := handler.NewHealth(
 		s.mongo,
 		s.redis,
@@ -63,6 +68,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		s.transcriptRepo,
 		s.jobRepo,
 		s.llmRotator,
+		s.queueClient,
 		s.cfg,
 		s.log,
 	)
@@ -170,6 +176,16 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		protected.POST(
 			"/videos/:id/generate",
 			videoHandler.GenerateVideo,
+		)
+
+		protected.POST(
+			"/videos/:id/auto-create",
+			videoHandler.AutoCreate,
+		)
+
+		protected.POST(
+			"/videos/auto-create",
+			videoHandler.AutoCreateIngest,
 		)
 
 		protected.POST(
