@@ -145,12 +145,12 @@ export function PlaceholderDashboard() {
     }
 
     setCreating(true);
-    setNotice("Starting your AI creation pipeline…");
+    setNotice("Starting your AI creation pipeline\u2026");
     try {
       const result = await api.autoCreateIngest(token, sourceUrl.trim());
       setSourceUrl("");
       setNotice(
-        `${result.title} — AI is creating your shorts! Transcription → Analysis → Hook Generation → Auto-Export. Check back in a few minutes.`,
+        `${result.title} \u2014 AI is creating your shorts! Transcription \u2192 Analysis \u2192 Hook Generation \u2192 Auto-Export. Check back in a few minutes.`,
       );
       notify(
         "AI Auto-Create Started",
@@ -181,7 +181,7 @@ export function PlaceholderDashboard() {
       setVideoResults([]);
       setSourceUrl("");
       setNotice(
-        `${result.title} — AI Auto-Create in progress! Your shorts will appear below when ready.`,
+        `${result.title} \u2014 AI Auto-Create in progress! Your shorts will appear below when ready.`,
       );
       notify(
         "AI Auto-Create Started",
@@ -243,44 +243,78 @@ export function PlaceholderDashboard() {
           onSignOut={signOut}
         />
         <div className="workspace-content">
-          <section className="workspace-hero">
-            <span className="workspace-kicker">
-              <Bot size={13} /> AI-Powered Shorts Engine
-            </span>
-            <h1>
-              AI Creates Your Shorts<span>.</span>
-              <br />
-              <em>Automatically</em><span>.</span>
-            </h1>
-            <p>
-              Paste any YouTube video. Our AI transcribes, finds the most viral moments,
-              generates scroll-stopping hooks, and renders production-ready shorts — all
-              without you lifting a finger.
-            </p>
-          </section>
+          {/* Bento hero grid */}
+          <div className="sy-bento-grid">
+            {/* Hero card - left large column */}
+            <div className="sy-hero-card sy-glass">
+              <div className="sy-hero-glow" aria-hidden="true" />
+              <div className="sy-hero-body">
+                <span className="sy-kicker">
+                  <Bot size={11} /> AI-Powered Shorts Engine
+                </span>
+                <h1 className="sy-hero-headline">
+                  AI Creates<br />
+                  <em>Your Shorts.</em>
+                </h1>
+                <p className="sy-hero-subtext">
+                  Paste any YouTube video. AI transcribes, finds viral moments,
+                  writes scroll-stopping hooks, and renders production-ready shorts.
+                </p>
+                <IngestPanel
+                  sourceUrl={sourceUrl}
+                  notice={notice}
+                  creating={creating}
+                  onChange={setSourceUrl}
+                  onCopy={copySource}
+                  onSubmit={handleAutoCreate}
+                />
+              </div>
+              {!loading && (
+                <div className="sy-stats-row">
+                  <StatsOverview
+                    videoCount={videos.length}
+                    clipCount={clips.length}
+                    renderedCount={totalClipsRendered}
+                    activeJobCount={activeJobs.length}
+                    avgViralScore={avgViralScore}
+                  />
+                </div>
+              )}
+            </div>
 
-          <IngestPanel
-            sourceUrl={sourceUrl}
-            notice={notice}
-            creating={creating}
-            onChange={setSourceUrl}
-            onCopy={copySource}
-            onSubmit={handleAutoCreate}
-          />
-          {!loading && (
-            <section className="studio-overview" aria-label="Studio overview">
-              <StatsOverview
-                videoCount={videos.length}
-                clipCount={clips.length}
-                renderedCount={totalClipsRendered}
-                activeJobCount={activeJobs.length}
-                avgViralScore={avgViralScore}
-              />
-              <PipelineStatus jobs={activeJobs} videos={videos} />
-            </section>
-          )}
+            {/* Right column - stacked mini-cards */}
+            <div className="sy-side-stack">
+              <div className="sy-side-card sy-glass">
+                <PipelineStatus jobs={activeJobs} videos={videos} />
+              </div>
+              <div className="sy-side-card sy-glass">
+                <div className="sy-side-card-header">
+                  <span className="sy-side-label">
+                    <i className="sy-dot sy-dot--amber" />
+                    Active Jobs
+                  </span>
+                  <b className="sy-side-count">{activeJobs.length} running</b>
+                </div>
+                {activeJobs.length > 0 ? (
+                  <div className="sy-job-chips">
+                    {activeJobs.slice(0, 3).map((job) => (
+                      <div key={job.jobId} className="sy-job-chip">
+                        <Zap size={10} />
+                        <span>{job.stage || job.status}</span>
+                        <b>{Math.round(job.progress * 100)}%</b>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="sy-empty-hint">No active jobs \u2014 paste a URL above.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Video search results */}
           {videoResults.length > 0 && (
-            <section className="video-search-results">
+            <section className="video-search-results sy-section-gap">
               <div>
                 <span>Choose a video for AI Auto-Create</span>
                 <button onClick={() => setVideoResults([])}>Clear</button>
@@ -304,27 +338,31 @@ export function PlaceholderDashboard() {
               ))}
             </section>
           )}
-          {!loading && (
-            <Recommendations
-              clips={recommendations}
-              videos={videos}
-              exportingClip={exportingClip}
-              onCreateShort={createShort}
-            />
-          )}
-          {error && (
-            <div className="dashboard-error">
-              {error} <Link href="/login">Return to sign in</Link>
-            </div>
-          )}
-          {loading ? (
-            <LoadingDashboard />
-          ) : (
-            <>
-              <Jobs jobs={jobs} videos={videos} />
-              <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
-            </>
-          )}
+
+          {/* Bottom sections */}
+          <div className="sy-section-gap">
+            {!loading && (
+              <Recommendations
+                clips={recommendations}
+                videos={videos}
+                exportingClip={exportingClip}
+                onCreateShort={createShort}
+              />
+            )}
+            {error && (
+              <div className="dashboard-error sy-glass" style={{ padding: "16px 20px", borderRadius: 16 }}>
+                {error} <Link href="/login">Return to sign in</Link>
+              </div>
+            )}
+            {loading ? (
+              <LoadingDashboard />
+            ) : (
+              <>
+                <Jobs jobs={jobs} videos={videos} />
+                <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </main>
@@ -424,7 +462,7 @@ function WorkspaceHeader({
   onSignOut: () => void;
 }) {
   return (
-    <header className="workspace-header">
+    <header className="workspace-header sy-topbar">
       <button
         className="rail-toggle"
         onClick={onMenu}
@@ -432,16 +470,16 @@ function WorkspaceHeader({
       >
         <Menu size={20} />
       </button>
+      <h2 className="sy-topbar-title">Creator Studio</h2>
       <div className="workspace-status">
-        <i /> AI Auto-Creation Engine Active <span>|</span> System
-        Nominal
+        <i /> AI Auto-Creation Engine Active <span>|</span> System Nominal
       </div>
-      <div className="workspace-actions">
+      <div className="workspace-actions sy-topbar-actions">
         <span className="workspace-email">{email ?? "Loading session"}</span>
-        <button onClick={onRefresh} aria-label="Refresh dashboard">
+        <button onClick={onRefresh} aria-label="Refresh dashboard" className="sy-icon-btn">
           <RefreshCw size={16} className={refreshing ? "spin" : ""} />
         </button>
-        <button onClick={onSignOut} aria-label="Sign out">
+        <button onClick={onSignOut} aria-label="Sign out" className="sy-icon-btn">
           <LogOut size={16} />
         </button>
       </div>
@@ -465,58 +503,36 @@ function IngestPanel({
   onSubmit: (event: FormEvent) => void;
 }) {
   return (
-    <section className="ingest-panel">
-      <div className="ingest-heading">
-        <div>
-          <span className="ingest-eyebrow"><Zap size={13} /> AI Auto-Create</span>
-          <h2>Turn one video into ready-to-publish shorts.</h2>
-        </div>
+    <section className="sy-ingest">
+      <div className="sy-ingest-eyebrow">
+        <Zap size={11} />
+        <span>AI Auto-Create</span>
         <span className="api-ready">
-          <Bot size={11} /> AI ENGINE READY
+          <Bot size={9} /> ENGINE READY
         </span>
       </div>
-      <div className="ingest-drop">
-        <div className="youtube-mark">▶</div>
-        <h3>Paste a YouTube URL — AI does everything else.</h3>
-        <p>
-          One click. AI transcribes your video, detects the strongest viral moments,
-          writes scroll-stopping hooks, and renders production-ready shorts. No manual
-          editing needed.
-        </p>
-        <div className="mode-pills">
-          <span>● AI Auto-Create (Full Pipeline)</span>
-          <span>○ Manual Range Selection</span>
-        </div>
-        <form className="ingest-form" onSubmit={onSubmit}>
-          <div>
-            <input
-              value={sourceUrl}
-              onChange={(event) => onChange(event.target.value)}
-              placeholder="https://youtube.com/watch?v=... or search by topic"
-            />
-            <button type="button" onClick={onCopy} aria-label="Copy source URL">
-              <Copy size={13} />
-            </button>
-          </div>
-          <button className="ingest-submit" type="submit" disabled={creating || !sourceUrl.trim()}>
-            {creating ? (
-              <RefreshCw className="spin" size={15} />
-            ) : (
-              <Zap size={15} />
-            )}
-            {creating ? "Starting AI…" : "Create shorts with AI"}
+      <form className="sy-ingest-form" onSubmit={onSubmit}>
+        <div className="sy-ingest-input-wrap">
+          <input
+            className="sy-ingest-input"
+            value={sourceUrl}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Paste YouTube URL or search by topic\u2026"
+          />
+          <button type="button" onClick={onCopy} aria-label="Copy source URL" className="sy-ingest-copy">
+            <Copy size={12} />
           </button>
-        </form>
-        <div className="ingest-meta">
-          <span>
-            Pipeline: <b>Transcription → Viral Detection → Hook Gen → Auto-Render</b>
-          </span>
-          <span>
-            Engine: Whisper-X · Semantic NLP · Groq LLM · FFmpeg Renderer
-          </span>
         </div>
-      </div>
-      {notice && <p className="workspace-notice">{notice}</p>}
+        <button className="sy-ingest-submit" type="submit" disabled={creating || !sourceUrl.trim()}>
+          {creating ? (
+            <RefreshCw className="spin" size={14} />
+          ) : (
+            <Zap size={14} />
+          )}
+          {creating ? "Starting AI\u2026" : "Create Shorts"}
+        </button>
+      </form>
+      {notice && <p className="workspace-notice sy-ingest-notice">{notice}</p>}
     </section>
   );
 }
@@ -563,7 +579,7 @@ function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
                 <div>
                   <h3>{video?.title ?? "AI is processing your video"}</h3>
                   <p>
-                    Job {job.jobId.slice(0, 8)} · {job.clipsFound} clips found
+                    Job {job.jobId.slice(0, 8)} \u00b7 {job.clipsFound} clips found
                   </p>
                 </div>
               </div>
@@ -601,10 +617,18 @@ function Recommendations({
   return (
     <section className="workspace-section">
       <SectionTitle
-        title="AI-Created Shorts — Ready for You"
+        title="Your top shorts this period"
         meta={`${clips.length} shorts crafted by AI`}
       />
-      <div className="recommendation-grid">
+      {clips.length > 0 && (
+        <div className="sy-table-header">
+          <span>Clip</span>
+          <span>Viral Score</span>
+          <span>Duration</span>
+          <span>Action</span>
+        </div>
+      )}
+      <div className="sy-table-list">
         {clips.map((clip, index) => {
           const video = videos.find((item) => item.id === clip.videoId);
           const thumb =
@@ -617,62 +641,56 @@ function Recommendations({
           const rendered = ["exported", "published"].includes(clip.status);
           const playableURL = clip.supabaseShortUrl || clip.supabaseRawClipUrl;
           return (
-            <article className="recommendation-card" key={clip.id}>
-              <div className="recommendation-media">
-                {playableURL ? (
-                  <video
-                    src={playableURL}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    poster={thumb}
-                  />
-                ) : (
-                  <img src={thumb} alt="" />
-                )}
-                <span>{Math.round(clip.viralScore)} / 100</span>
-                <small>
-                  {playableURL
-                    ? "AI-Created · Ready to watch"
-                    : rendered
-                      ? "AI is finishing your short"
-                      : "AI-Detected viral moment"}
-                </small>
-              </div>
-              <div className="recommendation-copy">
-                <small>
-                  {clip.category ? `AI ${clip.category.toUpperCase()}` : "AI DISCOVERY"} ·{" "}
-                  {formatDuration(clip.durationSeconds)}
-                </small>
-                <h3>
-                  {clip.originalHook ||
-                    clip.selectedHook ||
-                    clip.transcriptText.slice(0, 88) ||
-                    "High-saliency moment detected by AI"}
-                </h3>
-                <div>
-                  <span>AI Viral Score</span>
-                  <b>{Math.round(clip.hookScore || clip.viralScore)}%</b>
+            <div className="sy-glass-row" key={clip.id}>
+              <div className="sy-table-clip">
+                <div className="sy-table-thumb">
+                  {playableURL ? (
+                    <video
+                      src={playableURL}
+                      playsInline
+                      preload="metadata"
+                      poster={thumb}
+                    />
+                  ) : (
+                    <img src={thumb} alt="" />
+                  )}
                 </div>
+                <div className="sy-table-clip-info">
+                  <p className="sy-table-clip-title">
+                    {clip.originalHook ||
+                      clip.selectedHook ||
+                      clip.transcriptText.slice(0, 72) ||
+                      "High-saliency moment detected by AI"}
+                  </p>
+                  <small className="sy-table-clip-meta">
+                    {clip.category ? `AI ${clip.category.toUpperCase()}` : "AI DISCOVERY"}
+                  </small>
+                </div>
+              </div>
+              <div className="sy-table-score">
+                <i className="sy-dot sy-dot--yellow" />
+                <span>{Math.round(clip.hookScore || clip.viralScore)}%</span>
+              </div>
+              <div className="sy-table-dur">
+                {formatDuration(clip.durationSeconds)}
+              </div>
+              <div className="sy-table-action">
                 <button
+                  className="sy-action-btn"
                   onClick={() => onCreateShort(clip.id)}
                   disabled={rendering}
                 >
                   {rendering ? (
-                    <RefreshCw className="spin" size={14} />
+                    <RefreshCw className="spin" size={13} />
                   ) : rendered ? (
-                    <Download size={14} />
+                    <Download size={13} />
                   ) : (
-                    <Zap size={14} />
+                    <Zap size={13} />
                   )}
-                  {rendered
-                    ? " Download Short"
-                    : rendering
-                      ? " AI is rendering..."
-                      : " Create Short"}
+                  {rendered ? "Download" : rendering ? "Rendering\u2026" : "Create"}
                 </button>
               </div>
-            </article>
+            </div>
           );
         })}
       </div>
@@ -740,7 +758,7 @@ function ProductionShelf({
         })}
       </div>
       {videos.length === 0 && (
-        <EmptyState text="No videos yet. Paste a YouTube URL above — AI will create your shorts automatically." />
+        <EmptyState text="No videos yet. Paste a YouTube URL above \u2014 AI will create your shorts automatically." />
       )}
     </section>
   );
@@ -760,30 +778,36 @@ function StatsOverview({
   avgViralScore: number;
 }) {
   const stats = [
-    { icon: VideoIcon, label: "Source Videos", value: videoCount, sub: "Ingested" },
-    { icon: Clapperboard, label: "AI Clips", value: clipCount, sub: "Detected" },
-    { icon: Download, label: "Rendered", value: renderedCount, sub: "Ready" },
-    { icon: Activity, label: "Active Jobs", value: activeJobCount, sub: "Processing" },
-    { icon: TrendingUp, label: "Avg Viral Score", value: avgViralScore, sub: "/ 100" },
+    { icon: VideoIcon, label: "Source Videos", value: videoCount, sub: "Ingested", dotColor: "sy-dot--blue" },
+    { icon: Clapperboard, label: "AI Clips", value: clipCount, sub: "Detected", dotColor: "sy-dot--yellow" },
+    { icon: Download, label: "Rendered", value: renderedCount, sub: "Ready", dotColor: "sy-dot--green" },
+    { icon: Activity, label: "Active Jobs", value: activeJobCount, sub: "Processing", dotColor: "sy-dot--amber" },
+    { icon: TrendingUp, label: "Avg Viral Score", value: avgViralScore, sub: "/ 100", dotColor: "sy-dot--pink" },
   ];
   return (
-    <section className="premium-stats-row">
+    <div className="sy-stats-inner">
       {stats.map((s) => {
         const Icon = s.icon;
         return (
-          <article key={s.label} className="premium-stat-card">
-            <div className="premium-stat-header">
-              <span>{s.label}</span>
-              <span className="premium-stat-icon"><Icon size={14} /></span>
+          <div key={s.label} className="sy-stat-block">
+            <div className="sy-stat-icon-wrap">
+              <Icon size={13} />
             </div>
-            <div className="premium-stat-value">
-              <strong>{s.value}</strong>
-              <em>{s.sub}</em>
+            <strong className="sy-stat-value">{s.value}</strong>
+            <span className="sy-stat-label">
+              <i className={`sy-dot ${s.dotColor}`} />
+              {s.label}
+            </span>
+            <div className="sy-stat-bar">
+              <div
+                className="sy-stat-bar-fill"
+                style={{ width: `${Math.min(100, s.value > 0 ? 100 : 0)}%` }}
+              />
             </div>
-          </article>
+          </div>
         );
       })}
-    </section>
+    </div>
   );
 }
 
@@ -802,12 +826,15 @@ function PipelineStatus({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
   }
 
   return (
-    <section className="premium-pipeline">
-      <div className="premium-pipeline-header">
-        <span className="title"><i /> Live Pipeline</span>
-        <span>{jobs.length} active</span>
+    <div className="sy-pipeline">
+      <div className="sy-side-card-header">
+        <span className="sy-side-label">
+          <i className="sy-dot sy-dot--green sy-dot--pulse" />
+          Live Pipeline
+        </span>
+        <span className="sy-side-count">{jobs.length} active</span>
       </div>
-      <div className="premium-pipeline-track">
+      <div className="sy-pipeline-track">
         {stages.map((s, i) => {
           const Icon = s.icon;
           const activeHere = jobs.some(
@@ -816,14 +843,14 @@ function PipelineStatus({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
           return (
             <div
               key={s.key}
-              className={`premium-pipeline-node${activeHere ? " active" : ""}`}
+              className={`sy-pipeline-node${activeHere ? " active" : ""}`}
             >
-              <span className="premium-node-icon">
-                <Icon size={16} />
+              <span className="sy-pipeline-icon">
+                <Icon size={13} />
               </span>
-              <strong>{s.label}</strong>
+              <span className="sy-pipeline-label">{s.label}</span>
               {i < stages.length - 1 && (
-                <span className="premium-pipeline-connector" />
+                <span className="sy-pipeline-connector" aria-hidden="true" />
               )}
             </div>
           );
@@ -841,7 +868,7 @@ function PipelineStatus({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
           );
         })}
       </div>
-    </section>
+    </div>
   );
 }
 
