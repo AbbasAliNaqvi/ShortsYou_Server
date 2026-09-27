@@ -140,7 +140,7 @@ func (h *ClipHandler) ListClips(c *gin.Context) {
 	}
 
 	if clips == nil {
-		clips = []*models.Clip{}
+		clips = []models.Clip{}
 	}
 	response.OK(c, clips)
 }
