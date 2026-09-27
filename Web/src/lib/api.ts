@@ -28,7 +28,7 @@ export async function apiRequest<T>(
   if (!payload.success) {
     throw new Error(payload.error ?? "API request failed");
   }
-  return payload.data;
+  return payload.data ?? ([] as unknown as T);
 }
 
 export const api = {

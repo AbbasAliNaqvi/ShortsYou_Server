@@ -139,6 +139,9 @@ func (h *ClipHandler) ListClips(c *gin.Context) {
 		return
 	}
 
+	if clips == nil {
+		clips = []*models.Clip{}
+	}
 	response.OK(c, clips)
 }
 

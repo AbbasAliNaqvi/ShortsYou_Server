@@ -4,7 +4,7 @@ import "github.com/gin-gonic/gin"
 
 type envelope struct {
 	Success bool   `json:"success"`
-	Data    any    `json:"data,omitempty"`
+	Data    any    `json:"data"`
 	Error   string `json:"error,omitempty"`
 }
 
