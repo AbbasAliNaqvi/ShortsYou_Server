@@ -2,32 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   BarChart3,
+  Bell,
   Clapperboard,
   Compass,
   LayoutDashboard,
   Menu,
-  SkipForward,
-  Terminal,
-  UserCircle,
+  Settings,
+  ShoppingBag,
   WandSparkles,
 } from "lucide-react";
 import { useState } from "react";
 
 const links = [
-  ["Studio", "/dashboard", LayoutDashboard],
+  ["Studio", "/dashboard", BarChart3],
   ["Videos", "/videos", Clapperboard],
   ["Custom Editor", "/editor", WandSparkles],
   ["Discover", "/discover", Compass],
-  ["Clips Review", "/clips", Clapperboard],
-  ["Analytics", "/analytics", BarChart3],
+  ["Clips Review", "/clips", ShoppingBag],
+  ["Analytics", "/analytics", LayoutDashboard],
 ] as const;
 
 export function AppNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   if (pathname === "/" || pathname === "/login" || pathname === "/register")
     return null;
@@ -40,59 +40,78 @@ export function AppNav() {
 
   return (
     <aside className={`app-nav ${open ? "open" : ""}`}>
-      {/* Removed py-2 entirely to minimize top and bottom margin */}
+      {/* 4-circle clover brand mark from reference image */}
       <Link
-        className="app-nav-brand-container flex flex-col items-center justify-center w-full"
+        className="app-nav-brand-container"
         href="/dashboard"
         aria-label="Shorts home"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Swapped the glow for a flat, matte frosted glass hover effect */}
-        <div 
-          className={`flex items-center justify-center w-11 h-11 rounded-2xl border transition-all duration-300 ${
-            isHovered 
-              ? "bg-white/20 border-white/30 backdrop-blur-xl shadow-none" 
-              : "bg-white/10 border-white/20 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.1)]"
-          }`}
+        <motion.div
+          className="app-nav-clover-mark"
+          whileHover={{ scale: 1.08, rotate: 90 }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: "spring", stiffness: 350, damping: 20 }}
         >
-          <SkipForward 
-            size={16} 
-            color={isHovered ? "#ff9eb5" : "#ffffff"} 
-            className="transition-colors duration-200 ease-in-out" 
-          />
-        </div>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <circle cx="8" cy="8" r="4.2" />
+            <circle cx="16" cy="8" r="4.2" />
+            <circle cx="8" cy="16" r="4.2" />
+            <circle cx="16" cy="16" r="4.2" />
+          </svg>
+        </motion.div>
       </Link>
 
       <button
-        className="app-nav-menu mt-2" 
+        className="app-nav-menu"
         onClick={() => setOpen((value) => !value)}
         aria-label="Toggle navigation"
       >
         <Menu size={18} />
       </button>
-      
+
       <nav>
-        {links.map(([label, href, Icon]) => (
-          <Link
-            key={href}
-            title={label}
-            className={active(href) ? "active" : ""}
-            href={href}
-            onClick={() => setOpen(false)}
-          >
-            <Icon size={17} />
-            <span>{label}</span>
-          </Link>
-        ))}
+        {links.map(([label, href, Icon]) => {
+          const isActive = active(href);
+          return (
+            <Link
+              key={href}
+              title={label}
+              className={`app-nav-link ${isActive ? "active" : ""}`}
+              href={href}
+              onClick={() => setOpen(false)}
+            >
+              <motion.div
+                className="app-nav-icon-box"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <Icon size={19} />
+              </motion.div>
+              <span>{label}</span>
+            </Link>
+          );
+        })}
       </nav>
-      
+
       <div className="app-nav-bottom">
-        <Link title="API documentation" href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050"}/docs`} target="_blank" rel="noreferrer">
-          <Terminal size={17} />
-        </Link>
-        <Link title="Profile" href="/dashboard">
-          <UserCircle size={18} />
+        <motion.button
+          className="app-nav-notif-btn"
+          title="Notifications"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.92 }}
+        >
+          <Bell size={18} />
+          <span className="app-nav-notif-dot" />
+        </motion.button>
+        <Link title="Settings" href="/dashboard">
+          <motion.div
+            className="app-nav-icon-box"
+            whileHover={{ scale: 1.1, rotate: 45 }}
+            whileTap={{ scale: 0.92 }}
+          >
+            <Settings size={18} />
+          </motion.div>
         </Link>
       </div>
     </aside>

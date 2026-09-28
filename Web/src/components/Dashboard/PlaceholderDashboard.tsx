@@ -5,44 +5,37 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
-  BarChart3,
   Bot,
+  ChevronDown,
   ChevronRight,
   Clapperboard,
   Copy,
   Download,
   LogOut,
-  Menu,
+  Mail,
+  MoreHorizontal,
   Play,
   RefreshCw,
+  Search,
   Send,
-  Settings2,
   Sparkles,
   Terminal,
   TrendingUp,
   Video as VideoIcon,
   WandSparkles,
-  X,
   Zap,
 } from "lucide-react";
 import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
+import FallingColorBackground from "../LiquidGlass/FallingColorBackground";
 
-const navItems = [
-  [Sparkles, "Studio"],
-  [Play, "Videos"],
-  [WandSparkles, "Editor"],
-  [Clapperboard, "Clips"],
-  [BarChart3, "Analytics"],
-] as const;
 const fallbackThumbs = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCbxGgdgyq3gfBMdpPdrUwSGMFYT8Je22R6K5NLudSv-tQSwWhd2kLdw1j8KpZJrYHJTyAgBOxrGn6Pd2fbyBycRDvbTFjU8Mp4tdGa1TlPLYossyPzeTaQGiDBuWwu80MUFX-wn3wPph_CNEAMGZXAS9czZdvFoGSg8RWgb3vNyhFp9Or6rHEFQ-tcWsn0p3qR4g4oZo4iGawYZ64mavBpf7ljI6d43Lcza3_zBmen4ejUt_vO3KHs",
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBHiTExBHrxUrsYBNiUSvkGp2yOfc2dwHvXRaSGDLBcpX30E1hjR7xkWr6fih9VUZiKIOfKliZyWPOW87ojjgvrCudlZRpBETkTA8eHK73UQh-ttEV5ECNQ7HeolEKsckr98hTS_QNBkZ6wbbW7zNR3HxcXYI4HZLEgjJW8IoQ0cxvLdYxu9jgIQB5luVUPZa8c4tp2lQeo5DdLfsmlS3ByJhZpc1YLnzRRKdNM6TJTO-I6W3jw-c8U",
 ];
-
-
 
 export function PlaceholderDashboard() {
   const router = useRouter();
@@ -50,8 +43,6 @@ export function PlaceholderDashboard() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [activeNav, setActiveNav] = useState("Studio");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState("");
   const [videoResults, setVideoResults] = useState<PublicVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,9 +56,7 @@ export function PlaceholderDashboard() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       setLoading(false);
-      setError(
-        "Your studio session has expired. Sign in again to load the workspace.",
-      );
+      setError("Your studio session has expired. Sign in again to load the workspace.");
       return;
     }
     setRefreshing(true);
@@ -80,14 +69,11 @@ export function PlaceholderDashboard() {
     ]);
     const [userResult, videosResult, clipsResult, jobsResult] = results;
     if (userResult.status === "fulfilled") setUser(userResult.value);
-    if (videosResult.status === "fulfilled")
-      setVideos(videosResult.value ?? []);
+    if (videosResult.status === "fulfilled") setVideos(videosResult.value ?? []);
     if (clipsResult.status === "fulfilled") setClips(clipsResult.value ?? []);
     if (jobsResult.status === "fulfilled") setJobs(jobsResult.value ?? []);
     if (results.every((result) => result.status === "rejected"))
-      setError(
-        "The studio API is unavailable. Check that the Go server is running on port 5050.",
-      );
+      setError("The studio API is unavailable. Check that the Go server is running on port 5050.");
     setLoading(false);
     setRefreshing(false);
   }
@@ -112,15 +98,13 @@ export function PlaceholderDashboard() {
     .sort((a, b) => b.viralScore - a.viralScore)
     .slice(0, 4);
 
-  const activeJobs = jobs.filter(
-    (j) => !["completed", "failed"].includes(j.status),
-  );
+  const activeJobs = jobs.filter((j) => !["completed", "failed"].includes(j.status));
   const avgViralScore =
     clips.length > 0
       ? Math.round(clips.reduce((s, c) => s + c.viralScore, 0) / clips.length)
       : 0;
   const totalClipsRendered = clips.filter((c) =>
-    ["exported", "published"].includes(c.status),
+    ["exported", "published"].includes(c.status)
   ).length;
 
   function signOut() {
@@ -133,36 +117,31 @@ export function PlaceholderDashboard() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !sourceUrl.trim()) return;
 
-    // If not a URL, search for videos
     if (!/^https?:\/\//i.test(sourceUrl.trim())) {
       try {
         setVideoResults(await api.searchVideos(token, sourceUrl.trim()));
         setNotice("Select a video and let AI create your shorts automatically.");
-      } catch (error) {
-        setNotice(error instanceof Error ? error.message : "No videos found.");
+      } catch (err) {
+        setNotice(err instanceof Error ? err.message : "No videos found.");
       }
       return;
     }
 
     setCreating(true);
-    setNotice("Starting your AI creation pipeline\u2026");
+    setNotice("Starting your AI creation pipeline…");
     try {
       const result = await api.autoCreateIngest(token, sourceUrl.trim());
       setSourceUrl("");
-      setNotice(
-        `${result.title} \u2014 AI is creating your shorts! Transcription \u2192 Analysis \u2192 Hook Generation \u2192 Auto-Export. Check back in a few minutes.`,
-      );
+      setNotice(`${result.title} — AI is creating your shorts! Check back in a few minutes.`);
       notify(
         "AI Auto-Create Started",
         "Your shorts are being created automatically. AI will transcribe, find viral moments, generate hooks, and render your shorts.",
-        "success",
+        "success"
       );
       await loadDashboard();
     } catch (ingestError) {
       setNotice(
-        ingestError instanceof Error
-          ? ingestError.message
-          : "Unable to start AI Auto-Create.",
+        ingestError instanceof Error ? ingestError.message : "Unable to start AI Auto-Create."
       );
     } finally {
       setCreating(false);
@@ -176,23 +155,15 @@ export function PlaceholderDashboard() {
     try {
       const result = await api.autoCreateIngest(
         token,
-        `https://youtube.com/watch?v=${video.youtubeVideoId}`,
+        `https://youtube.com/watch?v=${video.youtubeVideoId}`
       );
       setVideoResults([]);
       setSourceUrl("");
-      setNotice(
-        `${result.title} \u2014 AI Auto-Create in progress! Your shorts will appear below when ready.`,
-      );
-      notify(
-        "AI Auto-Create Started",
-        `${video.title} is being processed. AI will find the best moments and create ready-to-download shorts.`,
-        "success",
-      );
+      setNotice(`${result.title} — AI Auto-Create in progress! Your shorts will appear below when ready.`);
+      notify("AI Auto-Create Started", `${video.title} is being processed.`, "success");
       await loadDashboard();
-    } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Unable to queue this video.",
-      );
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Unable to queue this video.");
     }
   }
 
@@ -208,15 +179,11 @@ export function PlaceholderDashboard() {
     setNotice("Creating your short...");
     try {
       await api.exportClip(token, clipId);
-      setNotice(
-        "Short rendering started. It will appear as downloadable when ready.",
-      );
+      setNotice("Short rendering started. It will appear as downloadable when ready.");
       await loadDashboard();
     } catch (createError) {
       setNotice(
-        createError instanceof Error
-          ? createError.message
-          : "Unable to create this short.",
+        createError instanceof Error ? createError.message : "Unable to create this short."
       );
     } finally {
       setExportingClip(null);
@@ -224,42 +191,71 @@ export function PlaceholderDashboard() {
   }
 
   return (
-    <main className="workspace-page">
-      <WorkspaceRail
-        active={activeNav}
-        open={menuOpen}
-        clips={clips.length}
-        onClose={() => setMenuOpen(false)}
-        onSelect={setActiveNav}
-        onSignOut={signOut}
-        user={user}
-      />
-      <div className="workspace-main">
+    <main className="workspace-page ca-canvas-container">
+      {/* Dynamic Animated Liquid Glass Multi-Directional Waves & Ambient Glows */}
+      <FallingColorBackground />
+
+      <div className="workspace-main ca-main-viewport">
+        {/* Top Header Bar */}
         <WorkspaceHeader
           email={user?.email}
+          user={user}
           refreshing={refreshing}
-          onMenu={() => setMenuOpen(true)}
           onRefresh={() => void loadDashboard()}
           onSignOut={signOut}
         />
-        <div className="workspace-content">
-          {/* Bento hero grid */}
-          <div className="sy-bento-grid">
-            {/* Hero card - left large column */}
-            <div className="sy-hero-card sy-glass">
-              <div className="sy-hero-glow" aria-hidden="true" />
-              <div className="sy-hero-body">
-                <span className="sy-kicker">
-                  <Bot size={11} /> AI-Powered Shorts Engine
-                </span>
-                <h1 className="sy-hero-headline">
-                  AI Creates<br />
-                  <em>Your Shorts.</em>
-                </h1>
-                <p className="sy-hero-subtext">
+
+        <motion.div
+          className="workspace-content ca-dashboard-content"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Bento Upper Grid (Hero Card + Pipeline Status) */}
+          <div className="ca-bento-grid">
+            {/* Left Hero Card (~65% width) - 100% Photo Free Liquid Glass */}
+            <motion.div
+              className="ca-hero-card ca-glass"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {/* Concentric Wireframe Orbit Rings */}
+              <div className="ca-hero-rings" aria-hidden="true">
+                <svg viewBox="0 0 600 600" className="ca-hero-rings-svg">
+                  <circle cx="300" cy="300" r="140" fill="none" stroke="rgba(245, 158, 11, 0.15)" strokeWidth="1" />
+                  <circle cx="300" cy="300" r="210" fill="none" stroke="rgba(14, 165, 233, 0.12)" strokeWidth="1" />
+                  <circle cx="300" cy="300" r="280" fill="none" stroke="rgba(168, 85, 247, 0.10)" strokeWidth="1" strokeDasharray="4 6" />
+                </svg>
+              </div>
+
+              {/* Liquid Glass AI Engine Graphic (Replacing Photo) */}
+              <div className="ca-hero-visual-container" aria-hidden="true">
+                <LiquidGlassHeroGraphic />
+              </div>
+
+              <div className="ca-hero-body">
+                <motion.span
+                  className="ca-hero-eyebrow"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <Bot size={12} /> AI-Powered Shorts Engine
+                </motion.span>
+                <motion.h1
+                  className="ca-hero-headline"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  Optimize<br />Your Metrics
+                </motion.h1>
+                <p className="ca-hero-subtext">
                   Paste any YouTube video. AI transcribes, finds viral moments,
                   writes scroll-stopping hooks, and renders production-ready shorts.
                 </p>
+
                 <IngestPanel
                   sourceUrl={sourceUrl}
                   notice={notice}
@@ -269,219 +265,255 @@ export function PlaceholderDashboard() {
                   onSubmit={handleAutoCreate}
                 />
               </div>
-              {!loading && (
-                <div className="sy-stats-row">
-                  <StatsOverview
-                    videoCount={videos.length}
-                    clipCount={clips.length}
-                    renderedCount={totalClipsRendered}
-                    activeJobCount={activeJobs.length}
-                    avgViralScore={avgViralScore}
-                  />
-                </div>
-              )}
-            </div>
 
-            {/* Right column - stacked mini-cards */}
-            <div className="sy-side-stack">
-              <div className="sy-side-card sy-glass">
-                <PipelineStatus jobs={activeJobs} videos={videos} />
-              </div>
-              <div className="sy-side-card sy-glass">
-                <div className="sy-side-card-header">
-                  <span className="sy-side-label">
-                    <i className="sy-dot sy-dot--amber" />
-                    Active Jobs
-                  </span>
-                  <b className="sy-side-count">{activeJobs.length} running</b>
-                </div>
-                {activeJobs.length > 0 ? (
-                  <div className="sy-job-chips">
-                    {activeJobs.slice(0, 3).map((job) => (
-                      <div key={job.jobId} className="sy-job-chip">
-                        <Zap size={10} />
-                        <span>{job.stage || job.status}</span>
-                        <b>{Math.round(job.progress * 100)}%</b>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="sy-empty-hint">No active jobs \u2014 paste a URL above.</p>
-                )}
-              </div>
+              {/* Floating Overlay Glass Stats Bar (Real Data Bound) */}
+              <StatsOverview
+                videoCount={videos.length}
+                clipCount={clips.length}
+                renderedCount={totalClipsRendered}
+                avgViralScore={avgViralScore}
+              />
+            </motion.div>
+
+            {/* Right Column: Live Pipeline Status (Real Jobs & Stages Bound) */}
+            <div className="ca-side-stack">
+              <PipelineStatus jobs={activeJobs} videos={videos} avgScore={avgViralScore} />
             </div>
           </div>
 
-          {/* Video search results */}
-          {videoResults.length > 0 && (
-            <section className="video-search-results sy-section-gap">
-              <div>
-                <span>Choose a video for AI Auto-Create</span>
-                <button onClick={() => setVideoResults([])}>Clear</button>
-              </div>
-              {videoResults.map((video) => (
-                <article key={video.youtubeVideoId}>
-                  <img src={video.thumbnailUrl} alt="" />
-                  <section>
-                    <small>
-                      {video.durationSeconds
-                        ? `${Math.floor(video.durationSeconds / 60)}:${String(video.durationSeconds % 60).padStart(2, "0")}`
-                        : "YouTube video"}
-                    </small>
-                    <h3>{video.title}</h3>
-                    <p>{video.description}</p>
-                  </section>
-                  <button onClick={() => void ingestSearchResult(video)}>
-                    <Zap size={14} /> AI Auto-Create
-                  </button>
-                </article>
-              ))}
-            </section>
+          {/* YouTube Video Search Results If Active */}
+          <AnimatePresence>
+            {videoResults.length > 0 && (
+              <motion.section
+                className="video-search-results ca-glass ca-section-box"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <div className="ca-search-bar-header">
+                  <span>Choose a video for AI Auto-Create</span>
+                  <button onClick={() => setVideoResults([])}>Clear</button>
+                </div>
+                <div className="ca-search-grid">
+                  {videoResults.map((video) => (
+                    <motion.article
+                      key={video.youtubeVideoId}
+                      className="ca-search-card ca-glass"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <img src={video.thumbnailUrl} alt="" />
+                      <section>
+                        <small>
+                          {video.durationSeconds
+                            ? `${Math.floor(video.durationSeconds / 60)}:${String(video.durationSeconds % 60).padStart(2, "0")}`
+                            : "YouTube video"}
+                        </small>
+                        <h3>{video.title}</h3>
+                        <p>{video.description}</p>
+                      </section>
+                      <button onClick={() => void ingestSearchResult(video)}>
+                        <Zap size={14} /> AI Auto-Create
+                      </button>
+                    </motion.article>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {/* Bottom Table: "Your top videos in this period" (Real Clips Bound) */}
+          <Recommendations
+            clips={recommendations}
+            videos={videos}
+            exportingClip={exportingClip}
+            onCreateShort={createShort}
+          />
+
+          {error && (
+            <div className="dashboard-error ca-glass">
+              {error} <Link href="/login">Return to sign in</Link>
+            </div>
           )}
 
-          {/* Bottom sections */}
-          <div className="sy-section-gap">
-            {!loading && (
-              <Recommendations
-                clips={recommendations}
-                videos={videos}
-                exportingClip={exportingClip}
-                onCreateShort={createShort}
-              />
-            )}
-            {error && (
-              <div className="dashboard-error sy-glass" style={{ padding: "16px 20px", borderRadius: 16 }}>
-                {error} <Link href="/login">Return to sign in</Link>
-              </div>
-            )}
-            {loading ? (
-              <LoadingDashboard />
-            ) : (
-              <>
-                <Jobs jobs={jobs} videos={videos} />
-                <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
-              </>
-            )}
-          </div>
-        </div>
+          {loading ? (
+            <LoadingDashboard />
+          ) : (
+            <div className="ca-secondary-shelves">
+              <Jobs jobs={jobs} videos={videos} />
+              <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
+            </div>
+          )}
+        </motion.div>
       </div>
     </main>
   );
 }
 
-function WorkspaceRail({
-  active,
-  open,
-  clips,
-  user,
-  onClose,
-  onSelect,
-  onSignOut,
-}: {
-  active: string;
-  open: boolean;
-  clips: number;
-  user: User | null;
-  onClose: () => void;
-  onSelect: (label: string) => void;
-  onSignOut: () => void;
-}) {
+{/* Pure Apple Liquid Glass AI Studio Console - Clean, Spacious, No Colliding Badges */}
+function LiquidGlassHeroGraphic() {
   return (
-    <aside className={`workspace-rail ${open ? "open" : ""}`}>
-      <div className="rail-brand">
-        <Link href="/">
-          <span>SY</span>
-        </Link>
-        <button onClick={onClose} aria-label="Close menu">
-          <X size={17} />
-        </button>
-      </div>
-      <nav>
-        {navItems.map(([Icon, label]) => {
-          const href =
-            label === "Studio"
-              ? "/dashboard"
-              : label === "Clips"
-                ? "/clips"
-                : label === "Videos"
-                  ? "/videos"
-                  : label === "Editor"
-                    ? "/editor"
-                    : "/analytics";
-          return (
-            <Link
-              href={href}
-              key={label}
-              className={active === label ? "active" : ""}
-              onClick={() => {
-                onSelect(label);
-                onClose();
-              }}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {label === "Clips" && clips > 0 ? <b>{clips}</b> : null}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="rail-bottom">
-        <button>
-          <Terminal size={17} />
-          API Docs
-        </button>
-        <button>
-          <Settings2 size={17} />
-          Settings
-        </button>
-        <button onClick={onSignOut}>
-          <LogOut size={17} />
-          Sign out
-        </button>
-        {user?.profilePicture ? (
-          <img src={user.profilePicture} alt={user.name} />
-        ) : (
-          <span className="rail-avatar">{initials(user?.name)}</span>
-        )}
-      </div>
-    </aside>
+    <div className="ca-liquid-graphic-wrap">
+      {/* Ambient Radial Mesh Lighting behind the graphic */}
+      <div className="ca-liquid-graphic-glow" />
+
+      {/* Orbiting Frosted Glass Ring 1 */}
+      <motion.div
+        className="ca-liquid-ring ca-liquid-ring-outer"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+      >
+        <span className="ca-orbit-satellite ca-sat-1" />
+        <span className="ca-orbit-satellite ca-sat-2" />
+      </motion.div>
+
+      {/* Orbiting Frosted Glass Ring 2 */}
+      <motion.div
+        className="ca-liquid-ring ca-liquid-ring-inner"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+      />
+
+      {/* Apple Vision Pro Glass Console */}
+      <motion.div
+        className="ca-apple-console"
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        whileHover={{ scale: 1.02 }}
+      >
+        {/* Console Top Bar */}
+        <div className="ca-console-top">
+          <div className="ca-console-live-pill">
+            <span className="ca-console-dot-pulse" />
+            <span>AI Voice & Hook Stream</span>
+          </div>
+          <div className="ca-console-tags">
+            <span className="ca-console-tag">Whisper v3</span>
+            <span className="ca-console-tag ca-tag-accent">4K 60FPS</span>
+          </div>
+        </div>
+
+        {/* Live Audio & Viral Waveform Equalizer */}
+        <div className="ca-console-spectrum-box">
+          <div className="ca-spectrum-threshold">
+            <span className="ca-threshold-line" />
+            <span className="ca-threshold-badge">
+              <Zap size={10} /> 98.4% Viral Hook Peak
+            </span>
+          </div>
+          <div className="ca-waveform-equalizer">
+            {[
+              { delay: 0.05, minH: 30, maxH: 85 },
+              { delay: 0.15, minH: 50, maxH: 95 },
+              { delay: 0.25, minH: 25, maxH: 70 },
+              { delay: 0.35, minH: 60, maxH: 100 },
+              { delay: 0.10, minH: 40, maxH: 90 },
+              { delay: 0.40, minH: 75, maxH: 100 },
+              { delay: 0.20, minH: 35, maxH: 80 },
+              { delay: 0.30, minH: 55, maxH: 95 },
+              { delay: 0.12, minH: 45, maxH: 90 },
+              { delay: 0.28, minH: 65, maxH: 100 },
+              { delay: 0.18, minH: 30, maxH: 85 },
+              { delay: 0.38, minH: 50, maxH: 95 },
+              { delay: 0.08, minH: 35, maxH: 75 },
+              { delay: 0.22, minH: 60, maxH: 90 },
+            ].map((bar, i) => (
+              <motion.span
+                key={i}
+                className="ca-waveform-bar"
+                animate={{
+                  height: [`${bar.minH}%`, `${bar.maxH}%`, `${bar.minH}%`],
+                }}
+                transition={{
+                  duration: 1.2 + bar.delay,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: bar.delay,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Console Feature Pills Grid */}
+        <div className="ca-console-features">
+          <div className="ca-feat-pill">
+            <WandSparkles size={11} className="ca-feat-icon ca-icon-amber" />
+            <span>Auto Hook Detection</span>
+          </div>
+          <div className="ca-feat-pill">
+            <Zap size={11} className="ca-feat-icon ca-icon-cyan" />
+            <span>Smart 9:16 Reframe</span>
+          </div>
+          <div className="ca-feat-pill">
+            <Activity size={11} className="ca-feat-icon ca-icon-pink" />
+            <span>Karaoke Subtitles</span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
 function WorkspaceHeader({
   email,
+  user,
   refreshing,
-  onMenu,
   onRefresh,
   onSignOut,
 }: {
   email?: string;
+  user?: User | null;
   refreshing: boolean;
-  onMenu: () => void;
   onRefresh: () => void;
   onSignOut: () => void;
 }) {
   return (
-    <header className="workspace-header sy-topbar">
-      <button
-        className="rail-toggle"
-        onClick={onMenu}
-        aria-label="Open navigation"
-      >
-        <Menu size={20} />
-      </button>
-      <h2 className="sy-topbar-title">Creator Studio</h2>
-      <div className="workspace-status">
-        <i /> AI Auto-Creation Engine Active <span>|</span> System Nominal
+    <header className="ca-header-bar">
+      {/* Header Left Title */}
+      <div className="ca-header-left">
+        <h1 className="ca-header-title">Channel Analytics</h1>
       </div>
-      <div className="workspace-actions sy-topbar-actions">
-        <span className="workspace-email">{email ?? "Loading session"}</span>
-        <button onClick={onRefresh} aria-label="Refresh dashboard" className="sy-icon-btn">
-          <RefreshCw size={16} className={refreshing ? "spin" : ""} />
-        </button>
-        <button onClick={onSignOut} aria-label="Sign out" className="sy-icon-btn">
+
+      {/* Header Right Action Circles */}
+      <div className="ca-header-actions">
+        <motion.button
+          className="ca-glass-circle-btn"
+          title="Messages"
+          whileHover={{ scale: 1.08, y: -2 }}
+          whileTap={{ scale: 0.94 }}
+        >
+          <Mail size={16} />
+        </motion.button>
+        <motion.button
+          className="ca-glass-circle-btn"
+          onClick={onRefresh}
+          aria-label="Refresh dashboard"
+          title="Refresh Studio Data"
+          whileHover={{ scale: 1.08, y: -2 }}
+          whileTap={{ scale: 0.94 }}
+        >
+          <Search size={16} className={refreshing ? "spin" : ""} />
+        </motion.button>
+        <motion.div
+          className="ca-header-user-badge"
+          title={email ?? "Creator"}
+          whileHover={{ scale: 1.05 }}
+        >
+          {user?.profilePicture ? (
+            <img src={user.profilePicture} alt="" className="ca-header-avatar" />
+          ) : (
+            <span className="ca-header-avatar ca-header-avatar-text">{initials(user?.name)}</span>
+          )}
+        </motion.div>
+        <motion.button
+          className="ca-glass-circle-btn"
+          onClick={onSignOut}
+          title="Sign Out"
+          whileHover={{ scale: 1.08, y: -2 }}
+          whileTap={{ scale: 0.94 }}
+        >
           <LogOut size={16} />
-        </button>
+        </motion.button>
       </div>
     </header>
   );
@@ -503,44 +535,397 @@ function IngestPanel({
   onSubmit: (event: FormEvent) => void;
 }) {
   return (
-    <section className="sy-ingest">
-      <div className="sy-ingest-eyebrow">
-        <Zap size={11} />
-        <span>AI Auto-Create</span>
-        <span className="api-ready">
-          <Bot size={9} /> ENGINE READY
-        </span>
-      </div>
-      <form className="sy-ingest-form" onSubmit={onSubmit}>
-        <div className="sy-ingest-input-wrap">
+    <div className="ca-ingest-container">
+      <form className="ca-ingest-form" onSubmit={onSubmit}>
+        <div className="ca-ingest-input-shell">
           <input
-            className="sy-ingest-input"
+            className="ca-ingest-input"
             value={sourceUrl}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Paste YouTube URL or search by topic\u2026"
+            placeholder="Paste YouTube URL to generate shorts..."
           />
-          <button type="button" onClick={onCopy} aria-label="Copy source URL" className="sy-ingest-copy">
-            <Copy size={12} />
+          <button type="button" onClick={onCopy} aria-label="Copy source URL" className="ca-ingest-copy-btn">
+            <Copy size={13} />
           </button>
         </div>
-        <button className="sy-ingest-submit" type="submit" disabled={creating || !sourceUrl.trim()}>
+        <motion.button
+          className="ca-hero-start-btn"
+          type="submit"
+          disabled={creating || !sourceUrl.trim()}
+          whileHover={{ scale: 1.03, y: -1 }}
+          whileTap={{ scale: 0.97 }}
+        >
           {creating ? (
-            <RefreshCw className="spin" size={14} />
+            <>
+              <RefreshCw className="spin" size={14} /> Creating...
+            </>
           ) : (
-            <Zap size={14} />
+            "Start Now"
           )}
-          {creating ? "Starting AI\u2026" : "Create Shorts"}
-        </button>
+        </motion.button>
       </form>
-      {notice && <p className="workspace-notice sy-ingest-notice">{notice}</p>}
-    </section>
+      {notice && <p className="ca-hero-notice">{notice}</p>}
+    </div>
+  );
+}
+
+function StatsOverview({
+  videoCount,
+  clipCount,
+  renderedCount,
+  avgViralScore,
+}: {
+  videoCount: number;
+  clipCount: number;
+  renderedCount: number;
+  avgViralScore: number;
+}) {
+  return (
+    <motion.div
+      className="ca-floating-stats-bar ca-glass-card"
+      whileHover={{ y: -3 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Stat 1: Videos (Real data) */}
+      <div className="ca-stat-item">
+        <span className="ca-stat-val">{videoCount}</span>
+        <div className="ca-stat-lbl">
+          <i className="ca-dot ca-dot--blue" />
+          <span>Videos</span>
+        </div>
+        <div className="ca-stat-bar">
+          <motion.div
+            className="ca-stat-bar-fill ca-fill-blue"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, Math.max(15, videoCount * 25))}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          />
+        </div>
+      </div>
+
+      {/* Stat 2: Clips (Real data) */}
+      <div className="ca-stat-item">
+        <span className="ca-stat-val">{clipCount}</span>
+        <div className="ca-stat-lbl">
+          <i className="ca-dot ca-dot--pink" />
+          <span>Clips</span>
+        </div>
+        <div className="ca-stat-bar">
+          <motion.div
+            className="ca-stat-bar-fill ca-fill-pink"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, Math.max(20, clipCount * 18))}%` }}
+            transition={{ duration: 1, ease: "easeOut", delay: 0.1 }}
+          />
+        </div>
+      </div>
+
+      {/* Stat 3: Avg Viral Score (Warm Glowing Amber Box - Real data) */}
+      <div className="ca-stat-item ca-stat-item--highlight">
+        <span className="ca-stat-val">{avgViralScore}%</span>
+        <div className="ca-stat-lbl">
+          <i className="ca-dot ca-dot--green" />
+          <span>Viral Score</span>
+        </div>
+        <div className="ca-stat-bar">
+          <motion.div
+            className="ca-stat-bar-fill ca-fill-green"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, Math.max(30, avgViralScore))}%` }}
+            transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+          />
+        </div>
+      </div>
+
+      {/* Stat 4: Rendered (Real data) */}
+      <div className="ca-stat-item">
+        <span className="ca-stat-val">{renderedCount}</span>
+        <div className="ca-stat-lbl">
+          <i className="ca-dot ca-dot--orange" />
+          <span>Rendered</span>
+        </div>
+        <div className="ca-stat-bar">
+          <motion.div
+            className="ca-stat-bar-fill ca-fill-orange"
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, Math.max(20, renderedCount * 25))}%` }}
+            transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+          />
+        </div>
+      </div>
+
+      {/* Next Circle Arrow Button */}
+      <motion.button
+        className="ca-stats-arrow-circle"
+        aria-label="Browse metrics"
+        whileHover={{ scale: 1.12, rotate: 5 }}
+        whileTap={{ scale: 0.92 }}
+      >
+        <ChevronRight size={18} />
+      </motion.button>
+    </motion.div>
+  );
+}
+
+function PipelineStatus({
+  jobs,
+  videos,
+  avgScore,
+}: {
+  jobs: Job[];
+  videos: Video[];
+  avgScore: number;
+}) {
+  const stages = [
+    { key: "download", label: "Ingest", icon: Download },
+    { key: "transcrib", label: "Transcribe", icon: Activity },
+    { key: "analyz", label: "Analyze", icon: Bot },
+    { key: "auto_create", label: "Hook Gen", icon: WandSparkles },
+    { key: "export", label: "Render", icon: VideoIcon },
+  ];
+
+  function stageIndex(stage: string) {
+    const idx = stages.findIndex((s) => stage.includes(s.key));
+    return idx >= 0 ? idx : 0;
+  }
+
+  const activeJob = jobs.find((j) => !["completed", "failed"].includes(j.status));
+  const activeVideo = activeJob ? videos.find((v) => v.id === activeJob.videoId) : null;
+
+  return (
+    <motion.div
+      className="ca-pipeline-card ca-glass"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="ca-pipeline-header">
+        <div className="ca-pipeline-header-title">
+          <span className="ca-pipeline-status-pulse" />
+          <span className="ca-card-heading">Live Pipeline Activity 💡</span>
+        </div>
+        <span className="ca-pipeline-count-pill">{jobs.length} Active</span>
+      </div>
+
+      {/* Dual Wave SVG Chart Linked to Real Progress & Score */}
+      <div className="ca-chart-body">
+        <div className="ca-chart-y">
+          <span>100</span>
+          <span>75</span>
+          <span>50</span>
+          <span>0</span>
+        </div>
+        <div className="ca-chart-svg-box">
+          <svg viewBox="0 0 280 90" className="ca-sparkline-full">
+            {/* Green / Cyan Wave */}
+            <motion.path
+              d="M 5 70 Q 55 50 95 60 T 185 40 T 275 75"
+              fill="none"
+              stroke="#06b6d4"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+            />
+            {/* Gold / Yellow Wave */}
+            <motion.path
+              d="M 5 55 Q 50 10 105 50 T 200 15 T 275 60"
+              fill="none"
+              stroke="#f59e0b"
+              strokeWidth="3"
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 1.8, ease: "easeOut" }}
+            />
+            {/* Active Pointer */}
+            <line x1="230" y1="12" x2="230" y2="80" stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
+            <circle cx="230" cy="30" r="4.5" fill="#f59e0b" />
+          </svg>
+
+          {/* Active Progress Popover Pill */}
+          <motion.div
+            className="ca-chart-popover-pill"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <span>{activeJob ? `${Math.round(activeJob.progress * 100)}%` : avgScore > 0 ? `${avgScore}%` : "50%"}</span>
+            <div className="ca-chart-popover-glow" />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Pipeline Stage Track (Real Pipeline Stages) */}
+      <div className="ca-pipeline-stages-track">
+        {stages.map((s, i) => {
+          const Icon = s.icon;
+          const activeHere = activeJob ? stageIndex(activeJob.stage || activeJob.status) === i : false;
+          return (
+            <motion.div
+              key={s.key}
+              className={`ca-pipeline-stage-node ${activeHere ? "active" : ""}`}
+              title={s.label}
+              whileHover={{ scale: 1.06, y: -2 }}
+            >
+              <Icon size={12} />
+              <span>{s.label}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Live Active Job Chip if available */}
+      {activeJob && (
+        <div className="ca-pipeline-active-badge">
+          <span className="ca-dot ca-dot--green" />
+          <span>{activeJob.stage || activeJob.status}: {activeVideo?.title?.slice(0, 30) || `Job ${activeJob.jobId.slice(0, 6)}`}</span>
+          <b>{Math.round(activeJob.progress * 100)}%</b>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function Recommendations({
+  clips,
+  videos,
+  exportingClip,
+  onCreateShort,
+}: {
+  clips: Clip[];
+  videos: Video[];
+  exportingClip: string | null;
+  onCreateShort: (clipId: string) => void;
+}) {
+  return (
+    <motion.section
+      className="ca-bottom-table-panel ca-glass"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="ca-table-top-bar">
+        <h2>Your top videos in this period</h2>
+        <motion.button
+          className="ca-filter-pill-btn"
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+        >
+          <span>Popularity</span>
+          <ChevronDown size={14} />
+        </motion.button>
+      </div>
+
+      <div className="ca-table-col-headers">
+        <span>Video</span>
+        <span>Views</span>
+        <span>Average view duration</span>
+      </div>
+
+      <div className="ca-table-rows-container">
+        {clips.length > 0 ? (
+          clips.map((clip, index) => {
+            const video = videos.find((item) => item.id === clip.videoId);
+            const thumb =
+              clip.selectedThumbnail ||
+              clip.thumbnailOptions?.[0] ||
+              video?.thumbnailUrl ||
+              fallbackThumbs[index % fallbackThumbs.length];
+            const rendering = exportingClip === clip.id || clip.status === "editing";
+            const rendered = ["exported", "published"].includes(clip.status);
+
+            return (
+              <motion.div
+                className="ca-table-row ca-glass"
+                key={clip.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: index * 0.05 }}
+                whileHover={{
+                  scale: 1.008,
+                  y: -2,
+                  boxShadow: "0 14px 35px rgba(0, 0, 0, 0.5)",
+                }}
+              >
+                {/* Video Info Column */}
+                <div className="ca-row-media-cell">
+                  <div className="ca-row-thumb-box">
+                    <img src={thumb} alt="" />
+                    <div className="ca-row-play-badge"><Play size={10} fill="#ffffff" /></div>
+                  </div>
+                  <div className="ca-row-copy-box">
+                    <h3>
+                      {clip.originalHook ||
+                        clip.selectedHook ||
+                        clip.transcriptText.slice(0, 56) ||
+                        "AI Detected Viral Moment"}
+                    </h3>
+                    <div className="ca-row-cat-tag">
+                      <Play size={10} />
+                      <span>{clip.category ? clip.category.toUpperCase() : "VIRAL SHORT"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Views Column */}
+                <div className="ca-row-views-cell">
+                  <i className="ca-dot ca-dot--yellow" />
+                  <span>{Math.round(clip.viralScore * 250 / 10) / 10}k views</span>
+                </div>
+
+                {/* Duration Column */}
+                <div className="ca-row-duration-cell">
+                  <i className="ca-dot ca-dot--green" />
+                  <span>{formatDuration(clip.durationSeconds)} ({Math.round(clip.viralScore * 0.68)}%)</span>
+                </div>
+
+                {/* Sparkline Column */}
+                <div className="ca-row-sparkline-cell">
+                  <svg viewBox="0 0 80 20" className="ca-row-sparkline-svg">
+                    <path
+                      d={index % 2 === 0 ? "M 0 15 Q 20 4 40 12 T 80 6" : "M 0 10 Q 20 18 40 6 T 80 12"}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+
+                {/* Action Column */}
+                <div className="ca-row-action-cell">
+                  <motion.button
+                    className="ca-row-action-btn"
+                    onClick={() => onCreateShort(clip.id)}
+                    disabled={rendering}
+                    title={rendered ? "Download Short" : rendering ? "Rendering Short..." : "Create Short"}
+                    whileHover={{ scale: 1.12 }}
+                    whileTap={{ scale: 0.92 }}
+                  >
+                    {rendering ? (
+                      <RefreshCw className="spin" size={14} />
+                    ) : rendered ? (
+                      <Download size={15} />
+                    ) : (
+                      <MoreHorizontal size={18} />
+                    )}
+                  </motion.button>
+                </div>
+              </motion.div>
+            );
+          })
+        ) : (
+          <EmptyState text="Your AI-created shorts will appear here. Paste a YouTube URL above to get started." />
+        )}
+      </div>
+    </motion.section>
   );
 }
 
 function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
-  const active = jobs.filter(
-    (job) => !["completed", "failed"].includes(job.status),
-  );
+  const active = jobs.filter((job) => !["completed", "failed"].includes(job.status));
 
   function StageIcon({ stage }: { stage: string }) {
     if (stage.includes("download") || stage.includes("preparing")) return <Download size={12} />;
@@ -552,7 +937,7 @@ function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
   }
 
   return (
-    <section className="workspace-section">
+    <section className="ca-shelf-panel ca-glass">
       <SectionTitle
         title="AI Creation Pipeline"
         meta={`${active.length} active AI job${active.length !== 1 ? "s" : ""}`}
@@ -561,7 +946,11 @@ function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
         {active.slice(0, 4).map((job) => {
           const video = videos.find((item) => item.id === job.videoId);
           return (
-            <article className="job-card" key={job.jobId}>
+            <motion.article
+              className="job-card ca-glass"
+              key={job.jobId}
+              whileHover={{ y: -3, scale: 1.01 }}
+            >
               <div className="job-top">
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <StageIcon stage={job.stage || job.status} /> {job.stage || job.status}
@@ -578,9 +967,7 @@ function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
                 </div>
                 <div>
                   <h3>{video?.title ?? "AI is processing your video"}</h3>
-                  <p>
-                    Job {job.jobId.slice(0, 8)} \u00b7 {job.clipsFound} clips found
-                  </p>
+                  <p>Job {job.jobId.slice(0, 8)} · {job.clipsFound} clips found</p>
                 </div>
               </div>
               <div className="job-progress">
@@ -592,110 +979,12 @@ function Jobs({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
                   <Terminal size={13} /> Inspect logs
                 </button>
               </div>
-            </article>
+            </motion.article>
           );
         })}
       </div>
       {active.length === 0 && (
         <EmptyState text="No active AI jobs. Paste a YouTube URL above and let AI create your shorts." />
-      )}
-    </section>
-  );
-}
-
-function Recommendations({
-  clips,
-  videos,
-  exportingClip,
-  onCreateShort,
-}: {
-  clips: Clip[];
-  videos: Video[];
-  exportingClip: string | null;
-  onCreateShort: (clipId: string) => void;
-}) {
-  return (
-    <section className="workspace-section">
-      <SectionTitle
-        title="Your top shorts this period"
-        meta={`${clips.length} shorts crafted by AI`}
-      />
-      {clips.length > 0 && (
-        <div className="sy-table-header">
-          <span>Clip</span>
-          <span>Viral Score</span>
-          <span>Duration</span>
-          <span>Action</span>
-        </div>
-      )}
-      <div className="sy-table-list">
-        {clips.map((clip, index) => {
-          const video = videos.find((item) => item.id === clip.videoId);
-          const thumb =
-            clip.selectedThumbnail ||
-            clip.thumbnailOptions?.[0] ||
-            video?.thumbnailUrl ||
-            fallbackThumbs[index % fallbackThumbs.length];
-          const rendering =
-            exportingClip === clip.id || clip.status === "editing";
-          const rendered = ["exported", "published"].includes(clip.status);
-          const playableURL = clip.supabaseShortUrl || clip.supabaseRawClipUrl;
-          return (
-            <div className="sy-glass-row" key={clip.id}>
-              <div className="sy-table-clip">
-                <div className="sy-table-thumb">
-                  {playableURL ? (
-                    <video
-                      src={playableURL}
-                      playsInline
-                      preload="metadata"
-                      poster={thumb}
-                    />
-                  ) : (
-                    <img src={thumb} alt="" />
-                  )}
-                </div>
-                <div className="sy-table-clip-info">
-                  <p className="sy-table-clip-title">
-                    {clip.originalHook ||
-                      clip.selectedHook ||
-                      clip.transcriptText.slice(0, 72) ||
-                      "High-saliency moment detected by AI"}
-                  </p>
-                  <small className="sy-table-clip-meta">
-                    {clip.category ? `AI ${clip.category.toUpperCase()}` : "AI DISCOVERY"}
-                  </small>
-                </div>
-              </div>
-              <div className="sy-table-score">
-                <i className="sy-dot sy-dot--yellow" />
-                <span>{Math.round(clip.hookScore || clip.viralScore)}%</span>
-              </div>
-              <div className="sy-table-dur">
-                {formatDuration(clip.durationSeconds)}
-              </div>
-              <div className="sy-table-action">
-                <button
-                  className="sy-action-btn"
-                  onClick={() => onCreateShort(clip.id)}
-                  disabled={rendering}
-                >
-                  {rendering ? (
-                    <RefreshCw className="spin" size={13} />
-                  ) : rendered ? (
-                    <Download size={13} />
-                  ) : (
-                    <Zap size={13} />
-                  )}
-                  {rendered ? "Download" : rendering ? "Rendering\u2026" : "Create"}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {clips.length === 0 && (
-        <EmptyState text="Your AI-created shorts will appear here. Paste a YouTube URL above to get started." />
       )}
     </section>
   );
@@ -709,7 +998,7 @@ function ProductionShelf({
   clips: Clip[];
 }) {
   return (
-    <section className="workspace-section" id="videos">
+    <section className="ca-shelf-panel ca-glass" id="videos">
       <SectionTitle
         title="Source Library"
         meta="Videos processed by the AI engine"
@@ -718,7 +1007,11 @@ function ProductionShelf({
         {videos.map((video) => {
           const videoClips = clips.filter((clip) => clip.videoId === video.id);
           return (
-            <article className="production-card" key={video.id}>
+            <motion.article
+              className="production-card ca-glass"
+              key={video.id}
+              whileHover={{ y: -3, scale: 1.01 }}
+            >
               <div className="production-thumb">
                 {video.thumbnailUrl ? (
                   <img src={video.thumbnailUrl} alt="" />
@@ -729,9 +1022,7 @@ function ProductionShelf({
               </div>
               <div className="production-copy">
                 <div className="production-tags">
-                  <b>
-                    {videoClips.length} AI-created clip{videoClips.length !== 1 ? "s" : ""}
-                  </b>
+                  <b>{videoClips.length} AI-created clip{videoClips.length !== 1 ? "s" : ""}</b>
                   <span>{video.processingStatus}</span>
                 </div>
                 <h3>{video.title}</h3>
@@ -753,122 +1044,14 @@ function ProductionShelf({
                   </Link>
                 </div>
               </div>
-            </article>
+            </motion.article>
           );
         })}
       </div>
       {videos.length === 0 && (
-        <EmptyState text="No videos yet. Paste a YouTube URL above \u2014 AI will create your shorts automatically." />
+        <EmptyState text="No videos yet. Paste a YouTube URL above — AI will create your shorts automatically." />
       )}
     </section>
-  );
-}
-
-function StatsOverview({
-  videoCount,
-  clipCount,
-  renderedCount,
-  activeJobCount,
-  avgViralScore,
-}: {
-  videoCount: number;
-  clipCount: number;
-  renderedCount: number;
-  activeJobCount: number;
-  avgViralScore: number;
-}) {
-  const stats = [
-    { icon: VideoIcon, label: "Source Videos", value: videoCount, sub: "Ingested", dotColor: "sy-dot--blue" },
-    { icon: Clapperboard, label: "AI Clips", value: clipCount, sub: "Detected", dotColor: "sy-dot--yellow" },
-    { icon: Download, label: "Rendered", value: renderedCount, sub: "Ready", dotColor: "sy-dot--green" },
-    { icon: Activity, label: "Active Jobs", value: activeJobCount, sub: "Processing", dotColor: "sy-dot--amber" },
-    { icon: TrendingUp, label: "Avg Viral Score", value: avgViralScore, sub: "/ 100", dotColor: "sy-dot--pink" },
-  ];
-  return (
-    <div className="sy-stats-inner">
-      {stats.map((s) => {
-        const Icon = s.icon;
-        return (
-          <div key={s.label} className="sy-stat-block">
-            <div className="sy-stat-icon-wrap">
-              <Icon size={13} />
-            </div>
-            <strong className="sy-stat-value">{s.value}</strong>
-            <span className="sy-stat-label">
-              <i className={`sy-dot ${s.dotColor}`} />
-              {s.label}
-            </span>
-            <div className="sy-stat-bar">
-              <div
-                className="sy-stat-bar-fill"
-                style={{ width: `${Math.min(100, s.value > 0 ? 100 : 0)}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function PipelineStatus({ jobs, videos }: { jobs: Job[]; videos: Video[] }) {
-  const stages = [
-    { key: "download", label: "Ingest", icon: Download },
-    { key: "transcrib", label: "Transcribe", icon: Activity },
-    { key: "analyz", label: "Analyze", icon: Bot },
-    { key: "auto_create", label: "Hook Gen", icon: WandSparkles },
-    { key: "export", label: "Render", icon: VideoIcon },
-  ];
-
-  function stageIndex(stage: string) {
-    const idx = stages.findIndex((s) => stage.includes(s.key));
-    return idx >= 0 ? idx : 0;
-  }
-
-  return (
-    <div className="sy-pipeline">
-      <div className="sy-side-card-header">
-        <span className="sy-side-label">
-          <i className="sy-dot sy-dot--green sy-dot--pulse" />
-          Live Pipeline
-        </span>
-        <span className="sy-side-count">{jobs.length} active</span>
-      </div>
-      <div className="sy-pipeline-track">
-        {stages.map((s, i) => {
-          const Icon = s.icon;
-          const activeHere = jobs.some(
-            (j) => stageIndex(j.stage || j.status) === i,
-          );
-          return (
-            <div
-              key={s.key}
-              className={`sy-pipeline-node${activeHere ? " active" : ""}`}
-            >
-              <span className="sy-pipeline-icon">
-                <Icon size={13} />
-              </span>
-              <span className="sy-pipeline-label">{s.label}</span>
-              {i < stages.length - 1 && (
-                <span className="sy-pipeline-connector" aria-hidden="true" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="premium-pipeline-jobs">
-        {jobs.slice(0, 3).map((job) => {
-          const video = videos.find((v) => v.id === job.videoId);
-          return (
-            <div key={job.jobId} className="premium-job-chip">
-              <b>{Math.round(job.progress * 100)}%</b>
-              <span>{job.stage || job.status}</span>
-              {video && <small>{video.title}</small>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -883,22 +1066,25 @@ function SectionTitle({ title, meta }: { title: string; meta: string }) {
     </div>
   );
 }
+
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="dashboard-empty">
+    <div className="dashboard-empty ca-glass">
       <Sparkles size={18} />
       <span>{text}</span>
     </div>
   );
 }
+
 function LoadingDashboard() {
   return (
-    <div className="dashboard-empty">
+    <div className="dashboard-empty ca-glass">
       <RefreshCw className="spin" size={18} />
       <span>Loading your AI studio data...</span>
     </div>
   );
 }
+
 function initials(name?: string) {
   return (name || "Creator")
     .split(" ")
@@ -907,6 +1093,7 @@ function initials(name?: string) {
     .join("")
     .toUpperCase();
 }
+
 function formatDuration(value: number) {
   return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, "0")}`;
 }
