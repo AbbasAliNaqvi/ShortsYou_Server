@@ -1,18 +1,82 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Bot, Clapperboard, RefreshCw, Trash2, WandSparkles, X, Zap } from "lucide-react";
-import { api, type Video } from "@/lib/api";
+import { RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
+import { api, type User, type Video } from "@/lib/api";
+import { notify } from "@/components/Notifications/NotificationCenter";
+import { WorkspaceShell, LoadingState } from "@/components/Layout";
+import {
+  VideosIntroBanner,
+  VideoSection,
+  VideoCreationModal,
+} from "@/components/Videos";
 
 export default function VideosPage() {
   const router = useRouter();
-  const [videos, setVideos] = useState<Video[]>([]); const [selected, setSelected] = useState<Video | null>(null); const [mode, setMode] = useState<"choose" | "transcription" | "manual">("choose"); const [start, setStart] = useState("0"); const [end, setEnd] = useState("30"); const [hook, setHook] = useState(""); const [notice, setNotice] = useState(""); const [busy, setBusy] = useState(false); const [syncing, setSyncing] = useState(false);
-  async function load() { const token = localStorage.getItem("shortsyou_jwt"); if (!token) return; try { setVideos(await api.videos(token)); } catch { setNotice("Unable to load your videos."); } }
-  useEffect(() => { queueMicrotask(() => void load()); }, []);
-  async function syncOwnVideos() { const token = localStorage.getItem("shortsyou_jwt"); if (!token) return; setSyncing(true); try { const result = await api.syncVideos(token); setNotice(`${result.synced} channel video${result.synced === 1 ? "" : "s"} synced. Choose one below to create a short.`); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not sync your YouTube videos."); } finally { setSyncing(false); } }
-  function open(video: Video) { setSelected(video); setMode("choose"); setStart("0"); setEnd(String(Math.min(30, Math.max(1, video.durationSeconds || 30)))); setHook(""); }
+  const [user, setUser] = useState<User | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [selected, setSelected] = useState<Video | null>(null);
+  const [mode, setMode] = useState<"choose" | "transcription" | "manual">("choose");
+  const [start, setStart] = useState("0");
+  const [end, setEnd] = useState("30");
+  const [hook, setHook] = useState("");
+  const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  async function load() {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const [userData, videoData] = await Promise.allSettled([
+        api.me(token),
+        api.videos(token),
+      ]);
+      if (userData.status === "fulfilled") setUser(userData.value);
+      if (videoData.status === "fulfilled") setVideos(videoData.value ?? []);
+    } catch {
+      setNotice("Unable to load your videos.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => void load());
+  }, []);
+
+  async function syncOwnVideos() {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) return;
+    setSyncing(true);
+    try {
+      const result = await api.syncVideos(token);
+      const msg = `${result.synced} channel video${result.synced === 1 ? "" : "s"} synced. Choose one below to create a short.`;
+      setNotice(msg);
+      notify("Channel Synced", msg, "success");
+      await load();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Could not sync your YouTube videos.";
+      setNotice(errMsg);
+      notify("Sync Failed", errMsg, "error");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function open(video: Video) {
+    setSelected(video);
+    setMode("choose");
+    setStart("0");
+    setEnd(String(Math.min(30, Math.max(1, video.durationSeconds || 30))));
+    setHook("");
+  }
 
   async function aiAutoCreate() {
     if (!selected) return;
@@ -21,23 +85,190 @@ export default function VideosPage() {
     setBusy(true);
     try {
       const r = await api.autoCreate(token, selected.id);
-      setNotice(`${selected.title}: ${r.message}. Your AI-created shorts will appear in Clips Review.`);
+      const msg = `${selected.title}: ${r.message}. Your AI-created shorts will appear in Clips Review.`;
+      setNotice(msg);
+      notify("AI Auto-Create Started", msg, "success");
       setSelected(null);
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not start AI Auto-Create.");
+      const errMsg = e instanceof Error ? e.message : "Could not start AI Auto-Create.";
+      setNotice(errMsg);
+      notify("Auto-Create Error", errMsg, "error");
     } finally {
       setBusy(false);
     }
   }
 
-  async function aiGenerate() { if (!selected) return; const token = localStorage.getItem("shortsyou_jwt"); if (!token) return; setBusy(true); try { const r = await api.generateVideo(token, selected.id); setNotice(`${selected.title}: ${r.message}. AI clips will appear in Clips Review.`); setSelected(null); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not start AI generation."); } finally { setBusy(false); } }
-  async function manualGenerate() { if (!selected) return; const token = localStorage.getItem("shortsyou_jwt"); if (!token) return; setBusy(true); try { await api.createManualShort(token, selected.id, Number(start), Number(end), hook); setNotice("Your manual short is rendering. Open Clips Review to download it when ready."); setSelected(null); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not create the short."); } finally { setBusy(false); } }
-  async function quickGenerateWithoutTranscription() { if (!selected) return; const token = localStorage.getItem("shortsyou_jwt"); if (!token) return; setBusy(true); try { await api.createManualShort(token, selected.id, 0, Number(end), hook); setNotice("Your quick clip is rendering without transcription. Open Clips Review to download it when ready."); setSelected(null); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not create the short."); } finally { setBusy(false); } }
-  async function removeVideo(video: Video) { const token = localStorage.getItem("shortsyou_jwt"); if (!token || !window.confirm(`Remove "${video.title}" and all of its clips?`)) return; setBusy(true); try { await api.deleteVideo(token, video.id); setNotice("Video and its related clips removed."); await load(); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not remove the video."); } finally { setBusy(false); } }
-  const own = videos.filter((v) => !v.sourceChannelId || v.sourceType === "own"); const picked = videos.filter((v) => v.sourceChannelId && v.sourceType !== "own");
-  return <main className="videos-page"><header><Link href="/dashboard">ShortsYou</Link><nav><Link href="/dashboard">Studio</Link><Link href="/editor">Custom Editor</Link><Link href="/discover">Discover</Link><Link href="/clips">Clips Review</Link></nav></header><section className="videos-intro"><span><Bot size={14} /> AI Shorts Factory</span><h1>Your videos. AI creates the shorts.</h1><p>Select any video and let AI find the strongest moments, generate hooks, and render production-ready shorts — or fine-tune every detail yourself.</p>{notice && <b>{notice}</b>}</section><VideoSection title="Your Videos" empty="Sync your connected YouTube channel to see videos here." videos={own} onSelect={open} onDelete={removeVideo} action={<button className="video-sync" onClick={() => void syncOwnVideos()} disabled={syncing}>{syncing ? <RefreshCw className="spin" size={14} /> : <RefreshCw size={14} />}{syncing ? "Syncing…" : "Sync my YouTube videos"}</button>} /><VideoSection title="Selected Videos" empty="Choose videos from creators in Discover, then create a short here." videos={picked} onSelect={open} onDelete={removeVideo} />{selected && <div className="video-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setSelected(null); }}><section className="video-modal" role="dialog" aria-modal="true" aria-labelledby="short-creation-title"><button className="modal-close" onClick={() => setSelected(null)} disabled={busy} aria-label="Close"><X size={18} /></button><p>{selected.title}</p>{mode === "choose" ? <><h2 id="short-creation-title">How would you like to create this short?</h2><button className="ai-primary" disabled={busy} onClick={() => void aiAutoCreate()}><Zap size={18} /><span>AI Auto-Create<small>One click. AI transcribes, detects viral moments, generates hooks, and renders your shorts automatically.</small></span></button><button disabled={busy} onClick={() => router.push(`/editor/${selected.id}`)}><Clapperboard size={18} /><span>Custom editor<small>Fine-tune layout, faces, captions, music, and polish.</small></span></button><button disabled={busy} onClick={() => setMode("transcription")}><WandSparkles size={18} /><span>AI clip detection only<small>Let AI find the best moments without auto-rendering.</small></span></button></> : mode === "transcription" ? <><h2 id="short-creation-title">Do you want transcription?</h2><p className="transcription-note">Transcription lets AI find the best moments, but requires your transcription service callback to be reachable.</p><button className="ai" disabled={busy} onClick={() => void aiGenerate()}><WandSparkles size={18} /><span>{busy ? "Starting AI generation…" : "Yes, transcribe and analyze"}<small>Use AI to detect and generate the strongest clips.</small></span></button><button disabled={busy} onClick={() => void quickGenerateWithoutTranscription()}><Clapperboard size={18} /><span>Create without transcription<small>Render a quick clip from the first {end} seconds—no external callback needed.</small></span></button><button className="modal-back" disabled={busy} onClick={() => setMode("choose")}>Back</button></> : <><h2 id="short-creation-title">Create your own short</h2><label>Start second<input type="number" min="0" value={start} onChange={(e) => setStart(e.target.value)} /></label><label>End second<input type="number" min="1" value={end} onChange={(e) => setEnd(e.target.value)} /></label><label>Hook text (optional)<input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Your opening caption" /></label><button className="ai" disabled={busy} onClick={() => void manualGenerate()}>{busy ? "Rendering…" : "Create Short"}</button></>}</section></div>}</main>;
-}
+  async function aiGenerate() {
+    if (!selected) return;
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) return;
+    setBusy(true);
+    try {
+      const r = await api.generateVideo(token, selected.id);
+      const msg = `${selected.title}: ${r.message}. AI clips will appear in Clips Review.`;
+      setNotice(msg);
+      notify("AI Generation Queued", msg, "success");
+      setSelected(null);
+      await load();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Could not start AI generation.";
+      setNotice(errMsg);
+      notify("Generation Failed", errMsg, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
-function VideoSection({ title, empty, videos, onSelect, onDelete, action }: { title: string; empty: string; videos: Video[]; onSelect: (video: Video) => void; onDelete: (video: Video) => void; action?: ReactNode }) { return <section className="video-section"><div className="video-section-heading"><h2>{title}</h2>{action}</div>{videos.length ? <div className="video-grid">{videos.map((video) => <article key={video.id}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" /> : <div className="video-placeholder"><Clapperboard size={28} /></div>}<small>{format(video.durationSeconds)} · {video.processingStatus}</small><h3>{video.title}</h3><div className="video-card-actions"><button onClick={() => onSelect(video)}><Zap size={14} /> AI Create Short</button><button className="video-remove" onClick={() => onDelete(video)} aria-label={`Remove ${video.title}`}><Trash2 size={14} /></button></div></article>)}</div> : <p>{empty}</p>}</section>; }
-function format(seconds: number) { return `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, "0")}`; }
+  async function manualGenerate() {
+    if (!selected) return;
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) return;
+    setBusy(true);
+    try {
+      await api.createManualShort(token, selected.id, Number(start), Number(end), hook);
+      const msg = "Your manual short is rendering. Open Clips Review to download it when ready.";
+      setNotice(msg);
+      notify("Manual Short Queued", msg, "success");
+      setSelected(null);
+      await load();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Could not create the short.";
+      setNotice(errMsg);
+      notify("Creation Failed", errMsg, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function quickGenerateWithoutTranscription() {
+    if (!selected) return;
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) return;
+    setBusy(true);
+    try {
+      await api.createManualShort(token, selected.id, 0, Number(end), hook);
+      const msg = "Your quick clip is rendering without transcription. Open Clips Review to download it when ready.";
+      setNotice(msg);
+      notify("Quick Clip Queued", msg, "success");
+      setSelected(null);
+      await load();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Could not create the short.";
+      setNotice(errMsg);
+      notify("Creation Failed", errMsg, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeVideo(video: Video) {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token || !window.confirm(`Remove "${video.title}" and all of its clips?`)) return;
+    setBusy(true);
+    try {
+      await api.deleteVideo(token, video.id);
+      const msg = "Video and its related clips removed.";
+      setNotice(msg);
+      notify("Video Removed", msg, "info");
+      await load();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "Could not remove the video.";
+      setNotice(errMsg);
+      notify("Removal Failed", errMsg, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function signOut() {
+    localStorage.removeItem("shortsyou_jwt");
+    router.push("/login");
+  }
+
+  const own = videos.filter((v) => !v.sourceChannelId || v.sourceType === "own");
+  const picked = videos.filter((v) => v.sourceChannelId && v.sourceType !== "own");
+
+  const syncButton = (
+    <motion.button
+      type="button"
+      className="ca-video-sync-btn"
+      onClick={() => void syncOwnVideos()}
+      disabled={syncing || busy}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.96 }}
+    >
+      <RefreshCw className={syncing ? "spin" : ""} size={14} />
+      <span>{syncing ? "Syncing Channel…" : "Sync my YouTube videos"}</span>
+    </motion.button>
+  );
+
+  return (
+    <WorkspaceShell
+      title="Your Videos"
+      subtitle="AI Shorts Factory"
+      user={user}
+      refreshing={syncing || busy}
+      onRefresh={() => void load()}
+      onSignOut={signOut}
+    >
+      {/* Intro Hero Banner with Live Metrics & Notice */}
+      <VideosIntroBanner
+        totalCount={videos.length}
+        ownCount={own.length}
+        pickedCount={picked.length}
+        notice={notice}
+        onClearNotice={() => setNotice("")}
+      />
+
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <div className="ca-videos-sections-wrap">
+          {/* Section 1: Your YouTube Channel Videos */}
+          <VideoSection
+            title="Your Videos"
+            empty="Sync your connected YouTube channel to see videos here."
+            videos={own}
+            onSelect={open}
+            onDelete={(v) => void removeVideo(v)}
+            action={syncButton}
+            disabled={busy || syncing}
+          />
+
+          {/* Section 2: Selected Videos from Discover */}
+          <VideoSection
+            title="Selected Videos"
+            empty="Choose videos from creators in Discover, then create a short here."
+            videos={picked}
+            onSelect={open}
+            onDelete={(v) => void removeVideo(v)}
+            disabled={busy || syncing}
+          />
+        </div>
+      )}
+
+      {/* Glassmorphic Video Creation Modal */}
+      <VideoCreationModal
+        video={selected}
+        mode={mode}
+        start={start}
+        end={end}
+        hook={hook}
+        busy={busy}
+        onClose={() => setSelected(null)}
+        onSetMode={setMode}
+        onSetStart={setStart}
+        onSetEnd={setEnd}
+        onSetHook={setHook}
+        onAiAutoCreate={() => void aiAutoCreate()}
+        onCustomEditor={() => {
+          if (selected) router.push(`/editor/${selected.id}`);
+        }}
+        onAiGenerate={() => void aiGenerate()}
+        onQuickGenerateWithoutTranscription={() => void quickGenerateWithoutTranscription()}
+        onManualGenerate={() => void manualGenerate()}
+      />
+    </WorkspaceShell>
+  );
+}
