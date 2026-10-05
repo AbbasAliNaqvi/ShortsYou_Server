@@ -23,7 +23,6 @@ import {
   Send,
   Sparkles,
   Terminal,
-  TrendingUp,
   Video as VideoIcon,
   WandSparkles,
   Zap,
@@ -474,45 +473,61 @@ function WorkspaceHeader({
         <h1 className="ca-header-title">Channel Analytics</h1>
       </div>
 
-      {/* Header Right Action Circles */}
-      <div className="ca-header-actions">
+      {/* Header Right Action Cluster */}
+      <div className="ca-header-actions ca-header-glass-cluster">
+        {/* Messages / Mail Button */}
         <motion.button
-          className="ca-glass-circle-btn"
-          title="Messages"
+          className="ca-glass-circle-btn ca-btn-mail"
+          title="Messages & Notifications"
           whileHover={{ scale: 1.08, y: -2 }}
           whileTap={{ scale: 0.94 }}
         >
-          <Mail size={16} />
+          <Mail size={17} />
+          <span className="ca-btn-dot" />
         </motion.button>
+
+        {/* Search & Refresh Studio Button */}
         <motion.button
-          className="ca-glass-circle-btn"
+          className="ca-glass-circle-btn ca-btn-search"
           onClick={onRefresh}
           aria-label="Refresh dashboard"
-          title="Refresh Studio Data"
+          title="Search & Refresh Studio Data"
           whileHover={{ scale: 1.08, y: -2 }}
           whileTap={{ scale: 0.94 }}
         >
-          <Search size={16} className={refreshing ? "spin" : ""} />
+          <Search size={17} className={refreshing ? "spin" : ""} />
         </motion.button>
+
+        {/* User Profile Badge ("My Image") */}
         <motion.div
           className="ca-header-user-badge"
-          title={email ?? "Creator"}
-          whileHover={{ scale: 1.05 }}
+          title={user?.name ? `${user.name} (${email ?? "Creator"})` : (email ?? "Creator")}
+          whileHover={{ scale: 1.06, y: -2 }}
+          whileTap={{ scale: 0.94 }}
         >
-          {user?.profilePicture ? (
-            <img src={user.profilePicture} alt="" className="ca-header-avatar" />
-          ) : (
-            <span className="ca-header-avatar ca-header-avatar-text">{initials(user?.name)}</span>
-          )}
+          <div className="ca-header-avatar-inner">
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.name || "Creator profile"}
+                className="ca-header-avatar"
+              />
+            ) : (
+              <span className="ca-header-avatar-text">{initials(user?.name)}</span>
+            )}
+          </div>
+          <span className="ca-avatar-online-dot" title="Active in Studio" />
         </motion.div>
+
+        {/* Log Out Button */}
         <motion.button
-          className="ca-glass-circle-btn"
+          className="ca-glass-circle-btn ca-btn-logout"
           onClick={onSignOut}
           title="Sign Out"
           whileHover={{ scale: 1.08, y: -2 }}
           whileTap={{ scale: 0.94 }}
         >
-          <LogOut size={16} />
+          <LogOut size={17} />
         </motion.button>
       </div>
     </header>
@@ -1006,24 +1021,33 @@ function ProductionShelf({
       <div className="production-list">
         {videos.map((video) => {
           const videoClips = clips.filter((clip) => clip.videoId === video.id);
+          const status = video.processingStatus || "ready";
           return (
             <motion.article
               className="production-card ca-glass"
               key={video.id}
-              whileHover={{ y: -3, scale: 1.01 }}
+              whileHover={{ y: -3, scale: 1.008 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
             >
               <div className="production-thumb">
                 {video.thumbnailUrl ? (
-                  <img src={video.thumbnailUrl} alt="" />
+                  <img src={video.thumbnailUrl} alt={video.title} />
                 ) : (
-                  <Clapperboard size={24} />
+                  <div className="ca-thumb-fallback">
+                    <Clapperboard size={26} className="ca-thumb-fallback-icon" />
+                  </div>
                 )}
-                <span>{video.processingStatus}</span>
+                <span className={`ca-thumb-badge ca-status-${status}`}>{status}</span>
               </div>
               <div className="production-copy">
                 <div className="production-tags">
-                  <b>{videoClips.length} AI-created clip{videoClips.length !== 1 ? "s" : ""}</b>
-                  <span>{video.processingStatus}</span>
+                  <span className="ca-tag-clips-count">
+                    <Sparkles size={11} />
+                    {videoClips.length} AI-created clip{videoClips.length !== 1 ? "s" : ""}
+                  </span>
+                  <span className={`ca-status-pill ca-status-${status}`}>
+                    {status}
+                  </span>
                 </div>
                 <h3>{video.title}</h3>
                 <p>
@@ -1031,16 +1055,16 @@ function ProductionShelf({
                     "AI-analyzed with viral moment detection, hook generation, and auto-rendering."}
                 </p>
                 <div className="production-actions">
-                  <Link href="/clips">
+                  <Link href="/clips" className="ca-prod-btn-primary">
                     <Clapperboard size={14} />
                     Review AI shorts
                   </Link>
-                  <Link href="/clips">
+                  <Link href="/clips" className="ca-prod-btn-secondary">
                     <Send size={14} />
                     Publish pack
                   </Link>
-                  <Link href="/clips" aria-label="Open clip review">
-                    <ChevronRight size={14} />
+                  <Link href="/clips" className="ca-prod-btn-icon" aria-label="Open clip review">
+                    <ChevronRight size={15} />
                   </Link>
                 </div>
               </div>

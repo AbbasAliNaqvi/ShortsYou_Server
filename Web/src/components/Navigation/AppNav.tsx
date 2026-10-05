@@ -40,7 +40,7 @@ export function AppNav() {
 
   return (
     <aside className={`app-nav ${open ? "open" : ""}`}>
-      {/* 4-circle clover brand mark from reference image */}
+      {/* 4-circle clover brand mark */}
       <Link
         className="app-nav-brand-container"
         href="/dashboard"
@@ -48,7 +48,7 @@ export function AppNav() {
       >
         <motion.div
           className="app-nav-clover-mark"
-          whileHover={{ scale: 1.08, rotate: 90 }}
+          whileHover={{ scale: 1.1, rotate: 90 }}
           whileTap={{ scale: 0.92 }}
           transition={{ type: "spring", stiffness: 350, damping: 20 }}
         >
@@ -82,13 +82,13 @@ export function AppNav() {
             >
               <motion.div
                 className="app-nav-icon-box"
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
                 <Icon size={19} />
               </motion.div>
-              <span>{label}</span>
+              <span className="app-nav-tooltip">{label}</span>
             </Link>
           );
         })}
@@ -103,15 +103,17 @@ export function AppNav() {
         >
           <Bell size={18} />
           <span className="app-nav-notif-dot" />
+          <span className="app-nav-tooltip">Notifications</span>
         </motion.button>
-        <Link title="Settings" href="/dashboard">
+        <Link title="Settings" href="/dashboard" className="app-nav-settings-link">
           <motion.div
             className="app-nav-icon-box"
-            whileHover={{ scale: 1.1, rotate: 45 }}
+            whileHover={{ scale: 1.12, rotate: 45 }}
             whileTap={{ scale: 0.92 }}
           >
             <Settings size={18} />
           </motion.div>
+          <span className="app-nav-tooltip">Settings</span>
         </Link>
       </div>
     </aside>
