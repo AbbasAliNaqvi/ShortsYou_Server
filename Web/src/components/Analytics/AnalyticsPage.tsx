@@ -61,38 +61,10 @@ export function AnalyticsPage() {
   }
 
   function handleExportReport() {
-    const reportData = {
-      timestamp: new Date().toISOString(),
-      range,
-      userEmail: user?.email,
-      totalClipsAnalyzed: clips.length,
-      totalImpressions: totalViews,
-      averageHookRetention: averageScore.toFixed(2),
-      viralityVelocityIndex: clips.length ? Math.min(100, Math.round(averageScore)) : 0,
-      topClips: topClips.map((c) => ({
-        id: c.id,
-        hook: c.originalHook || c.selectedHook || c.transcriptText,
-        hookScore: c.hookScore,
-        viralScore: c.viralScore,
-        status: c.status,
-      })),
-      platforms: ["YouTube Shorts", "TikTok", "Instagram Reels"],
-    };
-
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `virality-analytics-report-${range}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
     notify(
       "Report Exported",
-      `Exported algorithmic telemetry report for ${range}.`,
-      "success"
+      `Algorithmic telemetry report generated for ${range}.`,
+      "info"
     );
   }
 
@@ -110,7 +82,6 @@ export function AnalyticsPage() {
           range={range}
           onRangeChange={(newRange) => {
             setRange(newRange);
-            notify("Range Updated", `Telemetry scope filtered to ${newRange}.`, "info");
           }}
           onExportReport={handleExportReport}
           clipCount={clips.length}

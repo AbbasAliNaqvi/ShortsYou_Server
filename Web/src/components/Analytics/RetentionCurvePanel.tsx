@@ -14,26 +14,26 @@ export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
         .slice(0, 8)
         .map(
           (clip, index) =>
-            `${index * 70 + 20},${210 - Math.min(160, clip.hookScore * 1.8)}`
+            `${index * 70 + 20},${225 - Math.min(170, clip.hookScore * 1.9)}`
         )
         .join(" ")
-    : "20,45 95,85 170,120 250,150 330,170 420,188 510,200 560,208";
+    : "20,50 95,95 170,135 250,165 330,185 420,202 510,215 560,222";
 
   // Build polygon area for smooth gradient fill under the line
-  const areaPoints = `${points} 560,230 20,230`;
+  const areaPoints = `${points} 560,245 20,245`;
 
   return (
     <motion.article
       className="ca-retention-panel ca-glass"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.4, delay: 0.15 }}
     >
       <div className="ca-panel-header">
         <div className="ca-panel-header-text">
           <div className="ca-panel-badge-row">
             <span className="ca-panel-badge">
-              <Activity size={12} />
+              <Activity size={13} />
               Audience Fall-Off Telemetry
             </span>
             <span className="ca-live-baseline-tag">LIVE BASELINE</span>
@@ -56,37 +56,37 @@ export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
 
         <div className="ca-chart-svg-wrap">
           <svg
-            viewBox="0 0 580 240"
+            viewBox="0 0 580 260"
             preserveAspectRatio="none"
             className="ca-retention-svg"
           >
             <defs>
               <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-                <stop offset="80%" stopColor="#f59e0b" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.22" />
+                <stop offset="85%" stopColor="#f59e0b" stopOpacity="0.04" />
                 <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
               </linearGradient>
               <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#f59e0b" />
-                <stop offset="60%" stopColor="#ef4444" />
+                <stop offset="0%" stopColor="#ef4444" />
+                <stop offset="60%" stopColor="#f59e0b" />
                 <stop offset="100%" stopColor="#8b5cf6" />
               </linearGradient>
             </defs>
 
             {/* Horizontal Grid Lines */}
-            <line x1="20" y1="20" x2="560" y2="20" stroke="rgba(15, 23, 42, 0.05)" strokeDasharray="3 3" />
-            <line x1="20" y1="75" x2="560" y2="75" stroke="rgba(15, 23, 42, 0.05)" strokeDasharray="3 3" />
-            <line x1="20" y1="130" x2="560" y2="130" stroke="rgba(15, 23, 42, 0.05)" strokeDasharray="3 3" />
-            <line x1="20" y1="185" x2="560" y2="185" stroke="rgba(15, 23, 42, 0.05)" strokeDasharray="3 3" />
-            <line x1="20" y1="230" x2="560" y2="230" stroke="rgba(15, 23, 42, 0.08)" />
+            <line x1="20" y1="20" x2="560" y2="20" stroke="rgba(15, 23, 42, 0.12)" strokeDasharray="4 4" />
+            <line x1="20" y1="75" x2="560" y2="75" stroke="rgba(15, 23, 42, 0.12)" strokeDasharray="4 4" />
+            <line x1="20" y1="130" x2="560" y2="130" stroke="rgba(15, 23, 42, 0.12)" strokeDasharray="4 4" />
+            <line x1="20" y1="185" x2="560" y2="185" stroke="rgba(15, 23, 42, 0.12)" strokeDasharray="4 4" />
+            <line x1="20" y1="245" x2="560" y2="245" stroke="rgba(15, 23, 42, 0.18)" strokeWidth="1.5" />
 
             {/* Benchmark Industry Median Curve */}
             <path
-              d="M20 42 C100 70 170 125 260 155 C360 185 460 198 560 214"
+              d="M20 48 C100 80 170 135 260 168 C360 198 460 212 560 228"
               fill="none"
-              stroke="#94a3b8"
-              strokeDasharray="5 5"
-              strokeWidth="2"
+              stroke="#64748b"
+              strokeDasharray="6 6"
+              strokeWidth="2.5"
             />
 
             {/* Shaded Area Fill Under Curve */}
@@ -97,7 +97,7 @@ export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
               points={points}
               fill="none"
               stroke="url(#lineGradient)"
-              strokeWidth="3.5"
+              strokeWidth="4"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -115,7 +115,7 @@ export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
 
       <div className="ca-analytics-callout-banner">
         <div className="ca-callout-icon">
-          <Sparkles size={16} />
+          <Sparkles size={17} />
         </div>
         <div className="ca-callout-text">
           <strong>Peak Retention Correlator:</strong>{" "}
