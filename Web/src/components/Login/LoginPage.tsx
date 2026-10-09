@@ -15,6 +15,7 @@ import {
   Terminal,
   Video,
 } from "lucide-react";
+import FallingColorBackground from "@/components/LiquidGlass/FallingColorBackground";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050";
 
@@ -33,9 +34,9 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
+      <FallingColorBackground />
       <div className="login-glow login-glow-right" />
       <div className="login-glow login-glow-left" />
-      <div className="login-dots" />
       <header className="login-header">
         <Link className="login-brand" href="/">
           <span>
