@@ -6,18 +6,18 @@
 
 :root {
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --bg-gradient: radial-gradient(at 8% 18%, rgba(254, 243, 199, 0.45) 0px, transparent 45%),
-                 radial-gradient(at 92% 12%, rgba(224, 231, 255, 0.55) 0px, transparent 45%),
-                 radial-gradient(at 50% 88%, rgba(224, 242, 254, 0.4) 0px, transparent 55%),
-                 linear-gradient(135deg, #e4e9f7 0%, #edf2fc 40%, #f7f9ff 75%, #e1e7f5 100%);
-  --glass-bg-canvas: rgba(255, 255, 255, 0.42);
-  --glass-border-canvas: rgba(255, 255, 255, 0.85);
-  --glass-card-bg: rgba(255, 255, 255, 0.46);
-  --glass-card-border: rgba(255, 255, 255, 0.75);
-  --glass-card-hover: rgba(255, 255, 255, 0.62);
-  --glass-input-bg: rgba(255, 255, 255, 0.48);
-  --glass-input-border: rgba(215, 224, 245, 0.7);
-  --glass-blur: blur(32px) saturate(190%);
+  --bg-gradient: radial-gradient(at 8% 18%, rgba(254, 243, 199, 0.26) 0px, transparent 45%),
+                 radial-gradient(at 92% 12%, rgba(224, 231, 255, 0.30) 0px, transparent 45%),
+                 radial-gradient(at 50% 88%, rgba(224, 242, 254, 0.22) 0px, transparent 55%),
+                 linear-gradient(135deg, #e8ecf6 0%, #edf2fc 40%, #f6f8ff 75%, #e4eaf6 100%);
+  --glass-bg-canvas: rgba(255, 255, 255, 0.80);
+  --glass-border-canvas: rgba(255, 255, 255, 0.92);
+  --glass-card-bg: rgba(255, 255, 255, 0.82);
+  --glass-card-border: rgba(215, 225, 245, 0.80);
+  --glass-card-hover: rgba(255, 255, 255, 0.90);
+  --glass-input-bg: rgba(255, 255, 255, 0.95);
+  --glass-input-border: rgba(203, 213, 235, 0.80);
+  --glass-blur: blur(24px) saturate(160%);
   --text-primary: #0f172a;
   --text-secondary: #1e293b;
   --text-muted: #475569;
@@ -27,9 +27,9 @@
   --color-accent-amber: #d97706;
   --color-success: #10b981;
   --color-danger: #ef4444;
-  --shadow-canvas: 0 25px 60px -15px rgba(50, 65, 120, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
-  --shadow-card: 0 8px 24px -4px rgba(70, 85, 140, 0.05), 0 1px 1px 0 rgba(255, 255, 255, 0.9) inset;
-  --shadow-card-hover: 0 16px 36px -8px rgba(60, 75, 140, 0.12), 0 1px 1px 0 rgba(255, 255, 255, 1) inset;
+  --shadow-canvas: 0 25px 60px -15px rgba(50, 65, 120, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  --shadow-card: 0 4px 16px -4px rgba(70, 85, 140, 0.06), 0 1px 1px 0 rgba(255, 255, 255, 0.9) inset;
+  --shadow-card-hover: 0 10px 28px -6px rgba(60, 75, 140, 0.10), 0 1px 1px 0 rgba(255, 255, 255, 1) inset;
   --radius-canvas: 28px;
   --radius-card: 20px;
   --radius-pill: 9999px;
@@ -129,6 +129,19 @@
   50% { transform: scale(1.12) translate(18px, -14px); opacity: 1; }
   100% { transform: scale(0.96) translate(-14px, 16px); opacity: 0.75; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow-rose,
+  .ambient-glow-emerald {
+    animation: none !important;
+  }
+  .falling-wave-ribbon,
+  .wave-svg-graphic {
+    animation: none !important;
+    opacity: 0.25;
+  }
+}
+
 
 /* Cascading Falling Color Waves Container & Multi-directional Physics */
 .falling-waves-container {

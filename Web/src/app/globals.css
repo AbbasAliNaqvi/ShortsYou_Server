@@ -862,15 +862,15 @@ body {
 .ca-glass {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.72) 0%,
-    rgba(255, 255, 255, 0.50) 45%,
-    rgba(255, 255, 255, 0.65) 100%
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(255, 255, 255, 0.78) 45%,
+    rgba(255, 255, 255, 0.84) 100%
   ) !important;
-  backdrop-filter: blur(40px) saturate(140%) brightness(1.02) !important;
-  -webkit-backdrop-filter: blur(40px) saturate(140%) brightness(1.02) !important;
-  border: 1px solid rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(30px) saturate(150%) brightness(1.02) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(150%) brightness(1.02) !important;
+  border: 1px solid rgba(255, 255, 255, 0.92) !important;
   border-top: 1.6px solid rgba(255, 255, 255, 0.98) !important;
-  border-left: 1.2px solid rgba(255, 255, 255, 0.92) !important;
+  border-left: 1.2px solid rgba(255, 255, 255, 0.95) !important;
   box-shadow: 
     0 20px 48px -12px rgba(15, 23, 42, 0.05),
     0 4px 14px -2px rgba(15, 23, 42, 0.02),
@@ -883,12 +883,12 @@ body {
 .ca-glass-card {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.80) 0%,
-    rgba(255, 255, 255, 0.62) 100%
+    rgba(255, 255, 255, 0.90) 0%,
+    rgba(255, 255, 255, 0.80) 100%
   ) !important;
-  backdrop-filter: blur(36px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(140%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(28px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
   border-top: 1.6px solid #ffffff !important;
   box-shadow: 
     0 16px 36px -8px rgba(15, 23, 42, 0.05),
@@ -901,16 +901,39 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  min-height: 64px;
   margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ca-header-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.05);
 }
 
 .ca-header-title {
   margin: 0;
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 850;
   letter-spacing: -0.035em;
   color: #090d16 !important;
+}
+
+.ca-header-subtitle {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155 !important;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
 }
 
 .ca-header-actions {
@@ -922,8 +945,8 @@ body {
 .ca-header-glass-cluster {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.78) 0%,
-    rgba(240, 246, 255, 0.58) 100%
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(240, 246, 255, 0.78) 100%
   ) !important;
   backdrop-filter: blur(28px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
@@ -1363,9 +1386,9 @@ body {
 
 .ca-hero-subtext {
   margin: 0 0 20px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #475569 !important;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155 !important;
 }
 
 /* Ingest Form / Start Now Button */
@@ -2586,9 +2609,9 @@ body {
 .ca-videos-subtext {
   max-width: 680px;
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.6;
-  color: #475569;
+  color: #334155 !important;
 }
 
 .ca-notice-banner {
@@ -2650,10 +2673,22 @@ body {
   gap: 16px;
 }
 
+.workspace-section-meta-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .ca-video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+}
+
+.ca-video-grid:has(.ca-video-card:only-child),
+.ca-clips-grid:has(.ca-clip-card:only-child) {
+  display: flex;
+  max-width: 360px;
 }
 
 .ca-video-card {
@@ -2664,8 +2699,8 @@ body {
   gap: 10px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.78) 0%,
-    rgba(255, 255, 255, 0.58) 100%
+    rgba(255, 255, 255, 0.90) 0%,
+    rgba(255, 255, 255, 0.82) 100%
   ) !important;
   border: 1px solid rgba(255, 255, 255, 0.92) !important;
   box-shadow: 
@@ -3293,9 +3328,10 @@ body {
 }
 
 .ca-headline-gradient {
-  background: linear-gradient(135deg, #090d16 0%, #b45309 60%, #e11d48 100%);
+  background: linear-gradient(135deg, #090d16 0%, #80182a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: #80182a;
 }
 
 .ca-discover-subtext {
@@ -3303,7 +3339,7 @@ body {
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #475569;
+  color: #334155 !important;
 }
 
 .ca-creator-search-form {
@@ -3943,7 +3979,7 @@ body {
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #475569;
+  color: #334155 !important;
 }
 
 .ca-editor-picker-grid {
@@ -4935,19 +4971,21 @@ body {
 .ca-analytics-bento-grid {
   display: grid;
   grid-template-columns: 1.45fr 1fr;
-  gap: 18px;
-  align-items: stretch;
+  gap: 20px;
+  align-items: start;
 }
 
 .ca-analytics-charts-column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
+  min-width: 0;
 }
 
 .ca-analytics-sidebar-column {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 /* Retention Curve Panel */
@@ -5218,6 +5256,8 @@ body {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(15, 23, 42, 0.12);
   transition: all 140ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ca-view-all-link:hover {
@@ -5658,7 +5698,8 @@ body {
 .ca-clips-metric-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .ca-clips-metric-icon {
@@ -5667,12 +5708,15 @@ body {
   border-radius: 11px;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 
 .ca-clips-metric-note {
   font-size: 11px;
   color: #475569 !important;
   font-weight: 600;
+  text-align: right;
+  margin-top: 4px;
 }
 
 .ca-clips-metric-value {
@@ -7002,3 +7046,22 @@ body {
     padding: 28px 20px;
   }
 }
+
+/* ── Readability & Accessibility Enhancements ── */
+@supports not (backdrop-filter: blur(1px)) {
+  .ca-glass, .ca-glass-card, .app-window, .app-sidebar,
+  .glass-panel, .glass-table-wrap, .dark-glass-card, .ca-header-left, .ca-header-glass-cluster {
+    background: rgba(245, 248, 255, 0.96) !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #090d16;
+  outline-offset: 2px;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid #090d16;
+  outline-offset: 2px;
+}
+
