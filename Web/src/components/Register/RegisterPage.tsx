@@ -17,6 +17,7 @@ import {
   Sparkles,
   Video,
 } from "lucide-react";
+import FallingColorBackground from "@/components/LiquidGlass/FallingColorBackground";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050";
 
@@ -69,9 +70,9 @@ export function RegisterPage() {
 
   return (
     <main className="auth-page">
+      <FallingColorBackground />
       <div className="auth-atmosphere auth-atmosphere-one" />
       <div className="auth-atmosphere auth-atmosphere-two" />
-      <div className="auth-dots" />
       <header className="auth-header">
         <Link className="auth-brand" href="/">
           <span className="auth-brand-mark">
