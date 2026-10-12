@@ -25,9 +25,12 @@ export function DiscoverPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     api.me(token).then(setUser).catch(() => {});
-  }, []);
+  }, [router]);
 
   async function search(event?: FormEvent) {
     event?.preventDefault();

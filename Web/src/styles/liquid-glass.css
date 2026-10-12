@@ -958,3 +958,68 @@
     padding: 20px 16px;
   }
 }
+
+/* ==========================================================
+   PHASE 3: GPU & CSS PAINT PERFORMANCE OPTIMIZATIONS
+   Zero visual changes — isolates repaint boundaries and skips
+   rendering work on off-screen sections until scrolled into view.
+   ========================================================== */
+
+/* 1. Ambient Background Layer Promotion to separate GPU compositing layers */
+.ambient-glow-left-warm,
+.ambient-glow-top-right,
+.ambient-glow-bottom,
+.ambient-glow-rose,
+.ambient-glow-emerald,
+.ambient-one,
+.ambient-two,
+.ambient-three,
+.auth-atmosphere,
+.login-glow,
+.ambient-composite {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: paint layout;
+}
+
+/* 2. Off-Screen & Below-the-Fold Content Visibility & Containment */
+.ca-secondary-shelves {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 450px;
+  contain: layout style;
+}
+
+.ca-bottom-table-panel {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 420px;
+  contain: layout style;
+}
+
+.ca-analytics-insights-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 320px;
+  contain: layout style;
+}
+
+.ca-public-video-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 600px;
+}
+
+.ca-video-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+  contain: layout style;
+}
+
+/* 3. Paint Containment & GPU Layer Isolation for Heavy Cards */
+.production-card,
+.ca-clip-card,
+.ca-public-video-card,
+.ca-video-card,
+.job-card {
+  contain: layout style paint;
+  will-change: transform;
+}
+

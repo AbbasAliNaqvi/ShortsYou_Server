@@ -533,11 +533,8 @@ button { cursor: pointer; }
   .production-thumb { width:100%; height:auto; aspect-ratio:16/9; }
 }
 @media (max-width:440px) {
-  .workspace-main,.clips-main,.analytics-main { width:100% !important; margin-left:0 !important; }
-  .videos-page,.editor-page,.editor-picker,.discover-page { margin-left:0 !important; }
-  .app-nav { inset:auto 10px 10px; width:calc(100% - 20px); height:54px; flex-direction:row; padding:5px 8px; border-radius:16px; }
-  .app-nav nav { display:flex; flex:1; align-items:center; justify-content:space-around; margin:0; padding:0; border:0; }
-  .app-nav nav a:nth-child(n+5),.app-nav-brand-container,.app-nav-bottom { display:none; }
+  .workspace-main,.clips-main,.analytics-main { width:calc(100% - 58px) !important; margin-left:58px !important; }
+  .videos-page,.editor-page,.editor-picker,.discover-page { width:calc(100% - 58px) !important; margin-left:58px !important; }
   .ingest-drop { padding:24px 13px 14px; }
   .mode-pills { justify-content:flex-start; }
   .clips-hero h1 { font-size:33px; }
@@ -2503,13 +2500,83 @@ body {
 }
 
 @media (max-width: 768px) {
-  .workspace-main {
-    width: 100% !important;
-    margin-left: 0 !important;
-    padding: 16px !important;
+  .workspace-main,
+  .ca-main-viewport,
+  .clips-main,
+  .analytics-main {
+    width: calc(100% - 66px) !important;
+    margin-left: 66px !important;
+    padding: 16px 10px !important;
+  }
+  .videos-page,
+  .editor-page,
+  .editor-picker,
+  .discover-page {
+    width: calc(100% - 66px) !important;
+    margin-left: 66px !important;
+    padding: 16px 10px !important;
   }
   .app-nav {
-    display: none !important;
+    display: flex !important;
+    position: fixed !important;
+    inset: 12px auto 12px 8px !important;
+    width: 52px !important;
+    height: calc(100vh - 24px) !important;
+    padding: 12px 4px !important;
+    border-radius: 26px !important;
+    z-index: 100 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .app-nav nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin: 8px 0 !important;
+    padding: 0 !important;
+  }
+  .app-nav-link {
+    display: grid !important;
+    place-items: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 auto !important;
+    border-radius: 12px !important;
+  }
+  .app-nav-icon-box {
+    display: grid !important;
+    place-items: center !important;
+  }
+  .app-nav-icon-box svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .app-nav-brand-container {
+    display: flex !important;
+    margin-bottom: 6px !important;
+  }
+  .app-nav-clover-mark {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .app-nav-clover-mark svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .app-nav-bottom {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    margin-top: auto !important;
+  }
+  .app-nav-notif-btn,
+  .app-nav-settings-link {
+    display: grid !important;
+    place-items: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 auto !important;
   }
   .ca-header-title {
     font-size: 24px;
@@ -2523,6 +2590,42 @@ body {
   .ca-table-col-headers,
   .ca-table-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace-main,
+  .ca-main-viewport,
+  .clips-main,
+  .analytics-main {
+    width: calc(100% - 56px) !important;
+    margin-left: 56px !important;
+    padding: 12px 6px !important;
+  }
+  .videos-page,
+  .editor-page,
+  .editor-picker,
+  .discover-page {
+    width: calc(100% - 56px) !important;
+    margin-left: 56px !important;
+    padding: 12px 6px !important;
+  }
+  .app-nav {
+    inset: 8px auto 8px 4px !important;
+    width: 46px !important;
+    height: calc(100vh - 16px) !important;
+    padding: 10px 2px !important;
+    border-radius: 20px !important;
+  }
+  .app-nav-link,
+  .app-nav-notif-btn,
+  .app-nav-settings-link {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .app-nav-icon-box svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 }
 

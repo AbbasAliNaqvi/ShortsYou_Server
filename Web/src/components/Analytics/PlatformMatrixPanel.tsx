@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, Film, PlayCircle, Share2, Video } from "lucide-react";
 import type { PerformanceAnalytics } from "@/lib/api";
@@ -15,7 +16,7 @@ const PLATFORMS = [
   { name: "Instagram Reels", icon: Video, color: "#ec4899" },
 ];
 
-export function PlatformMatrixPanel({ performance }: PlatformMatrixPanelProps) {
+export const PlatformMatrixPanel = memo(function PlatformMatrixPanel({ performance }: PlatformMatrixPanelProps) {
   return (
     <motion.article
       className="ca-platform-panel ca-glass"
@@ -68,20 +69,20 @@ export function PlatformMatrixPanel({ performance }: PlatformMatrixPanelProps) {
 
                 <div className="ca-platform-track">
                   <motion.div
-                    className="ca-platform-fill"
-                    style={{
-                      background: `linear-gradient(90deg, ${platform.color}aa, ${platform.color})`,
-                    }}
+                    className="ca-platform-bar"
+                    style={{ background: platform.color }}
                     initial={{ width: 0 }}
-                    animate={{ width: percentage ? `${percentage}%` : "6%" }}
-                    transition={{ duration: 0.8, delay: index * 0.15, ease: "easeOut" }}
+                    animate={{ width: `${percentage ?? 25}%` }}
+                    transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
                   />
                 </div>
               </div>
 
-              <div className="ca-platform-score-badge">
-                <strong>{percentage ? `${percentage}%` : "--"}</strong>
-                <small>Efficiency</small>
+              <div className="ca-platform-stat">
+                <span className="ca-platform-stat-value">
+                  {percentage !== null ? `${percentage}%` : "—"}
+                </span>
+                <small className="ca-platform-stat-label">Virality Index</small>
               </div>
             </div>
           );
@@ -89,4 +90,4 @@ export function PlatformMatrixPanel({ performance }: PlatformMatrixPanelProps) {
       </div>
     </motion.article>
   );
-}
+});

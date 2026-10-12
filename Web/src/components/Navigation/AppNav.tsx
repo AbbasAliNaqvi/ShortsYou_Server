@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   WandSparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, memo } from "react";
 
 const links = [
   ["Studio", "/dashboard", BarChart3],
@@ -25,7 +25,7 @@ const links = [
   ["Analytics", "/analytics", LayoutDashboard],
 ] as const;
 
-export function AppNav() {
+export const AppNav = memo(function AppNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -118,4 +118,5 @@ export function AppNav() {
       </div>
     </aside>
   );
-}
+});
+

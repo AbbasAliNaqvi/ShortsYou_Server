@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
+import { memo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Award, ChevronRight, Play, Sparkles } from "lucide-react";
@@ -11,7 +12,7 @@ export interface TopClipsLeaderboardProps {
   clips: Clip[];
 }
 
-export function TopClipsLeaderboard({ clips }: TopClipsLeaderboardProps) {
+export const TopClipsLeaderboard = memo(function TopClipsLeaderboard({ clips }: TopClipsLeaderboardProps) {
   return (
     <motion.article
       className="ca-leaderboard-panel ca-glass"
@@ -59,7 +60,7 @@ export function TopClipsLeaderboard({ clips }: TopClipsLeaderboardProps) {
 
               <div className="ca-leader-thumb-wrap">
                 {thumbnail ? (
-                  <img src={thumbnail} alt="" className="ca-leader-thumb-img" />
+                  <img src={thumbnail} alt="" className="ca-leader-thumb-img" loading="lazy" />
                 ) : (
                   <div className="ca-leader-thumb-fallback">
                     <Sparkles size={16} />
@@ -118,4 +119,4 @@ export function TopClipsLeaderboard({ clips }: TopClipsLeaderboardProps) {
       </div>
     </motion.article>
   );
-}
+});

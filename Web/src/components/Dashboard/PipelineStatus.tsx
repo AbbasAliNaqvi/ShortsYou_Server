@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Activity, Bot, Download, Video as VideoIcon, WandSparkles } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
@@ -10,7 +11,7 @@ export interface PipelineStatusProps {
   avgScore: number;
 }
 
-export function PipelineStatus({ jobs, videos, avgScore }: PipelineStatusProps) {
+export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgScore }: PipelineStatusProps) {
   const stages = [
     { key: "download", label: "Ingest", icon: Download },
     { key: "transcrib", label: "Transcribe", icon: Activity },
@@ -130,4 +131,4 @@ export function PipelineStatus({ jobs, videos, avgScore }: PipelineStatusProps) 
       )}
     </motion.div>
   );
-}
+});
