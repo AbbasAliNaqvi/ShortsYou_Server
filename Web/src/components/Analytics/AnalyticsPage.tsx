@@ -6,12 +6,10 @@ import dynamic from "next/dynamic";
 import { api, type Clip, type PerformanceAnalytics, type User } from "@/lib/api";
 import { WorkspaceShell } from "@/components/Layout";
 import { notify } from "@/components/Notifications/NotificationCenter";
-import {
-  AnalyticsHeroBanner,
-  AnalyticsKpiGrid,
-  TopClipsLeaderboard,
-  AnalyticsInsightsGrid,
-} from "@/components/Analytics";
+import { AnalyticsHeroBanner } from "./AnalyticsHeroBanner";
+import { AnalyticsKpiGrid } from "./AnalyticsKpiGrid";
+import { TopClipsLeaderboard } from "./TopClipsLeaderboard";
+import { AnalyticsInsightsGrid } from "./AnalyticsInsightsGrid";
 
 // Dynamically import heavy client-only charting components with ssr: false
 // and layout-preserving skeleton fallbacks to prevent CLS

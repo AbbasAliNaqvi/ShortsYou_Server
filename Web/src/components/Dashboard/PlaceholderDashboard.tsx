@@ -7,13 +7,11 @@ import dynamic from "next/dynamic";
 import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
-import {
-  HeroBanner,
-  PipelineStatus,
-  RecommendationsTable,
-  JobsShelf,
-  ProductionShelf,
-} from "@/components/Dashboard";
+import { HeroBanner } from "./HeroBanner";
+import { PipelineStatus } from "./PipelineStatus";
+import { RecommendationsTable } from "./RecommendationsTable";
+import { JobsShelf } from "./JobsShelf";
+import { ProductionShelf } from "./ProductionShelf";
 
 // Dynamically import VideoSearchResults (only mounted when search query returns items)
 const VideoSearchResults = dynamic(

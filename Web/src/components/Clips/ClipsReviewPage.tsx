@@ -7,12 +7,10 @@ import { Clapperboard } from "lucide-react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { api, type Clip, type User, type Video } from "@/lib/api";
 import { WorkspaceShell } from "@/components/Layout";
-import {
-  ClipsHeroBanner,
-  ClipsMetricsOverview,
-  ClipsFilterBar,
-  ClipCard,
-} from "@/components/Clips";
+import { ClipsHeroBanner } from "./ClipsHeroBanner";
+import { ClipsMetricsOverview } from "./ClipsMetricsOverview";
+import { ClipsFilterBar } from "./ClipsFilterBar";
+import { ClipCard } from "./ClipCard";
 
 export function ClipsReviewPage() {
   const router = useRouter();

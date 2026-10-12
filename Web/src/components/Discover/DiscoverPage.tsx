@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import { api, type Channel, type PublicVideo, type User } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell } from "@/components/Layout";
-import {
-  DiscoverHero,
-  ChannelCandidates,
-  ChannelBanner,
-  CreatorVideoCatalog,
-} from "@/components/Discover";
+import { DiscoverHero } from "./DiscoverHero";
+import { ChannelCandidates } from "./ChannelCandidates";
+import { ChannelBanner } from "./ChannelBanner";
+import { CreatorVideoCatalog } from "./CreatorVideoCatalog";
 
 export function DiscoverPage() {
   const router = useRouter();

@@ -35,13 +35,16 @@ export const WorkspaceShell = memo(function WorkspaceShell({
 }: WorkspaceShellProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   // Authentication Guard: Ensure user cannot access any workspace screen without logging in
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlToken = new URLSearchParams(window.location.search).get("token");
       const localToken = localStorage.getItem("shortsyou_jwt");
+      if (urlToken && !localToken) {
+        localStorage.setItem("shortsyou_jwt", urlToken);
+      }
       if (!localToken && !urlToken) {
         setIsAuthenticated(false);
         router.replace("/login");
@@ -58,8 +61,8 @@ export const WorkspaceShell = memo(function WorkspaceShell({
     });
   }, [onRefresh]);
 
-  // Prevent UI rendering flash for unauthenticated users before redirect completes
-  if (isAuthenticated === false) {
+  // Prevent UI rendering for unauthenticated users before redirect completes
+  if (!isAuthenticated) {
     return (
       <main className="workspace-page ca-canvas-container" style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
         {showBackground && <FallingColorBackground />}

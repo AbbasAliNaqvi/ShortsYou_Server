@@ -8,10 +8,8 @@ import { api, type EditSettings, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState, EmptyState } from "@/components/Layout";
 import dynamic from "next/dynamic";
-import {
-  EditorHeaderBanner,
-  EditorControlPanel,
-} from "@/components/Editor";
+import { EditorHeaderBanner } from "@/components/Editor/EditorHeaderBanner";
+import { EditorControlPanel } from "@/components/Editor/EditorControlPanel";
 
 const EditorPhonePreview = dynamic(
   () => import("@/components/Editor/EditorPhonePreview").then((m) => m.EditorPhonePreview),

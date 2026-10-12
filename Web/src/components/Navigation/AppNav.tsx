@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   WandSparkles,
 } from "lucide-react";
-import { useState, memo } from "react";
+import { useState, useEffect, memo } from "react";
 
 const links = [
   ["Studio", "/dashboard", BarChart3],
@@ -28,8 +28,17 @@ const links = [
 export const AppNav = memo(function AppNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [hasAuth, setHasAuth] = useState(false);
 
-  if (pathname === "/" || pathname === "/login" || pathname === "/register")
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("shortsyou_jwt");
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      setHasAuth(Boolean(token || urlToken));
+    }
+  }, [pathname]);
+
+  if (pathname === "/" || pathname === "/login" || pathname === "/register" || !hasAuth)
     return null;
 
   const active = (href: string) =>
