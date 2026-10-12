@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
@@ -12,7 +13,7 @@ export interface AnalyticsKpiCardProps {
   trendType?: "live" | "neutral" | "positive" | "warning";
 }
 
-export function AnalyticsKpiCard({
+export const AnalyticsKpiCard = memo(function AnalyticsKpiCard({
   icon: Icon,
   label,
   value,
@@ -42,4 +43,4 @@ export function AnalyticsKpiCard({
       </div>
     </motion.article>
   );
-}
+});

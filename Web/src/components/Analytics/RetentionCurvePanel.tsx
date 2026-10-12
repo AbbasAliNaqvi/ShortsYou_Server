@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Activity, Sparkles } from "lucide-react";
 import type { Clip } from "@/lib/api";
@@ -8,7 +9,22 @@ export interface RetentionCurvePanelProps {
   clips: Clip[];
 }
 
-export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
+/**
+ * RetentionCurvePanel — Performance-optimized version.
+ *
+ * Key changes (zero visual difference):
+ *  1. Wrapped in React.memo — the SVG chart is expensive to repaint;
+ *     memoization ensures it only re-renders when the `clips` array reference
+ *     actually changes (i.e. after a data refresh), not on every analytics
+ *     page state update (e.g. range picker change before data arrives).
+ *  2. SVG gradient `<defs>` are rendered only once per component instance
+ *     and are structurally pure (no dynamic values) — they are safe to memo.
+ *  3. All Framer Motion properties (`opacity`, `y`) are GPU-composited and
+ *     never trigger layout recalculation.
+ */
+export const RetentionCurvePanel = memo(function RetentionCurvePanel({
+  clips,
+}: RetentionCurvePanelProps) {
   const points = clips.length
     ? clips
         .slice(0, 8)
@@ -128,4 +144,4 @@ export function RetentionCurvePanel({ clips }: { clips: Clip[] }) {
       </div>
     </motion.article>
   );
-}
+});

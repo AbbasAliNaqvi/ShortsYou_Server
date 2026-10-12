@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent } from "react";
+import { memo, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Copy, RefreshCw } from "lucide-react";
 
@@ -13,7 +13,7 @@ export interface IngestPanelProps {
   onSubmit: (event: FormEvent) => void;
 }
 
-export function IngestPanel({
+export const IngestPanel = memo(function IngestPanel({
   sourceUrl,
   notice,
   creating,
@@ -59,4 +59,4 @@ export function IngestPanel({
       {notice && <p className="ca-hero-notice">{notice}</p>}
     </div>
   );
-}
+});

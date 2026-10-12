@@ -1,22 +1,28 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
-import {
-  HeroBanner,
-  PipelineStatus,
-  VideoSearchResults,
-  RecommendationsTable,
-  JobsShelf,
-  ProductionShelf,
-} from "@/components/Dashboard";
+import { HeroBanner } from "./HeroBanner";
+import { PipelineStatus } from "./PipelineStatus";
+import { RecommendationsTable } from "./RecommendationsTable";
+import { JobsShelf } from "./JobsShelf";
+import { ProductionShelf } from "./ProductionShelf";
+
+// Dynamically import VideoSearchResults (only mounted when search query returns items)
+const VideoSearchResults = dynamic(
+  () => import("@/components/Dashboard/VideoSearchResults").then((m) => m.VideoSearchResults),
+  { ssr: false }
+);
 
 export function PlaceholderDashboard() {
   const router = useRouter();
+  const [, startTransition] = useTransition();
+
   const [user, setUser] = useState<User | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -30,11 +36,11 @@ export function PlaceholderDashboard() {
   const [exportingClip, setExportingClip] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       setLoading(false);
-      setError("Your studio session has expired. Sign in again to load the workspace.");
+      router.replace("/login");
       return;
     }
     setRefreshing(true);
@@ -54,7 +60,7 @@ export function PlaceholderDashboard() {
       setError("The studio API is unavailable. Check that the Go server is running on port 5050.");
     setLoading(false);
     setRefreshing(false);
-  }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -70,110 +76,141 @@ export function PlaceholderDashboard() {
       }
     }
     queueMicrotask(() => void loadDashboard());
-  }, []);
+  }, [loadDashboard]);
 
-  const recommendations = [...clips]
-    .sort((a, b) => b.viralScore - a.viralScore)
-    .slice(0, 4);
+  // Stabilize heavy computations with useMemo to isolate re-render cascades
+  const recommendations = useMemo(
+    () => [...clips].sort((a, b) => b.viralScore - a.viralScore).slice(0, 4),
+    [clips]
+  );
 
-  const activeJobs = jobs.filter((j) => !["completed", "failed"].includes(j.status));
-  const avgViralScore =
-    clips.length > 0
-      ? Math.round(clips.reduce((s, c) => s + c.viralScore, 0) / clips.length)
-      : 0;
-  const totalClipsRendered = clips.filter((c) =>
-    ["exported", "published"].includes(c.status)
-  ).length;
+  const activeJobs = useMemo(
+    () => jobs.filter((j) => !["completed", "failed"].includes(j.status)),
+    [jobs]
+  );
 
-  function signOut() {
+  const avgViralScore = useMemo(
+    () =>
+      clips.length > 0
+        ? Math.round(clips.reduce((s, c) => s + c.viralScore, 0) / clips.length)
+        : 0,
+    [clips]
+  );
+
+  const totalClipsRendered = useMemo(
+    () => clips.filter((c) => ["exported", "published"].includes(c.status)).length,
+    [clips]
+  );
+
+  const displayedVideos = useMemo(() => videos.slice(0, 4), [videos]);
+
+  const signOut = useCallback(() => {
     localStorage.removeItem("shortsyou_jwt");
     router.push("/login");
-  }
+  }, [router]);
 
-  async function handleAutoCreate(event: FormEvent) {
-    event.preventDefault();
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token || !sourceUrl.trim()) return;
+  const handleSourceUrlChange = useCallback((val: string) => {
+    startTransition(() => {
+      setSourceUrl(val);
+    });
+  }, []);
 
-    if (!/^https?:\/\//i.test(sourceUrl.trim())) {
-      try {
-        setVideoResults(await api.searchVideos(token, sourceUrl.trim()));
-        setNotice("Select a video and let AI create your shorts automatically.");
-      } catch (err) {
-        setNotice(err instanceof Error ? err.message : "No videos found.");
+  const handleAutoCreate = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault();
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token || !sourceUrl.trim()) return;
+
+      if (!/^https?:\/\//i.test(sourceUrl.trim())) {
+        try {
+          const searchResults = await api.searchVideos(token, sourceUrl.trim());
+          setVideoResults(searchResults);
+          setNotice("Select a video and let AI create your shorts automatically.");
+        } catch (err) {
+          setNotice(err instanceof Error ? err.message : "No videos found.");
+        }
+        return;
       }
-      return;
-    }
 
-    setCreating(true);
-    setNotice("Starting your AI creation pipeline…");
-    try {
-      const result = await api.autoCreateIngest(token, sourceUrl.trim());
-      setSourceUrl("");
-      setNotice(`${result.title} — AI is creating your shorts! Check back in a few minutes.`);
-      notify(
-        "AI Auto-Create Started",
-        "Your shorts are being created automatically. AI will transcribe, find viral moments, generate hooks, and render your shorts.",
-        "success"
-      );
-      await loadDashboard();
-    } catch (ingestError) {
-      setNotice(
-        ingestError instanceof Error ? ingestError.message : "Unable to start AI Auto-Create."
-      );
-    } finally {
-      setCreating(false);
-    }
-  }
+      setCreating(true);
+      setNotice("Starting your AI creation pipeline…");
+      try {
+        const result = await api.autoCreateIngest(token, sourceUrl.trim());
+        setSourceUrl("");
+        setNotice(`${result.title} — AI is creating your shorts! Check back in a few minutes.`);
+        notify(
+          "AI Auto-Create Started",
+          "Your shorts are being created automatically. AI will transcribe, find viral moments, generate hooks, and render your shorts.",
+          "success"
+        );
+        await loadDashboard();
+      } catch (ingestError) {
+        setNotice(
+          ingestError instanceof Error ? ingestError.message : "Unable to start AI Auto-Create."
+        );
+      } finally {
+        setCreating(false);
+      }
+    },
+    [sourceUrl, loadDashboard]
+  );
 
-  async function ingestSearchResult(video: PublicVideo) {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
-    setNotice("AI Auto-Create started for this video...");
-    try {
-      const result = await api.autoCreateIngest(
-        token,
-        `https://youtube.com/watch?v=${video.youtubeVideoId}`
-      );
-      setVideoResults([]);
-      setSourceUrl("");
-      setNotice(`${result.title} — AI Auto-Create in progress! Your shorts will appear below when ready.`);
-      notify("AI Auto-Create Started", `${video.title} is being processed.`, "success");
-      await loadDashboard();
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Unable to queue this video.");
-    }
-  }
+  const ingestSearchResult = useCallback(
+    async (video: PublicVideo) => {
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token) return;
+      setNotice("AI Auto-Create started for this video...");
+      try {
+        const result = await api.autoCreateIngest(
+          token,
+          `https://youtube.com/watch?v=${video.youtubeVideoId}`
+        );
+        setVideoResults([]);
+        setSourceUrl("");
+        setNotice(`${result.title} — AI Auto-Create in progress! Your shorts will appear below when ready.`);
+        notify("AI Auto-Create Started", `${video.title} is being processed.`, "success");
+        await loadDashboard();
+      } catch (err) {
+        setNotice(err instanceof Error ? err.message : "Unable to queue this video.");
+      }
+    },
+    [loadDashboard]
+  );
 
-  function copySource() {
+  const copySource = useCallback(() => {
     void navigator.clipboard?.writeText(sourceUrl);
     setNotice("Source URL copied.");
-  }
+  }, [sourceUrl]);
 
-  async function createShort(clipId: string) {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
-    setExportingClip(clipId);
-    setNotice("Creating your short...");
-    try {
-      await api.exportClip(token, clipId);
-      setNotice("Short rendering started. It will appear as downloadable when ready.");
-      await loadDashboard();
-    } catch (createError) {
-      setNotice(
-        createError instanceof Error ? createError.message : "Unable to create this short."
-      );
-    } finally {
-      setExportingClip(null);
-    }
-  }
+  const createShort = useCallback(
+    async (clipId: string) => {
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token) return;
+      setExportingClip(clipId);
+      setNotice("Creating your short...");
+      try {
+        await api.exportClip(token, clipId);
+        setNotice("Short rendering started. It will appear as downloadable when ready.");
+        await loadDashboard();
+      } catch (createError) {
+        setNotice(
+          createError instanceof Error ? createError.message : "Unable to create this short."
+        );
+      } finally {
+        setExportingClip(null);
+      }
+    },
+    [loadDashboard]
+  );
+
+  const clearVideoResults = useCallback(() => setVideoResults([]), []);
 
   return (
     <WorkspaceShell
       title="Channel Analytics"
       user={user}
       refreshing={refreshing}
-      onRefresh={() => void loadDashboard()}
+      onRefresh={loadDashboard}
       onSignOut={signOut}
     >
       {/* Bento Upper Grid (Hero Card + Pipeline Status) */}
@@ -186,7 +223,7 @@ export function PlaceholderDashboard() {
           clipCount={clips.length}
           renderedCount={totalClipsRendered}
           avgViralScore={avgViralScore}
-          onChangeSourceUrl={setSourceUrl}
+          onChangeSourceUrl={handleSourceUrlChange}
           onCopySourceUrl={copySource}
           onSubmitAutoCreate={handleAutoCreate}
         />
@@ -196,11 +233,11 @@ export function PlaceholderDashboard() {
         </div>
       </div>
 
-      {/* YouTube Video Search Results If Active */}
+      {/* YouTube Video Search Results If Active (Code-split dynamic component) */}
       <VideoSearchResults
         results={videoResults}
-        onSelect={(v) => void ingestSearchResult(v)}
-        onClear={() => setVideoResults([])}
+        onSelect={ingestSearchResult}
+        onClear={clearVideoResults}
       />
 
       {/* Bottom Table: "Your top videos in this period" */}
@@ -208,7 +245,7 @@ export function PlaceholderDashboard() {
         clips={recommendations}
         videos={videos}
         exportingClip={exportingClip}
-        onCreateShort={(clipId) => void createShort(clipId)}
+        onCreateShort={createShort}
       />
 
       {error && (
@@ -222,7 +259,7 @@ export function PlaceholderDashboard() {
       ) : (
         <div className="ca-secondary-shelves">
           <JobsShelf jobs={jobs} videos={videos} />
-          <ProductionShelf videos={videos.slice(0, 4)} clips={clips} />
+          <ProductionShelf videos={displayedVideos} clips={clips} />
         </div>
       )}
     </WorkspaceShell>

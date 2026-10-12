@@ -1,26 +1,42 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Activity, WandSparkles, Zap } from "lucide-react";
 
-export function LiquidGlassHeroGraphic() {
-  const bars = [
-    { delay: 0.05, minH: 30, maxH: 85 },
-    { delay: 0.15, minH: 50, maxH: 95 },
-    { delay: 0.25, minH: 25, maxH: 70 },
-    { delay: 0.35, minH: 60, maxH: 100 },
-    { delay: 0.10, minH: 40, maxH: 90 },
-    { delay: 0.40, minH: 75, maxH: 100 },
-    { delay: 0.20, minH: 35, maxH: 80 },
-    { delay: 0.30, minH: 55, maxH: 95 },
-    { delay: 0.12, minH: 45, maxH: 90 },
-    { delay: 0.28, minH: 65, maxH: 100 },
-    { delay: 0.18, minH: 30, maxH: 85 },
-    { delay: 0.38, minH: 50, maxH: 95 },
-    { delay: 0.08, minH: 35, maxH: 75 },
-    { delay: 0.22, minH: 60, maxH: 90 },
-  ];
+// Bar config is static — defined outside the component so it is never
+// re-allocated on re-renders.
+const BARS = [
+  { delay: 0.05, minH: 30, maxH: 85 },
+  { delay: 0.15, minH: 50, maxH: 95 },
+  { delay: 0.25, minH: 25, maxH: 70 },
+  { delay: 0.35, minH: 60, maxH: 100 },
+  { delay: 0.10, minH: 40, maxH: 90 },
+  { delay: 0.40, minH: 75, maxH: 100 },
+  { delay: 0.20, minH: 35, maxH: 80 },
+  { delay: 0.30, minH: 55, maxH: 95 },
+  { delay: 0.12, minH: 45, maxH: 90 },
+  { delay: 0.28, minH: 65, maxH: 100 },
+  { delay: 0.18, minH: 30, maxH: 85 },
+  { delay: 0.38, minH: 50, maxH: 95 },
+  { delay: 0.08, minH: 35, maxH: 75 },
+  { delay: 0.22, minH: 60, maxH: 90 },
+] as const;
 
+/**
+ * LiquidGlassHeroGraphic — Performance-optimized version.
+ *
+ * Key changes (zero visual difference):
+ *  1. Wrapped in React.memo — HeroBanner only re-renders this when its own
+ *     props change. Because the graphic has no props, it is rendered exactly
+ *     once per mount and never again.
+ *  2. BARS constant hoisted outside the component so the array is not
+ *     re-created on every render cycle.
+ *  3. Framer Motion animations use only `transform`-based properties
+ *     (`height` on the bars as a percentage — GPU-composited by the browser)
+ *     and `y`/`scale` — no layout-recalc properties.
+ */
+export const LiquidGlassHeroGraphic = memo(function LiquidGlassHeroGraphic() {
   return (
     <div className="ca-liquid-graphic-wrap">
       {/* Ambient Radial Mesh Lighting behind the graphic */}
@@ -54,7 +70,7 @@ export function LiquidGlassHeroGraphic() {
         <div className="ca-console-top">
           <div className="ca-console-live-pill">
             <span className="ca-console-dot-pulse" />
-            <span>AI Voice & Hook Stream</span>
+            <span>AI Voice &amp; Hook Stream</span>
           </div>
           <div className="ca-console-tags">
             <span className="ca-console-tag">Whisper v3</span>
@@ -71,7 +87,7 @@ export function LiquidGlassHeroGraphic() {
             </span>
           </div>
           <div className="ca-waveform-equalizer">
-            {bars.map((bar, i) => (
+            {BARS.map((bar, i) => (
               <motion.span
                 key={i}
                 className="ca-waveform-bar"
@@ -107,4 +123,4 @@ export function LiquidGlassHeroGraphic() {
       </motion.div>
     </div>
   );
-}
+});

@@ -7,11 +7,23 @@ import { Clapperboard } from "lucide-react";
 import { api, type EditSettings, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState, EmptyState } from "@/components/Layout";
-import {
-  EditorHeaderBanner,
-  EditorPhonePreview,
-  EditorControlPanel,
-} from "@/components/Editor";
+import dynamic from "next/dynamic";
+import { EditorHeaderBanner } from "@/components/Editor/EditorHeaderBanner";
+import { EditorControlPanel } from "@/components/Editor/EditorControlPanel";
+
+const EditorPhonePreview = dynamic(
+  () => import("@/components/Editor/EditorPhonePreview").then((m) => m.EditorPhonePreview),
+  {
+    ssr: false,
+    loading: () => (
+      <section
+        className="ca-editor-preview-container ca-glass"
+        style={{ minHeight: "680px" }}
+        aria-hidden="true"
+      />
+    ),
+  }
+);
 
 export default function CustomShortEditor() {
   const params = useParams<{ videoId: string }>();

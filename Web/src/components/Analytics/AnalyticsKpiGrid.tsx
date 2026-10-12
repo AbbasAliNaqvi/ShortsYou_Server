@@ -1,7 +1,8 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
-import { Eye, Gauge, Users, Zap } from "lucide-react";
+import { Eye, Gauge, Zap } from "lucide-react";
 import type { PerformanceAnalytics, Clip } from "@/lib/api";
 import { compactNumber } from "@/lib/formatters";
 import { AnalyticsKpiCard } from "./AnalyticsKpiCard";
@@ -13,7 +14,7 @@ export interface AnalyticsKpiGridProps {
   averageScore: number;
 }
 
-export function AnalyticsKpiGrid({
+export const AnalyticsKpiGrid = memo(function AnalyticsKpiGrid({
   clips,
   performance,
   totalViews,
@@ -58,17 +59,8 @@ export function AnalyticsKpiGrid({
         value={viralityIndex}
         note="Composite hook score"
         trend={correlationTrend}
-        trendType={performance?.pearsonR !== undefined ? "positive" : "neutral"}
-      />
-
-      <AnalyticsKpiCard
-        icon={Users}
-        label="Net Follower Conversion"
-        value="--"
-        note="Connect platform data"
-        trend="Pending"
         trendType="neutral"
       />
     </motion.section>
   );
-}
+});

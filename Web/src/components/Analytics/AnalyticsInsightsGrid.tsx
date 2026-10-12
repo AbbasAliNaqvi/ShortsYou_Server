@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Lightbulb, Sparkles, Target } from "lucide-react";
 import type { Clip } from "@/lib/api";
@@ -8,7 +9,7 @@ export interface AnalyticsInsightsGridProps {
   clips: Clip[];
 }
 
-export function AnalyticsInsightsGrid({ clips }: AnalyticsInsightsGridProps) {
+export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({ clips }: AnalyticsInsightsGridProps) {
   const insights = [
     {
       icon: Target,
@@ -77,4 +78,4 @@ export function AnalyticsInsightsGrid({ clips }: AnalyticsInsightsGridProps) {
       </div>
     </motion.section>
   );
-}
+});

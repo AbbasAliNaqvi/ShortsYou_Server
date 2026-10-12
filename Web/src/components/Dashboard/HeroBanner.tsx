@@ -1,11 +1,27 @@
 "use client";
 
-import { FormEvent } from "react";
+import { memo, type FormEvent } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { Bot } from "lucide-react";
-import { LiquidGlassHeroGraphic } from "./LiquidGlassHeroGraphic";
 import { IngestPanel } from "./IngestPanel";
 import { StatsOverview } from "./StatsOverview";
+
+// Dynamically import heavy client-only animated graphic with ssr: false
+// and lightweight layout-preserving skeleton to prevent CLS
+const LiquidGlassHeroGraphic = dynamic(
+  () => import("./LiquidGlassHeroGraphic").then((m) => m.LiquidGlassHeroGraphic),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="ca-liquid-graphic-wrap"
+        style={{ minHeight: "280px" }}
+        aria-hidden="true"
+      />
+    ),
+  }
+);
 
 export interface HeroBannerProps {
   sourceUrl: string;
@@ -21,7 +37,7 @@ export interface HeroBannerProps {
   onBrowseMetrics?: () => void;
 }
 
-export function HeroBanner({
+export const HeroBanner = memo(function HeroBanner({
   sourceUrl,
   notice,
   creating,
@@ -50,7 +66,7 @@ export function HeroBanner({
         </svg>
       </div>
 
-      {/* Liquid Glass AI Engine Graphic */}
+      {/* Liquid Glass AI Engine Graphic (Client-only code-split) */}
       <div className="ca-hero-visual-container" aria-hidden="true">
         <LiquidGlassHeroGraphic />
       </div>
@@ -97,4 +113,4 @@ export function HeroBanner({
       />
     </motion.div>
   );
-}
+});

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Activity, Bot, Download, Terminal, Video as VideoIcon, WandSparkles, Zap } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
@@ -13,7 +14,7 @@ export interface JobsShelfProps {
   onInspectLogs?: (job: Job) => void;
 }
 
-export function JobsShelf({ jobs, videos, onInspectLogs }: JobsShelfProps) {
+export const JobsShelf = memo(function JobsShelf({ jobs, videos, onInspectLogs }: JobsShelfProps) {
   const active = jobs.filter((job) => !["completed", "failed"].includes(job.status));
 
   function StageIcon({ stage }: { stage: string }) {
@@ -49,7 +50,7 @@ export function JobsShelf({ jobs, videos, onInspectLogs }: JobsShelfProps) {
               <div className="job-body">
                 <div className="job-thumb">
                   {video?.thumbnailUrl ? (
-                    <img src={video.thumbnailUrl} alt="" />
+                    <img src={video.thumbnailUrl} alt="" loading="lazy" />
                   ) : (
                     <Activity size={21} />
                   )}
@@ -77,4 +78,4 @@ export function JobsShelf({ jobs, videos, onInspectLogs }: JobsShelfProps) {
       )}
     </section>
   );
-}
+});

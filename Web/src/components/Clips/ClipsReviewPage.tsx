@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Clapperboard } from "lucide-react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { api, type Clip, type User, type Video } from "@/lib/api";
 import { WorkspaceShell } from "@/components/Layout";
-import {
-  ClipsHeroBanner,
-  ClipsMetricsOverview,
-  ClipsFilterBar,
-  ClipCard,
-} from "@/components/Clips";
+import { ClipsHeroBanner } from "./ClipsHeroBanner";
+import { ClipsMetricsOverview } from "./ClipsMetricsOverview";
+import { ClipsFilterBar } from "./ClipsFilterBar";
+import { ClipCard } from "./ClipCard";
 
 export function ClipsReviewPage() {
   const router = useRouter();
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [, startTransition] = useTransition();
+
   const [clips, setClips] = useState<Clip[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -22,10 +24,14 @@ export function ClipsReviewPage() {
   const [filter, setFilter] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [columnCount, setColumnCount] = useState(4);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     try {
       const [userResult, clipsResult, videosResult] = await Promise.all([
         api.me(token),
@@ -40,10 +46,23 @@ export function ClipsReviewPage() {
         error instanceof Error ? error.message : "Unable to refresh clips."
       );
     }
-  }
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => void refresh());
+  }, [refresh]);
+
+  // Responsive column detection for virtualized grid chunking
+  useEffect(() => {
+    const updateColumns = () => {
+      const width = parentRef.current?.offsetWidth ?? (typeof window !== "undefined" ? window.innerWidth - 120 : 1200);
+      // minmax(215px, 1fr) with 16px gap
+      const cols = Math.max(1, Math.floor((width + 16) / (215 + 16)));
+      setColumnCount(cols);
+    };
+    updateColumns();
+    window.addEventListener("resize", updateColumns, { passive: true });
+    return () => window.removeEventListener("resize", updateColumns);
   }, []);
 
   const visible = useMemo(
@@ -58,42 +77,58 @@ export function ClipsReviewPage() {
     [clips, filter]
   );
 
-  const videoFor = (clip: Clip) =>
-    videos.find((video) => video.id === clip.videoId);
+  // O(1) indexed video map lookup instead of O(N) Array.find on every card
+  const videoMap = useMemo(() => {
+    const map = new Map<string, Video>();
+    for (const v of videos) map.set(v.id, v);
+    return map;
+  }, [videos]);
 
-  async function exportClip(clipId: string) {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
-    setBusy(clipId);
-    setNotice("Queueing 4K export...");
-    try {
-      await api.exportClip(token, clipId);
-      setNotice("Export queued. The card will update after the worker finishes.");
-      await refresh();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Export failed.");
-    } finally {
-      setBusy(null);
-    }
-  }
+  const handleFilterChange = useCallback((newFilter: string) => {
+    startTransition(() => {
+      setFilter(newFilter);
+    });
+  }, []);
 
-  async function publishClip(clipId: string) {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) return;
-    setBusy(clipId);
-    setNotice("Publishing clip...");
-    try {
-      await api.publishClip(token, clipId);
-      setNotice("Clip published and analytics collection scheduled.");
-      await refresh();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Publish failed.");
-    } finally {
-      setBusy(null);
-    }
-  }
+  const exportClip = useCallback(
+    async (clipId: string) => {
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token) return;
+      setBusy(clipId);
+      setNotice("Queueing 4K export...");
+      try {
+        await api.exportClip(token, clipId);
+        setNotice("Export queued. The card will update after the worker finishes.");
+        await refresh();
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Export failed.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh]
+  );
 
-  async function downloadClip(clipId: string) {
+  const publishClip = useCallback(
+    async (clipId: string) => {
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token) return;
+      setBusy(clipId);
+      setNotice("Publishing clip...");
+      try {
+        await api.publishClip(token, clipId);
+        setNotice("Clip published and analytics collection scheduled.");
+        await refresh();
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Publish failed.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh]
+  );
+
+  const downloadClip = useCallback(async (clipId: string) => {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) return;
     setBusy(clipId);
@@ -107,40 +142,75 @@ export function ClipsReviewPage() {
     } finally {
       setBusy(null);
     }
-  }
+  }, []);
 
-  async function removeClip(clip: Clip) {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token || !window.confirm("Remove this clip?")) return;
-    setBusy(clip.id);
-    try {
-      await api.deleteClip(token, clip.id);
-      setSelected((ids) => ids.filter((id) => id !== clip.id));
-      setNotice("Clip removed.");
-      await refresh();
-    } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Could not remove the clip."
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
+  const removeClip = useCallback(
+    async (clip: Clip) => {
+      const token = localStorage.getItem("shortsyou_jwt");
+      if (!token || !window.confirm("Remove this clip?")) return;
+      setBusy(clip.id);
+      try {
+        await api.deleteClip(token, clip.id);
+        setSelected((ids) => ids.filter((id) => id !== clip.id));
+        setNotice("Clip removed.");
+        await refresh();
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not remove the clip."
+        );
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh]
+  );
 
-  async function publishSelected() {
+  const publishSelected = useCallback(async () => {
     for (const clipId of selected) await publishClip(clipId);
     setSelected([]);
-  }
+  }, [selected, publishClip]);
 
-  async function exportSelected() {
+  const exportSelected = useCallback(async () => {
     for (const clipId of selected) await exportClip(clipId);
     setSelected([]);
-  }
+  }, [selected, exportClip]);
 
-  function signOut() {
+  const signOut = useCallback(() => {
     localStorage.removeItem("shortsyou_jwt");
     router.push("/login");
-  }
+  }, [router]);
+
+  const toggleSelectClip = useCallback((clipId: string) => {
+    setSelected((current) =>
+      current.includes(clipId)
+        ? current.filter((id) => id !== clipId)
+        : [...current, clipId]
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelected((current) =>
+      current.length === visible.length ? [] : visible.map((clip) => clip.id)
+    );
+  }, [visible]);
+
+  // Chunk visible items into grid rows for row-level virtualization
+  const isVirtualized = visible.length > 8;
+  const chunkedRows = useMemo(() => {
+    if (!isVirtualized) return [];
+    const rows: Clip[][] = [];
+    for (let i = 0; i < visible.length; i += columnCount) {
+      rows.push(visible.slice(i, i + columnCount));
+    }
+    return rows;
+  }, [visible, columnCount, isVirtualized]);
+
+  const virtualizer = useWindowVirtualizer({
+    count: isVirtualized ? chunkedRows.length : 0,
+    estimateSize: () => 440,
+    overscan: 2,
+    scrollMargin: parentRef.current?.offsetTop ?? 0,
+  });
 
   return (
     <WorkspaceShell
@@ -168,41 +238,83 @@ export function ClipsReviewPage() {
         {/* Filter Toolbar & Select All */}
         <ClipsFilterBar
           filter={filter}
-          onFilterChange={setFilter}
+          onFilterChange={handleFilterChange}
           allSelected={selected.length === visible.length && visible.length > 0}
-          onToggleSelectAll={() =>
-            setSelected(
-              selected.length === visible.length
-                ? []
-                : visible.map((clip) => clip.id)
-            )
-          }
+          onToggleSelectAll={toggleSelectAll}
           totalCount={clips.length}
         />
 
-        {/* Main Clips Grid */}
+        {/* Main Clips Grid with window-level row virtualization */}
         {visible.length > 0 ? (
-          <div className="ca-clips-grid">
-            {visible.map((clip, index) => (
-              <ClipCard
-                key={clip.id}
-                clip={clip}
-                video={videoFor(clip)}
-                selected={selected.includes(clip.id)}
-                busy={busy === clip.id}
-                onSelect={() =>
-                  setSelected((current) =>
-                    current.includes(clip.id)
-                      ? current.filter((id) => id !== clip.id)
-                      : [...current, clip.id]
-                  )
-                }
-                onExport={() => void exportClip(clip.id)}
-                onDownload={() => void downloadClip(clip.id)}
-                onDelete={() => void removeClip(clip)}
-                index={index}
-              />
-            ))}
+          <div ref={parentRef}>
+            {isVirtualized ? (
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const rowClips = chunkedRows[virtualRow.index] ?? [];
+                  const startIndex = virtualRow.index * columnCount;
+
+                  return (
+                    <div
+                      key={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${
+                          virtualRow.start - (virtualizer.options.scrollMargin ?? 0)
+                        }px)`,
+                      }}
+                    >
+                      <div className="ca-clips-grid" style={{ marginBottom: "16px" }}>
+                        {rowClips.map((clip, colIndex) => {
+                          const globalIndex = startIndex + colIndex;
+                          return (
+                            <ClipCard
+                              key={clip.id}
+                              clip={clip}
+                              video={videoMap.get(clip.videoId)}
+                              selected={selected.includes(clip.id)}
+                              busy={busy === clip.id}
+                              onSelect={() => toggleSelectClip(clip.id)}
+                              onExport={() => void exportClip(clip.id)}
+                              onDownload={() => void downloadClip(clip.id)}
+                              onDelete={() => void removeClip(clip)}
+                              index={globalIndex}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="ca-clips-grid">
+                {visible.map((clip, index) => (
+                  <ClipCard
+                    key={clip.id}
+                    clip={clip}
+                    video={videoMap.get(clip.videoId)}
+                    selected={selected.includes(clip.id)}
+                    busy={busy === clip.id}
+                    onSelect={() => toggleSelectClip(clip.id)}
+                    onExport={() => void exportClip(clip.id)}
+                    onDownload={() => void downloadClip(clip.id)}
+                    onDelete={() => void removeClip(clip)}
+                    index={index}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="ca-clips-empty-canvas ca-glass">

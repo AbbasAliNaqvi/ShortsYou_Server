@@ -7,11 +7,16 @@ import { motion } from "framer-motion";
 import { api, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
+import dynamic from "next/dynamic";
 import {
   VideosIntroBanner,
   VideoSection,
-  VideoCreationModal,
 } from "@/components/Videos";
+
+const VideoCreationModal = dynamic(
+  () => import("@/components/Videos/VideoCreationModal").then((m) => m.VideoCreationModal),
+  { ssr: false }
+);
 
 export default function VideosPage() {
   const router = useRouter();
@@ -31,6 +36,7 @@ export default function VideosPage() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       setLoading(false);
+      router.replace("/login");
       return;
     }
     try {

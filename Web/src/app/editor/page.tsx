@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type User, type Video } from "@/lib/api";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
-import { EditorPickerHero, EditorVideoPickerGrid } from "@/components/Editor";
+import { EditorPickerHero } from "@/components/Editor/EditorPickerHero";
+import { EditorVideoPickerGrid } from "@/components/Editor/EditorVideoPickerGrid";
 
 export default function EditorVideoPicker() {
   const router = useRouter();
