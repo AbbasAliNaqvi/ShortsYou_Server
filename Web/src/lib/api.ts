@@ -1,4 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1"
+    ? "https://shortsyou-server.onrender.com"
+    : "http://localhost:5050");
 
 export type ApiRequestOptions = RequestInit & { token?: string };
 export type ApiEnvelope<T> = { success: boolean; data: T; error?: string };
@@ -33,6 +39,7 @@ export async function apiRequest<T>(
 
 export const api = {
   health: () => apiRequest<Health>("/health"),
+  version: () => apiRequest<VersionInfo>("/version"),
   me: (token: string) => apiRequest<User>("/api/v1/auth/me", { token }),
   videos: (token: string, sort?: string) =>
     apiRequest<Video[]>(`/api/v1/videos${sort ? `?sort=${encodeURIComponent(sort)}` : ""}`, { token }),
@@ -110,6 +117,20 @@ export const api = {
       { method: "PUT", body: JSON.stringify({ name }), token },
     ),
   clips: (token: string) => apiRequest<Clip[]>("/api/v1/clips", { token }),
+  dailyReels: (token: string) =>
+    apiRequest<DailyReel[]>("/api/v1/clips/daily-reels", { token }),
+  autoCompose: (token: string, videoId: string) =>
+    apiRequest<AutoComposeResult>("/api/v1/editor/auto-compose", {
+      method: "POST",
+      body: JSON.stringify({ videoId }),
+      token,
+    }),
+  generateHooks: (token: string, videoId?: string, clipText?: string, tone?: string) =>
+    apiRequest<HookVariation[]>("/api/v1/editor/generate-hooks", {
+      method: "POST",
+      body: JSON.stringify({ videoId, clipText, tone }),
+      token,
+    }),
   pendingClips: (token: string) =>
     apiRequest<ClipCollection>("/api/v1/clips/pending", { token }),
   approvedClips: (token: string) =>
@@ -133,16 +154,16 @@ export const api = {
     apiRequest<Job>(`/api/v1/jobs/${encodeURIComponent(jobId)}`, { token }),
   exportClip: (token: string, clipId: string) =>
     apiRequest<{ clipId: string; status: string }>(
-      `/api/v1/clips/${clipId}/export`,
+      `/api/v1/clips/${encodeURIComponent(clipId)}/export`,
       { method: "POST", token },
     ),
   publishClip: (token: string, clipId: string) =>
     apiRequest<{ clipId: string; status: string }>(
-      `/api/v1/clips/${clipId}/published`,
+      `/api/v1/clips/${encodeURIComponent(clipId)}/published`,
       { method: "POST", token },
     ),
   downloadClip: (token: string, clipId: string) =>
-    apiRequest<{ downloadUrl: string }>(`/api/v1/clips/${clipId}/download`, {
+    apiRequest<{ downloadUrl: string }>(`/api/v1/clips/${encodeURIComponent(clipId)}/download`, {
       token,
     }),
   updateClip: (
@@ -152,7 +173,7 @@ export const api = {
       editSettings?: EditSettings;
     },
   ) =>
-    apiRequest<Clip>(`/api/v1/clips/${clipId}`, {
+    apiRequest<Clip>(`/api/v1/clips/${encodeURIComponent(clipId)}`, {
       method: "PATCH",
       body: JSON.stringify(update),
       token,
@@ -165,18 +186,20 @@ export const api = {
     dna: (token: string) =>
       apiRequest<CreatorDNA>("/api/v1/analytics/dna", { token }),
     generateDNA: (token: string, sync = false) =>
-      apiRequest<{ accepted: boolean; userId: string }>(
+      apiRequest<CreatorDNA>(
         `/api/v1/analytics/dna/generate${sync ? "/sync" : ""}`,
         { method: "POST", token },
       ),
     knowledgeGraph: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/knowledge-graph", { token }),
+      apiRequest<KnowledgeGraphResponse>("/api/v1/analytics/knowledge-graph", { token }),
     contentGaps: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/content-gaps", { token }),
+      apiRequest<ContentGapsResponse>("/api/v1/analytics/content-gaps", { token }),
     personas: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/personas", { token }),
+      apiRequest<AudiencePersonasResponse>("/api/v1/analytics/personas", { token }),
+    trendForecast: (token: string) =>
+      apiRequest<TrendForecastResponse>("/api/v1/analytics/trend-forecast", { token }),
     trends: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/trend-forecast", { token }),
+      apiRequest<TrendForecastResponse>("/api/v1/analytics/trend-forecast", { token }),
     performance: (token: string) =>
       apiRequest<PerformanceAnalytics>("/api/v1/analytics/performance", {
         token,
@@ -184,7 +207,11 @@ export const api = {
     modelAccuracy: (token: string) =>
       apiRequest<ModelAccuracy>("/api/v1/analytics/model-accuracy", { token }),
     abTests: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/ab-tests", { token }),
+      apiRequest<ABTestsResponse>("/api/v1/analytics/ab-tests", { token }),
+  },
+  admin: {
+    keyHealth: (token: string) =>
+      apiRequest<AdminKeyHealthResponse>("/api/v1/admin/key-health", { token }),
   },
 };
 
@@ -193,6 +220,14 @@ export type Health = {
   uptime: string;
   runtime: string;
   dependencies: Record<string, { status: string; error?: string }>;
+};
+
+export type VersionInfo = {
+  version: string;
+  buildTime: string;
+  runtime: string;
+  os: string;
+  arch: string;
 };
 
 export type User = {
@@ -343,14 +378,57 @@ export type PerformanceAnalytics = {
   n: number;
 };
 export type CreatorDNA = {
+  id?: string;
+  userId?: string;
   ready?: boolean;
   message?: string;
   topicDistribution?: { topic: string; label: string; weight: number }[];
-  emotionalRange?: { dominantEmotion?: string; mean?: number; min?: number; max?: number };
-  speechProfile?: { avgWpm?: number; pauseFrequency?: number; emphasisFrequency?: number };
-  vocabularyProfile?: { topWords?: string[]; avgSentenceLength?: number; readabilityScore?: number };
+  emotionalRange?: {
+    dominantEmotion?: string;
+    mean?: number;
+    std?: number;
+    min?: number;
+    max?: number;
+  };
+  speechProfile?: {
+    avgWpm?: number;
+    pauseFrequency?: number;
+    emphasisFrequency?: number;
+    avgSegmentLength?: number;
+  };
+  vocabularyProfile?: {
+    topWords?: string[];
+    avgSentenceLength?: number;
+    readabilityScore?: number;
+  };
+  contentGaps?: {
+    topic: string;
+    demandScore: number;
+    trendScore: number;
+    gapScore: number;
+    opportunityScore: number;
+  }[];
+  topicGraph?: {
+    nodes: {
+      id: string;
+      label: string;
+      clipCount: number;
+      isGap: boolean;
+      isTrending: boolean;
+      weight: number;
+    }[];
+    edges: { source: string; target: string; weight: number }[];
+  };
+  featureImportances?: {
+    feature: string;
+    meanAbsSHAP: number;
+    featureType: string;
+  }[];
   dnaVector?: number[];
+  evergreensRatio?: number;
+  avgHookScore?: number;
   lastUpdatedAt?: string;
+  createdAt?: string;
 };
 export type ModelAccuracy = {
   accuracyHistory: { date?: string; accuracy?: number; value?: number }[];
@@ -362,3 +440,177 @@ export type ModelAccuracy = {
   labeledSamples: number;
   modelReady: boolean;
 };
+
+export interface DailyReel {
+  id: string;
+  videoId: string;
+  videoTitle: string;
+  thumbnailUrl: string;
+  startTime: number;
+  endTime: number;
+  durationSeconds: number;
+  hookText: string;
+  viralScore: number;
+  category: string;
+  status: string;
+  reasoning: string;
+  playableUrl?: string;
+}
+
+export interface AutoComposeResult {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  hookText: string;
+  captionStyle: "bold" | "karaoke" | "minimal";
+  colorGrade: string;
+  musicMood: string;
+  backgroundStyle: string;
+  layout?: "standard" | "two_frame" | "multi_face" | "auto_face";
+  reasoning: string;
+}
+
+export interface HookVariation {
+  tone: string;
+  text: string;
+}
+
+export interface ContentGap {
+  topic: string;
+  demandScore: number;
+  trendScore: number;
+  gapScore: number;
+  opportunityScore: number;
+}
+
+export interface ContentGapsResponse {
+  gaps: ContentGap[];
+}
+
+export interface TopicGraphNode {
+  id: string;
+  label: string;
+  clipCount: number;
+  isGap: boolean;
+  isTrending: boolean;
+  weight: number;
+}
+
+export interface TopicGraphEdge {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface KnowledgeGraphResponse {
+  nodes: TopicGraphNode[];
+  edges: TopicGraphEdge[];
+  contentGaps?: ContentGap[];
+}
+
+export interface VocabWord {
+  word: string;
+  tfidfScore: number;
+}
+
+export interface SentimentProfile {
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
+export interface Persona {
+  personaId: string;
+  name: string;
+  commentCount: number;
+  percentOfAudience: number;
+  vocabulary: VocabWord[];
+  questionTypes: string[];
+  sentimentProfile: SentimentProfile;
+  engagementRate: number;
+  topEngagedCategories: string[];
+}
+
+export interface ClusterMetrics {
+  silhouetteScore: number;
+  nClusters: number;
+}
+
+export interface AudiencePersonasResponse {
+  id?: string;
+  userId?: string;
+  personas: Persona[];
+  clusterMetrics?: ClusterMetrics | null;
+  lastUpdatedAt?: string;
+  createdAt?: string;
+}
+
+export interface TrendPoint {
+  date: string;
+  interestScore: number;
+}
+
+export interface ForecastPoint {
+  date: string;
+  predictedScore: number;
+  lower95: number;
+  upper95: number;
+}
+
+export interface MatchedClip {
+  clipId: string;
+  title: string;
+  similarityScore: number;
+}
+
+export interface TrendForecast {
+  id?: string;
+  userId?: string;
+  topic: string;
+  historicalData: TrendPoint[];
+  forecast: ForecastPoint[];
+  peakPredictionDate?: string;
+  peakPredictedScore?: number;
+  matchedClips?: MatchedClip[];
+  forecastGeneratedAt?: string;
+  nextUpdateAt?: string;
+  createdAt?: string;
+}
+
+export interface TrendForecastResponse {
+  forecasts: TrendForecast[];
+}
+
+export interface ABExperiment {
+  id: string;
+  userId: string;
+  clipId: string;
+  originalHook: string;
+  generatedHook: string;
+  originalCtr: number;
+  generatedCtr: number;
+  nOriginal: number;
+  nGenerated: number;
+  tStatistic: number;
+  isSignificant: boolean;
+  liftPercent: number;
+  status: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface ABTestsResponse {
+  experiments: ABExperiment[];
+}
+
+export interface LLMKeyStatus {
+  provider: string;
+  keyIndex: number;
+  status: string;
+  rateLimitRemaining?: number;
+  lastUsed?: string;
+}
+
+export interface AdminKeyHealthResponse {
+  keys: LLMKeyStatus[];
+}

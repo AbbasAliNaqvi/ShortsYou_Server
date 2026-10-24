@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Music2, ScanFace, Subtitles } from "lucide-react";
-import type { EditSettings } from "@/lib/api";
+import { useState } from "react";
+import { Check, Music2, ScanFace, Subtitles, Sparkles, Wand2, Lightbulb, Loader2 } from "lucide-react";
+import type { EditSettings, HookVariation } from "@/lib/api";
 
 const layouts = [
   ["standard", "Smart portrait", "One focused speaker, intelligently framed."],
@@ -16,6 +17,10 @@ export interface EditorControlPanelProps {
   hook: string;
   onUpdate: <K extends keyof EditSettings>(key: K, value: EditSettings[K]) => void;
   onSetHook: (val: string) => void;
+  onAutoCompose?: () => Promise<void>;
+  composing?: boolean;
+  composeReasoning?: string;
+  onFetchHookVariations?: () => Promise<HookVariation[]>;
 }
 
 export function EditorControlPanel({
@@ -24,9 +29,74 @@ export function EditorControlPanel({
   hook,
   onUpdate,
   onSetHook,
+  onAutoCompose,
+  composing = false,
+  composeReasoning = "",
+  onFetchHookVariations,
 }: EditorControlPanelProps) {
+  const [hookVariations, setHookVariations] = useState<HookVariation[]>([]);
+  const [loadingHooks, setLoadingHooks] = useState(false);
+
+  async function handleLoadHooks() {
+    if (!onFetchHookVariations) return;
+    setLoadingHooks(true);
+    try {
+      const vars = await onFetchHookVariations();
+      setHookVariations(vars);
+    } catch {
+      // handled upstream
+    } finally {
+      setLoadingHooks(false);
+    }
+  }
+
   return (
     <aside className="ca-editor-controls-panel">
+      {/* 0. AI Agentic Auto-Tune Action Bar */}
+      {onAutoCompose && (
+        <section className="ca-editor-control-card ca-glass ca-ai-agentic-card">
+          <div className="ca-control-card-header">
+            <div className="ca-control-icon-wrap ca-ai-glow-icon">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="ca-control-card-title">AI Agentic Director</h2>
+              <span className="ca-control-card-sub">Autonomous pacing, hook & style tuning</span>
+            </div>
+          </div>
+
+          <p className="ca-control-note">
+            Let the AI Agent analyze this footage, find the peak retention moment, generate a viral hook, and configure optimal styling.
+          </p>
+
+          <button
+            type="button"
+            className={`ca-ai-magic-btn ${composing ? "loading" : ""}`}
+            disabled={composing}
+            onClick={() => void onAutoCompose()}
+          >
+            {composing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>AI Agent Tuning Short…</span>
+              </>
+            ) : (
+              <>
+                <Wand2 size={16} />
+                <span>Auto-Compose with AI Agent</span>
+              </>
+            )}
+          </button>
+
+          {composeReasoning && (
+            <div className="ca-ai-reasoning-pill">
+              <Sparkles size={13} className="text-amber-400" />
+              <span>{composeReasoning}</span>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* 1. Frame People Layout */}
       <section className="ca-editor-control-card ca-glass">
         <div className="ca-control-card-header">
@@ -83,7 +153,24 @@ export function EditorControlPanel({
         <label className="ca-editor-field-label">
           <div className="ca-field-label-row">
             <span>Opening Hook Headline</span>
-            <small>{hook.length}/100</small>
+            <div className="ca-field-hook-actions">
+              {onFetchHookVariations && (
+                <button
+                  type="button"
+                  className="ca-ai-suggest-hook-btn"
+                  onClick={handleLoadHooks}
+                  disabled={loadingHooks}
+                >
+                  {loadingHooks ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Lightbulb size={12} />
+                  )}
+                  <span>AI Hook Ideas</span>
+                </button>
+              )}
+              <small>{hook.length}/100</small>
+            </div>
           </div>
           <input
             type="text"
@@ -95,6 +182,27 @@ export function EditorControlPanel({
           />
         </label>
 
+        {/* AI Suggested Hook Chips */}
+        {hookVariations.length > 0 && (
+          <div className="ca-ai-hook-chips-wrap">
+            <span className="ca-hook-chips-label">Click to apply AI hook:</span>
+            <div className="ca-hook-chips-list">
+              {hookVariations.map((v, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  className="ca-hook-chip-btn"
+                  onClick={() => onSetHook(v.text)}
+                  title={`Tone: ${v.tone}`}
+                >
+                  <span className="ca-chip-tone">{v.tone}:</span>
+                  <span className="ca-chip-text">&ldquo;{v.text}&rdquo;</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <p className="ca-control-note">
           The opening hook is a prominent headline shown for the first three seconds. Spoken captions
           come from your saved transcription.
@@ -103,7 +211,7 @@ export function EditorControlPanel({
         <div className="ca-choice-row-wrap">
           <span className="ca-choice-row-label">Caption Style</span>
           <div className="ca-choice-pill-group">
-            {(["bold", "karaoke", "minimal"] as const).map((value) => (
+            {(["karaoke", "bold", "minimal"] as const).map((value) => (
               <button
                 type="button"
                 key={value}
@@ -155,10 +263,10 @@ export function EditorControlPanel({
           <span className="ca-choice-row-label">Color Grade Filter</span>
           <div className="ca-choice-pill-group">
             {[
-              "warm",
-              "cool",
               "vibrant",
+              "warm",
               "cinematic",
+              "cool",
               "natural",
             ].map((value) => (
               <button
@@ -177,11 +285,12 @@ export function EditorControlPanel({
           <span>Canvas Background</span>
           <select
             className="ca-editor-select"
-            value={settings.backgroundStyle}
+            value={settings.backgroundStyle || "crop"}
             onChange={(e) => onUpdate("backgroundStyle", e.target.value)}
           >
             {[
-              ["blur", "Liquid Blur"],
+              ["crop", "Full 9:16 Vertical (Recommended)"],
+              ["blur", "Liquid Blur Letterbox"],
               ["dark_gradient", "Dark Gradient"],
               ["original", "Original Crop"],
               ["brand_color", "Brand Tint"],
@@ -194,10 +303,10 @@ export function EditorControlPanel({
         </label>
 
         <p className="ca-control-note">
-          Pause and filler cutting are disabled here because cuts made after transcription shift
-          word timestamps. Keeping the source timing intact makes exported captions frame-accurate.
+          Full 9:16 Vertical centers and scales the footage to native vertical video without blurry letterbox bars.
         </p>
       </section>
     </aside>
   );
 }
+

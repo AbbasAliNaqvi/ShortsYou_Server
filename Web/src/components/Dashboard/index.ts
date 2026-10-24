@@ -7,4 +7,5 @@ export * from "./VideoSearchResults";
 export * from "./RecommendationsTable";
 export * from "./JobsShelf";
 export * from "./ProductionShelf";
+export * from "./DailyReelsShelf";
 export * from "./PlaceholderDashboard";

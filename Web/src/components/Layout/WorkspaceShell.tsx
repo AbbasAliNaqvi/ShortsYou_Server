@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceHeader, type WorkspaceHeaderProps } from "./WorkspaceHeader";
 import { LoadingState } from "./LoadingState";
-import { CreatorPointer } from "./CreatorPointer";
 
 export interface WorkspaceShellProps extends WorkspaceHeaderProps {
   children: ReactNode;
@@ -51,6 +50,17 @@ export const WorkspaceShell = memo(function WorkspaceShell({
     }
   }, [router]);
 
+  useEffect(() => {
+    if (headerProps.user && typeof window !== "undefined") {
+      try {
+        localStorage.setItem("shortsyou_user", JSON.stringify(headerProps.user));
+        window.dispatchEvent(
+          new CustomEvent("shortsyou_user_updated", { detail: headerProps.user })
+        );
+      } catch {}
+    }
+  }, [headerProps.user]);
+
   const handleRefresh = useCallback(() => {
     if (!onRefresh) return;
     startTransition(() => {
@@ -69,8 +79,6 @@ export const WorkspaceShell = memo(function WorkspaceShell({
 
   return (
     <main className="workspace-page ca-canvas-container">
-      <CreatorPointer />
-
       <div className="workspace-main ca-main-viewport">
         {/* Upper Header Bar & Controls */}
         <WorkspaceHeader {...headerProps} onRefresh={handleRefresh} />

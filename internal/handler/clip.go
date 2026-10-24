@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/aitools"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
@@ -19,10 +20,12 @@ import (
 )
 
 type ClipHandler struct {
-	clipRepo  *repository.ClipRepository
-	videoRepo *repository.VideoRepository
-	queue     *queue.Client
-	supabase  *storage.SupabaseClient
+	clipRepo       *repository.ClipRepository
+	videoRepo      *repository.VideoRepository
+	transcriptRepo *repository.TranscriptRepository
+	queue          *queue.Client
+	supabase       *storage.SupabaseClient
+	aiTools        *aitools.Engine
 }
 
 type manualClipRequest struct {
@@ -110,14 +113,18 @@ func allowedEditOption(value string, options ...string) bool {
 func NewClipHandler(
 	clipRepo *repository.ClipRepository,
 	videoRepo *repository.VideoRepository,
+	transcriptRepo *repository.TranscriptRepository,
 	queueClient *queue.Client,
 	supabase *storage.SupabaseClient,
+	aiTools *aitools.Engine,
 ) *ClipHandler {
 	return &ClipHandler{
-		clipRepo:  clipRepo,
-		videoRepo: videoRepo,
-		queue:     queueClient,
-		supabase:  supabase,
+		clipRepo:       clipRepo,
+		videoRepo:      videoRepo,
+		transcriptRepo: transcriptRepo,
+		queue:          queueClient,
+		supabase:       supabase,
+		aiTools:        aiTools,
 	}
 }
 
@@ -797,4 +804,235 @@ func (h *ClipHandler) ListApprovedClips(c *gin.Context) {
 		"clips": clips,
 		"count": len(clips),
 	})
+}
+
+type DailyReelItem struct {
+	ID              string              `json:"id"`
+	VideoID         string              `json:"videoId"`
+	VideoTitle      string              `json:"videoTitle"`
+	ThumbnailURL    string              `json:"thumbnailUrl"`
+	StartTime       float64             `json:"startTime"`
+	EndTime         float64             `json:"endTime"`
+	DurationSeconds float64             `json:"durationSeconds"`
+	HookText        string              `json:"hookText"`
+	ViralScore      float64             `json:"viralScore"`
+	Category        models.ClipCategory `json:"category"`
+	Status          models.ClipStatus   `json:"status"`
+	Reasoning       string              `json:"reasoning"`
+	PlayableURL     string              `json:"playableUrl,omitempty"`
+}
+
+// GET /api/v1/clips/daily-reels
+func (h *ClipHandler) GetDailyReels(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+
+	ctx := c.Request.Context()
+	clips, err := h.clipRepo.FindByUserID(ctx, userID, 100, 0)
+	if err != nil {
+		clips = []models.Clip{}
+	}
+
+	// Sort clips by ViralScore descending
+	userClips := make([]models.Clip, len(clips))
+	copy(userClips, clips)
+	for i := 0; i < len(userClips)-1; i++ {
+		for j := i + 1; j < len(userClips); j++ {
+			if userClips[j].ViralScore > userClips[i].ViralScore {
+				userClips[i], userClips[j] = userClips[j], userClips[i]
+			}
+		}
+	}
+
+	// Load user videos for title & thumbnail resolution
+	videos, _ := h.videoRepo.FindByUserID(ctx, userID, 50, 0)
+	videoMap := make(map[string]models.Video)
+	for _, v := range videos {
+		videoMap[v.ID.Hex()] = v
+	}
+
+	daily := make([]DailyReelItem, 0, 5)
+
+	for _, clip := range userClips {
+		if len(daily) >= 5 {
+			break
+		}
+		v := videoMap[clip.VideoID.Hex()]
+		title := v.Title
+		if title == "" {
+			title = "Viral Short Candidate"
+		}
+		thumb := clip.SelectedThumbnail
+		if thumb == "" && len(clip.ThumbnailOptions) > 0 {
+			thumb = clip.ThumbnailOptions[0]
+		}
+		if thumb == "" {
+			thumb = v.ThumbnailURL
+		}
+
+		hook := clip.SelectedHook
+		if hook == "" || hook == "Your strongest moment starts here" {
+			hook = clip.OriginalHook
+		}
+		if hook == "" {
+			hook = title
+		}
+
+		reason := fmt.Sprintf("High viral potential with %.1f retention score.", clip.ViralScore*100)
+		if clip.Scores.Emotion > 0.75 {
+			reason = "Strong emotional peak and curiosity-inducing hook."
+		}
+
+		daily = append(daily, DailyReelItem{
+			ID:              clip.ID.Hex(),
+			VideoID:         clip.VideoID.Hex(),
+			VideoTitle:      title,
+			ThumbnailURL:    thumb,
+			StartTime:       clip.StartTime,
+			EndTime:         clip.EndTime,
+			DurationSeconds: clip.DurationSeconds,
+			HookText:        hook,
+			ViralScore:      clip.ViralScore,
+			Category:        clip.Category,
+			Status:          clip.Status,
+			Reasoning:       reason,
+			PlayableURL:     clip.SupabaseShortURL,
+		})
+	}
+
+	// If fewer than 5 clips exist, auto-synthesize recommendations from user videos
+	if len(daily) < 5 && len(videos) > 0 {
+		for _, v := range videos {
+			if len(daily) >= 5 {
+				break
+			}
+			// Check if video already in daily
+			alreadyIn := false
+			for _, item := range daily {
+				if item.VideoID == v.ID.Hex() {
+					alreadyIn = true
+					break
+				}
+			}
+			if alreadyIn {
+				continue
+			}
+
+			maxDur := 30.0
+			if v.DurationSeconds > 0 && float64(v.DurationSeconds) < maxDur {
+				maxDur = float64(v.DurationSeconds)
+			}
+
+			daily = append(daily, DailyReelItem{
+				ID:              primitive.NewObjectID().Hex(),
+				VideoID:         v.ID.Hex(),
+				VideoTitle:      v.Title,
+				ThumbnailURL:    v.ThumbnailURL,
+				StartTime:       0.0,
+				EndTime:         maxDur,
+				DurationSeconds: maxDur,
+				HookText:        v.Title,
+				ViralScore:      0.92,
+				Category:        models.CategoryViral,
+				Status:          models.ClipStatusDetected,
+				Reasoning:       "AI Agent recommended from your uploaded footage.",
+			})
+		}
+	}
+
+	response.OK(c, daily)
+}
+
+type autoComposeRequest struct {
+	VideoID string `json:"videoId" binding:"required"`
+}
+
+// POST /api/v1/editor/auto-compose
+func (h *ClipHandler) AutoCompose(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+
+	var req autoComposeRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.VideoID == "" {
+		response.BadRequest(c, "videoId is required")
+		return
+	}
+
+	videoOID, err := primitive.ObjectIDFromHex(req.VideoID)
+	if err != nil {
+		response.BadRequest(c, "invalid videoId")
+		return
+	}
+
+	video, err := h.videoRepo.FindByIDAndUserID(c.Request.Context(), videoOID, userID)
+	if err != nil || video == nil {
+		response.NotFound(c, "video")
+		return
+	}
+
+	// Load transcript if available
+	snippet := ""
+	if h.transcriptRepo != nil {
+		t, _ := h.transcriptRepo.FindByVideoID(c.Request.Context(), video.ID.Hex())
+		if t != nil && len(t.Segments) > 0 {
+			var b strings.Builder
+			for i, s := range t.Segments {
+				if i >= 15 {
+					break
+				}
+				b.WriteString(s.Text)
+				b.WriteString(" ")
+			}
+			snippet = b.String()
+		}
+	}
+
+	if snippet == "" {
+		snippet = video.Description
+	}
+
+	res := h.aiTools.AutoComposeClip(
+		c.Request.Context(),
+		video.Title,
+		snippet,
+		float64(video.DurationSeconds),
+	)
+
+	response.OK(c, res)
+}
+
+type generateHooksRequest struct {
+	VideoID  string `json:"videoId"`
+	ClipText string `json:"clipText"`
+	Tone     string `json:"tone"`
+}
+
+// POST /api/v1/editor/generate-hooks
+func (h *ClipHandler) GenerateHooks(c *gin.Context) {
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+
+	var req generateHooksRequest
+	_ = c.ShouldBindJSON(&req)
+
+	title := ""
+	if req.VideoID != "" {
+		if vID, err := primitive.ObjectIDFromHex(req.VideoID); err == nil {
+			if v, err := h.videoRepo.FindByIDAndUserID(c.Request.Context(), vID, userID); err == nil && v != nil {
+				title = v.Title
+			}
+		}
+	}
+
+	vars := h.aiTools.GenerateViralHookVariations(c.Request.Context(), title, req.ClipText)
+	response.OK(c, vars)
 }

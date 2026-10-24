@@ -3,6 +3,7 @@ import { Hanken_Grotesk, JetBrains_Mono, Playfair_Display } from "next/font/goog
 import "./globals.css";
 import { AppNav } from "@/components/Navigation/AppNav";
 import { NotificationCenter } from "@/components/Notifications/NotificationCenter";
+import { CreatorPointer } from "@/components/Layout/CreatorPointer";
 
 const hanken = Hanken_Grotesk({
   variable: "--font-hanken",
@@ -31,7 +32,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${hanken.variable} ${playfair.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><AppNav /><NotificationCenter />{children}</body>
+      <body className="min-h-full flex flex-col">
+        <CreatorPointer />
+        <AppNav />
+        <NotificationCenter />
+        {children}
+      </body>
     </html>
   );
 }

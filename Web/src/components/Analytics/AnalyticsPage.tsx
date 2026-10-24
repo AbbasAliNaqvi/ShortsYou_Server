@@ -3,7 +3,18 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { api, type Clip, type CreatorDNA, type PerformanceAnalytics, type User } from "@/lib/api";
+import {
+  api,
+  type ABExperiment,
+  type AudiencePersonasResponse,
+  type Clip,
+  type ContentGap,
+  type CreatorDNA,
+  type ModelAccuracy,
+  type PerformanceAnalytics,
+  type TrendForecast,
+  type User,
+} from "@/lib/api";
 import { WorkspaceShell } from "@/components/Layout";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { AnalyticsHeroBanner } from "./AnalyticsHeroBanner";
@@ -50,6 +61,11 @@ export function AnalyticsPage() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [performance, setPerformance] = useState<PerformanceAnalytics | null>(null);
   const [dna, setDna] = useState<CreatorDNA | null>(null);
+  const [contentGaps, setContentGaps] = useState<ContentGap[]>([]);
+  const [personas, setPersonas] = useState<AudiencePersonasResponse | null>(null);
+  const [forecasts, setForecasts] = useState<TrendForecast[]>([]);
+  const [accuracy, setAccuracy] = useState<ModelAccuracy | null>(null);
+  const [abTests, setAbTests] = useState<ABExperiment[]>([]);
   const [busy, setBusy] = useState(true);
   const [dnaBusy, setDnaBusy] = useState(false);
   const [range, setRange] = useState("7d");
@@ -62,17 +78,37 @@ export function AnalyticsPage() {
       return;
     }
     setBusy(true);
-    const [userResult, clipsResult, performanceResult, dnaResult] = await Promise.allSettled([
+    const [
+      userResult,
+      clipsResult,
+      performanceResult,
+      dnaResult,
+      gapsResult,
+      personasResult,
+      forecastResult,
+      accuracyResult,
+      abResult,
+    ] = await Promise.allSettled([
       api.me(token),
       api.clips(token),
       api.analytics.performance(token),
       api.analytics.dna(token),
+      api.analytics.contentGaps(token),
+      api.analytics.personas(token),
+      api.analytics.trendForecast(token),
+      api.analytics.modelAccuracy(token),
+      api.analytics.abTests(token),
     ]);
 
     if (userResult.status === "fulfilled") setUser(userResult.value);
     if (clipsResult.status === "fulfilled") setClips(clipsResult.value);
     if (performanceResult.status === "fulfilled") setPerformance(performanceResult.value);
     if (dnaResult.status === "fulfilled") setDna(dnaResult.value);
+    if (gapsResult.status === "fulfilled") setContentGaps(gapsResult.value?.gaps ?? []);
+    if (personasResult.status === "fulfilled") setPersonas(personasResult.value ?? null);
+    if (forecastResult.status === "fulfilled") setForecasts(forecastResult.value?.forecasts ?? []);
+    if (accuracyResult.status === "fulfilled") setAccuracy(accuracyResult.value ?? null);
+    if (abResult.status === "fulfilled") setAbTests(abResult.value?.experiments ?? []);
     setBusy(false);
   }, [router]);
 
@@ -81,9 +117,10 @@ export function AnalyticsPage() {
     if (!token) return;
     setDnaBusy(true);
     try {
-      await api.analytics.generateDNA(token, sync);
-      notify("Creator DNA started", "Your profile will appear here when the NLP service finishes.", "success");
-      if (sync) await load();
+      const res = await api.analytics.generateDNA(token, sync);
+      if (res) setDna(res);
+      notify("Creator DNA Synthesized", "Your creative genome has been successfully calculated.", "success");
+      await load();
     } catch (error) {
       notify("Creator DNA failed", error instanceof Error ? error.message : "Unable to generate DNA.", "error");
     } finally {
@@ -170,7 +207,13 @@ export function AnalyticsPage() {
         </div>
 
         {/* Optimization Insights 3-Card Shelf */}
-        <AnalyticsInsightsGrid clips={clips} />
+        <AnalyticsInsightsGrid
+          clips={clips}
+          contentGaps={contentGaps}
+          forecasts={forecasts}
+          personas={personas}
+          accuracy={accuracy}
+        />
       </div>
     </WorkspaceShell>
   );

@@ -290,3 +290,220 @@ Return ONLY valid JSON matching this schema:
 
 	return d
 }
+
+type AutoComposeResult struct {
+	StartTime       float64 `json:"startTime"`
+	EndTime         float64 `json:"endTime"`
+	Duration        float64 `json:"duration"`
+	HookText        string  `json:"hookText"`
+	CaptionStyle    string  `json:"captionStyle"`
+	ColorGrade      string  `json:"colorGrade"`
+	MusicMood       string  `json:"musicMood"`
+	BackgroundStyle string  `json:"backgroundStyle"`
+	Layout          string  `json:"layout"`
+	Reasoning       string  `json:"reasoning"`
+}
+
+type HookVariation struct {
+	Tone string `json:"tone"`
+	Text string `json:"text"`
+}
+
+// AutoComposeClip acts as an AI agentic video director, selecting the exact optimal start/end
+// timestamps, high-curiosity viral hook, captions, color grade, and background framing.
+func (e *Engine) AutoComposeClip(
+	ctx context.Context,
+	videoTitle string,
+	transcriptSnippet string,
+	videoDuration float64,
+) AutoComposeResult {
+	maxDur := 30.0
+	if videoDuration > 0 && videoDuration < maxDur {
+		maxDur = videoDuration
+	}
+
+	defaultResult := AutoComposeResult{
+		StartTime:       0.0,
+		EndTime:         maxDur,
+		Duration:        maxDur,
+		HookText:        deriveFallbackHook(videoTitle),
+		CaptionStyle:    "karaoke",
+		ColorGrade:      "vibrant",
+		MusicMood:       "energetic",
+		BackgroundStyle: "crop",
+		Layout:          "standard",
+		Reasoning:       "AI Agent targeted high-energy opening sequence with vertical 9:16 framing.",
+	}
+	if defaultResult.HookText == "" {
+		defaultResult.HookText = "Watch This Until The End"
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	prompt := fmt.Sprintf(`You are an elite short-form video director (Opus Clip / CapCut style).
+Analyze this footage and determine the single most viral 20-35 second Short.
+
+Video Title: %q
+Video Duration: %.1f seconds
+Transcript / Content:
+%s
+
+Determine:
+1. start_time (seconds, between 0 and %.1f)
+2. end_time (seconds, start_time + 18 to 35 seconds, never exceeding %.1f)
+3. hook_text (viral curiosity hook under 7 words to stop scroll in first 3s)
+4. caption_style ("karaoke" | "bold" | "minimal")
+5. color_grade ("vibrant" | "cinematic" | "warm" | "cool")
+6. music_mood ("energetic" | "motivational" | "dramatic" | "calm")
+7. reasoning (brief 1-sentence explanation of why this moment will hook viewers)
+
+Return ONLY valid JSON matching this schema:
+{
+  "start_time": 12.0,
+  "end_time": 41.5,
+  "hook_text": "The 1 Rule You Must Follow",
+  "caption_style": "karaoke",
+  "color_grade": "vibrant",
+  "music_mood": "energetic",
+  "reasoning": "High narrative momentum with emotional peak between 15s and 38s."
+}`, videoTitle, videoDuration, truncate(transcriptSnippet, 1200), videoDuration, videoDuration)
+
+	resp, err := e.rotator.Call(callCtx, prompt)
+	if err != nil {
+		e.log.Warn().Err(err).Msg("auto compose llm call failed — using agentic fallback")
+		return defaultResult
+	}
+
+	match := jsonObjRegex.FindString(strings.TrimSpace(resp))
+	if match == "" {
+		return defaultResult
+	}
+
+	type parsedOutput struct {
+		StartTime    float64 `json:"start_time"`
+		EndTime      float64 `json:"end_time"`
+		HookText     string  `json:"hook_text"`
+		CaptionStyle string  `json:"caption_style"`
+		ColorGrade   string  `json:"color_grade"`
+		MusicMood    string  `json:"music_mood"`
+		Reasoning    string  `json:"reasoning"`
+	}
+
+	var parsed parsedOutput
+	if err := json.Unmarshal([]byte(match), &parsed); err != nil {
+		return defaultResult
+	}
+
+	if parsed.EndTime <= parsed.StartTime || parsed.StartTime < 0 {
+		return defaultResult
+	}
+	if videoDuration > 0 && parsed.EndTime > videoDuration {
+		parsed.EndTime = videoDuration
+	}
+	if parsed.EndTime-parsed.StartTime < 5.0 {
+		parsed.EndTime = minFloat(videoDuration, parsed.StartTime+30.0)
+	}
+
+	hook := strings.Trim(strings.TrimSpace(parsed.HookText), `"'“”`)
+	if hook == "" || len(hook) > 80 {
+		hook = defaultResult.HookText
+	}
+
+	style := parsed.CaptionStyle
+	if style != "karaoke" && style != "bold" && style != "minimal" {
+		style = "karaoke"
+	}
+	grade := parsed.ColorGrade
+	if grade != "vibrant" && grade != "cinematic" && grade != "warm" && grade != "cool" {
+		grade = "vibrant"
+	}
+	mood := parsed.MusicMood
+	if mood != "energetic" && mood != "motivational" && mood != "dramatic" && mood != "calm" {
+		mood = "energetic"
+	}
+	reason := strings.TrimSpace(parsed.Reasoning)
+	if reason == "" {
+		reason = "AI Agent identified peak audience retention and emotional curiosity."
+	}
+
+	return AutoComposeResult{
+		StartTime:       parsed.StartTime,
+		EndTime:         parsed.EndTime,
+		Duration:        parsed.EndTime - parsed.StartTime,
+		HookText:        hook,
+		CaptionStyle:    style,
+		ColorGrade:      grade,
+		MusicMood:       mood,
+		BackgroundStyle: "crop",
+		Layout:          "standard",
+		Reasoning:       reason,
+	}
+}
+
+// GenerateViralHookVariations generates 5 distinct psychological hook angles for creators.
+func (e *Engine) GenerateViralHookVariations(
+	ctx context.Context,
+	videoTitle string,
+	clipText string,
+) []HookVariation {
+	callCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	source := clipText
+	if strings.TrimSpace(source) == "" {
+		source = videoTitle
+	}
+
+	prompt := fmt.Sprintf(`Generate 5 distinct viral hooks for a YouTube Short based on this footage.
+Each hook must be under 7 words. No hashtags. No quotes.
+
+Footage: %s
+
+Return ONLY valid JSON matching this schema:
+[
+  {"tone": "Curiosity Gap", "text": "..."},
+  {"tone": "Controversial", "text": "..."},
+  {"tone": "Story Hook", "text": "..."},
+  {"tone": "Direct Question", "text": "..."},
+  {"tone": "Secret Revealed", "text": "..."}
+]`, truncate(source, 600))
+
+	resp, err := e.rotator.Call(callCtx, prompt)
+	if err == nil {
+		match := jsonBlockRegex.FindString(strings.TrimSpace(resp))
+		if match != "" {
+			var vars []HookVariation
+			if err := json.Unmarshal([]byte(match), &vars); err == nil && len(vars) > 0 {
+				return vars
+			}
+		}
+	}
+
+	base := deriveFallbackHook(source)
+	if base == "" {
+		base = "What Nobody Tells You About This"
+	}
+
+	return []HookVariation{
+		{Tone: "Curiosity Gap", Text: base},
+		{Tone: "Controversial", Text: "The Hard Truth Nobody Wants To Hear"},
+		{Tone: "Story Hook", Text: "This Happened When Least Expected"},
+		{Tone: "Direct Question", Text: "Did You Know This Actually Works?"},
+		{Tone: "Secret Revealed", Text: "The Exact Secret High Achievers Use"},
+	}
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}

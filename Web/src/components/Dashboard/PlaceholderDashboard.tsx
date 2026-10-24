@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { api, type Clip, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
+import { api, type Clip, type DailyReel, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
 import { HeroBanner } from "./HeroBanner";
@@ -12,6 +12,7 @@ import { PipelineStatus } from "./PipelineStatus";
 import { RecommendationsTable } from "./RecommendationsTable";
 import { JobsShelf } from "./JobsShelf";
 import { ProductionShelf } from "./ProductionShelf";
+import { DailyReelsShelf } from "./DailyReelsShelf";
 
 // Dynamically import VideoSearchResults (only mounted when search query returns items)
 const VideoSearchResults = dynamic(
@@ -26,6 +27,7 @@ export function PlaceholderDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
+  const [dailyReels, setDailyReels] = useState<DailyReel[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [sourceUrl, setSourceUrl] = useState("");
   const [videoResults, setVideoResults] = useState<PublicVideo[]>([]);
@@ -50,12 +52,19 @@ export function PlaceholderDashboard() {
       api.videos(token),
       api.clips(token),
       api.jobs(token),
+      api.dailyReels(token),
     ]);
-    const [userResult, videosResult, clipsResult, jobsResult] = results;
-    if (userResult.status === "fulfilled") setUser(userResult.value);
+    const [userResult, videosResult, clipsResult, jobsResult, dailyResult] = results;
+    if (userResult.status === "fulfilled") {
+      setUser(userResult.value);
+      try {
+        localStorage.setItem("shortsyou_user", JSON.stringify(userResult.value));
+      } catch {}
+    }
     if (videosResult.status === "fulfilled") setVideos(videosResult.value ?? []);
     if (clipsResult.status === "fulfilled") setClips(clipsResult.value ?? []);
     if (jobsResult.status === "fulfilled") setJobs(jobsResult.value ?? []);
+    if (dailyResult.status === "fulfilled") setDailyReels(dailyResult.value ?? []);
     if (results.every((result) => result.status === "rejected"))
       setError("The studio API is unavailable. Check that the Go server is running on port 5050.");
     setLoading(false);
@@ -226,6 +235,7 @@ export function PlaceholderDashboard() {
           onChangeSourceUrl={handleSourceUrlChange}
           onCopySourceUrl={copySource}
           onSubmitAutoCreate={handleAutoCreate}
+          onBrowseMetrics={() => router.push("/analytics")}
         />
 
         <div className="ca-side-stack">
@@ -238,6 +248,14 @@ export function PlaceholderDashboard() {
         results={videoResults}
         onSelect={ingestSearchResult}
         onClear={clearVideoResults}
+      />
+
+      {/* Daily 5 AI Auto-Generated Reels Section */}
+      <DailyReelsShelf
+        reels={dailyReels}
+        loading={loading}
+        exportingClip={exportingClip}
+        onExportClip={createShort}
       />
 
       {/* Bottom Table: "Your top videos in this period" */}

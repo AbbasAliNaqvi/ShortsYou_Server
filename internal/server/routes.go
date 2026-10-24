@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/aitools"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/handler"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/middleware"
 )
@@ -203,12 +204,18 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			videoHandler.ListJobs,
 		)
 
+		aiTools := aitools.NewEngine(s.llmRotator, s.log)
 		clipHandler := handler.NewClipHandler(
 			s.clipRepo,
 			s.videoRepo,
+			s.transcriptRepo,
 			s.queueClient,
 			s.supabase,
+			aiTools,
 		)
+		protected.GET("/clips/daily-reels", clipHandler.GetDailyReels)
+		protected.POST("/editor/auto-compose", clipHandler.AutoCompose)
+		protected.POST("/editor/generate-hooks", clipHandler.GenerateHooks)
 		protected.POST("/videos/:id/clips/manual", clipHandler.CreateManual)
 
 		protected.POST(

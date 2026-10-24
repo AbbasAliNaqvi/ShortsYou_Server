@@ -39,12 +39,14 @@ export default function CustomShortEditor() {
   const [end, setEnd] = useState(30);
   const [hook, setHook] = useState("");
   const [previewStart, setPreviewStart] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const [composeReasoning, setComposeReasoning] = useState("");
 
   const [settings, setSettings] = useState<EditSettings>({
-    backgroundStyle: "blur",
-    colorGrade: "warm",
+    backgroundStyle: "crop",
+    colorGrade: "vibrant",
     musicMood: "energetic",
-    captionStyle: "bold",
+    captionStyle: "karaoke",
     layout: "standard",
     removeSilences: true,
     removeFillers: true,
@@ -104,6 +106,40 @@ export default function CustomShortEditor() {
 
   function setEndBound(value: number) {
     setEnd(clamp(value, start + 0.1, duration || 60));
+  }
+
+  async function handleAutoCompose() {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token || !video) return;
+    setComposing(true);
+    setNotice("AI Agent is analyzing footage, peak emotional moments, and viral hooks…");
+    try {
+      const res = await api.autoCompose(token, video.id);
+      setStart(res.startTime);
+      setPreviewStart(res.startTime);
+      setEnd(res.endTime);
+      if (res.hookText) setHook(res.hookText);
+      if (res.captionStyle) update("captionStyle", res.captionStyle);
+      if (res.colorGrade) update("colorGrade", res.colorGrade);
+      if (res.musicMood) update("musicMood", res.musicMood);
+      if (res.backgroundStyle) update("backgroundStyle", res.backgroundStyle);
+      if (res.layout) update("layout", res.layout);
+      setComposeReasoning(res.reasoning);
+      notify("AI Agent Tuned Short", res.reasoning, "success");
+      setNotice(`AI Agent tuned: ${Math.round(res.duration)}s short with "${res.hookText}"`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "AI auto-composition failed.";
+      setNotice(msg);
+      notify("Auto-Compose", msg, "error");
+    } finally {
+      setComposing(false);
+    }
+  }
+
+  async function handleFetchHookVariations() {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token || !video) return [];
+    return await api.generateHooks(token, video.id, hook);
   }
 
   async function render() {
@@ -193,6 +229,10 @@ export default function CustomShortEditor() {
               hook={hook}
               onUpdate={update}
               onSetHook={setHook}
+              onAutoCompose={handleAutoCompose}
+              composing={composing}
+              composeReasoning={composeReasoning}
+              onFetchHookVariations={handleFetchHookVariations}
             />
           </div>
         </div>
