@@ -137,6 +137,18 @@ func (m *MongoDB) CreateIndexes(ctx context.Context) error {
 			},
 		},
 
+		// processing_jobs
+		{
+			collection: "processing_jobs",
+			model: mongo.IndexModel{
+				Keys: bson.D{
+					{Key: "userId", Value: 1},
+					{Key: "createdAt", Value: -1},
+				},
+				Options: options.Index().SetName("jobs_user_created_idx"),
+			},
+		},
+
 		// clips
 		{
 			collection: "clips",

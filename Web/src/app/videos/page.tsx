@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
-import { motion } from "framer-motion";
 import { api, type User, type Video } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
@@ -11,6 +9,12 @@ import dynamic from "next/dynamic";
 import {
   VideosIntroBanner,
   VideoSection,
+  VideosQuickIngest,
+  VideosFilterBar,
+  VideosTopTabs,
+  type VideosTopTab,
+  type VideoSourceFilter,
+  type VideoStatusFilter,
 } from "@/components/Videos";
 
 const VideoCreationModal = dynamic(
@@ -31,42 +35,97 @@ export default function VideosPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  async function load() {
+  // Top Tabs State: Your Videos vs Targeted Videos vs All
+  const [activeTopTab, setActiveTopTab] = useState<VideosTopTab>("your_videos");
+
+  // Sub-filters & Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSource, setSelectedSource] = useState<VideoSourceFilter>("all");
+  const [selectedStatus, setSelectedStatus] = useState<VideoStatusFilter>("all");
+  const [sortBy, setSortBy] = useState("recent");
+
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  async function load(silent = false) {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       setLoading(false);
       router.replace("/login");
       return;
     }
+    if (!silent) setRefreshing(true);
     try {
       const [userData, videoData] = await Promise.allSettled([
         api.me(token),
-        api.videos(token),
+        api.videos(token, sortBy),
       ]);
       if (userData.status === "fulfilled") setUser(userData.value);
       if (videoData.status === "fulfilled") setVideos(videoData.value ?? []);
     } catch {
-      setNotice("Unable to load your videos.");
+      if (!silent) setNotice("Unable to load your videos.");
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }
 
+  // Initial load
   useEffect(() => {
     queueMicrotask(() => void load());
-  }, []);
+  }, [sortBy]);
 
+  // Check if any video is active in processing
+  const hasActiveVideos = useMemo(() => {
+    return videos.some((v) => {
+      const st = (v.processingStatus || "").toLowerCase();
+      return (
+        st === "pending" ||
+        st === "downloading" ||
+        st === "transcribing" ||
+        st === "analyzing" ||
+        st === "processing"
+      );
+    });
+  }, [videos]);
+
+  // Automatic Background Polling when active videos exist
+  useEffect(() => {
+    if (hasActiveVideos) {
+      if (!pollIntervalRef.current) {
+        pollIntervalRef.current = setInterval(() => {
+          void load(true);
+        }, 4000);
+      }
+    } else {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [hasActiveVideos]);
+
+  // Sync YouTube channel
   async function syncOwnVideos() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) return;
     setSyncing(true);
     try {
       const result = await api.syncVideos(token);
-      const msg = `${result.synced} channel video${result.synced === 1 ? "" : "s"} synced. Choose one below to create a short.`;
+      const msg = `${result.synced} channel video${result.synced === 1 ? "" : "s"} synced. Newly synced videos are now in your library.`;
       setNotice(msg);
       notify("Channel Synced", msg, "success");
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not sync your YouTube videos.";
       setNotice(errMsg);
@@ -95,7 +154,7 @@ export default function VideosPage() {
       setNotice(msg);
       notify("AI Auto-Create Started", msg, "success");
       setSelected(null);
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not start AI Auto-Create.";
       setNotice(errMsg);
@@ -116,7 +175,7 @@ export default function VideosPage() {
       setNotice(msg);
       notify("AI Generation Queued", msg, "success");
       setSelected(null);
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not start AI generation.";
       setNotice(errMsg);
@@ -137,7 +196,7 @@ export default function VideosPage() {
       setNotice(msg);
       notify("Manual Short Queued", msg, "success");
       setSelected(null);
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not create the short.";
       setNotice(errMsg);
@@ -158,7 +217,7 @@ export default function VideosPage() {
       setNotice(msg);
       notify("Quick Clip Queued", msg, "success");
       setSelected(null);
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not create the short.";
       setNotice(errMsg);
@@ -177,7 +236,7 @@ export default function VideosPage() {
       const msg = "Video and its related clips removed.";
       setNotice(msg);
       notify("Video Removed", msg, "info");
-      await load();
+      await load(true);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Could not remove the video.";
       setNotice(errMsg);
@@ -192,64 +251,229 @@ export default function VideosPage() {
     router.push("/login");
   }
 
-  const own = videos.filter((v) => !v.sourceChannelId || v.sourceType === "own");
-  const picked = videos.filter((v) => v.sourceChannelId && v.sourceType !== "own");
+  // Pre-calculate category counts for top tabs & filter pills
+  const counts = useMemo(() => {
+    let imported = 0;
+    let channel = 0;
+    let discover = 0;
+    let ready = 0;
+    let processing = 0;
+    let failed = 0;
 
-  const syncButton = (
-    <motion.button
-      type="button"
-      className="ca-video-sync-btn"
-      onClick={() => void syncOwnVideos()}
-      disabled={syncing || busy}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.96 }}
-    >
-      <RefreshCw className={syncing ? "spin" : ""} size={14} />
-      <span>{syncing ? "Syncing Channel…" : "Sync my YouTube videos"}</span>
-    </motion.button>
-  );
+    for (const v of videos) {
+      const isDirect = v.sourceType === "direct" || v.sourceChannelId === "direct";
+      const isChannel = !v.sourceChannelId || v.sourceType === "own";
+      if (isDirect) imported++;
+      else if (isChannel) channel++;
+      else discover++;
+
+      const st = (v.processingStatus || "").toLowerCase();
+      if (st === "completed" || st === "ready") ready++;
+      else if (st === "failed") failed++;
+      else if (
+        st === "pending" ||
+        st === "downloading" ||
+        st === "transcribing" ||
+        st === "analyzing" ||
+        st === "processing"
+      ) {
+        processing++;
+      }
+    }
+
+    return {
+      total: videos.length,
+      channel,
+      targeted: imported + discover,
+      imported,
+      discover,
+      ready,
+      processing,
+      failed,
+    };
+  }, [videos]);
+
+  // Compute filtered & sorted videos
+  const filteredVideos = useMemo(() => {
+    let result = [...videos];
+
+    // 1. Top Tab Level Filter
+    if (activeTopTab === "your_videos") {
+      result = result.filter(
+        (v) => !v.sourceChannelId || v.sourceType === "own"
+      );
+    } else if (activeTopTab === "targeted_videos") {
+      result = result.filter(
+        (v) =>
+          v.sourceType === "direct" ||
+          v.sourceChannelId === "direct" ||
+          (v.sourceChannelId && v.sourceType !== "own")
+      );
+    }
+
+    // 2. Sub-source Filter (if specifically chosen)
+    if (selectedSource === "direct") {
+      result = result.filter(
+        (v) => v.sourceType === "direct" || v.sourceChannelId === "direct"
+      );
+    } else if (selectedSource === "own") {
+      result = result.filter(
+        (v) => !v.sourceChannelId || v.sourceType === "own"
+      );
+    } else if (selectedSource === "public") {
+      result = result.filter(
+        (v) =>
+          v.sourceChannelId &&
+          v.sourceType !== "own" &&
+          v.sourceType !== "direct" &&
+          v.sourceChannelId !== "direct"
+      );
+    }
+
+    // 3. Status Filter
+    if (selectedStatus === "ready") {
+      result = result.filter(
+        (v) => v.processingStatus === "completed" || v.processingStatus === "ready"
+      );
+    } else if (selectedStatus === "processing") {
+      result = result.filter((v) => {
+        const st = (v.processingStatus || "").toLowerCase();
+        return (
+          st === "pending" ||
+          st === "downloading" ||
+          st === "transcribing" ||
+          st === "analyzing" ||
+          st === "processing"
+        );
+      });
+    } else if (selectedStatus === "failed") {
+      result = result.filter((v) => v.processingStatus === "failed");
+    }
+
+    // 4. Search Query Filter
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (v) =>
+          v.title?.toLowerCase().includes(q) ||
+          v.description?.toLowerCase().includes(q)
+      );
+    }
+
+    // 5. Client-side Sort fallback/guarantee (newest additions at top)
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "published_desc":
+          return new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime();
+        case "published_asc":
+          return new Date(a.publishedAt || 0).getTime() - new Date(b.publishedAt || 0).getTime();
+        case "clips_desc":
+          return (b.clipsDetected || 0) - (a.clipsDetected || 0);
+        case "duration_desc":
+          return (b.durationSeconds || 0) - (a.durationSeconds || 0);
+        case "duration_asc":
+          return (a.durationSeconds || 0) - (b.durationSeconds || 0);
+        case "recent":
+        default: {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          return (b.id || "").localeCompare(a.id || "");
+        }
+      }
+    });
+
+    return result;
+  }, [videos, activeTopTab, selectedSource, selectedStatus, searchQuery, sortBy]);
+
+  function resetFilters() {
+    setSearchQuery("");
+    setSelectedSource("all");
+    setSelectedStatus("all");
+    setSortBy("recent");
+  }
 
   return (
     <WorkspaceShell
       title="Your Videos"
       subtitle="AI Shorts Factory"
       user={user}
-      refreshing={syncing || busy}
+      refreshing={syncing || busy || refreshing}
       onRefresh={() => void load()}
       onSignOut={signOut}
     >
       {/* Intro Hero Banner with Live Metrics & Notice */}
       <VideosIntroBanner
-        totalCount={videos.length}
-        ownCount={own.length}
-        pickedCount={picked.length}
+        totalCount={counts.total}
+        ownCount={counts.channel}
+        importedCount={counts.imported}
+        pickedCount={counts.discover}
+        processingCount={counts.processing}
         notice={notice}
         onClearNotice={() => setNotice("")}
+      />
+
+      {/* Prominent Top Tabs: Your Videos vs Targeted Videos vs All */}
+      <VideosTopTabs
+        activeTab={activeTopTab}
+        onChange={(tab) => {
+          setActiveTopTab(tab);
+          setSelectedSource("all");
+        }}
+        yourCount={counts.channel}
+        targetedCount={counts.targeted}
+        allCount={counts.total}
+      />
+
+      {/* Quick Ingest Panel: Show for Targeted Videos & All Videos */}
+      {(activeTopTab === "targeted_videos" || activeTopTab === "all") && (
+        <VideosQuickIngest
+          onIngestSuccess={() => {
+            void load(true);
+          }}
+          busy={busy || syncing}
+        />
+      )}
+
+      {/* Advanced Filter, Search, and Sort Bar */}
+      <VideosFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedSource={selectedSource}
+        onSourceChange={setSelectedSource}
+        selectedStatus={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        counts={counts}
+        onSync={() => void syncOwnVideos()}
+        syncing={syncing}
+        onRefresh={() => void load()}
+        refreshing={refreshing}
+        onResetFilters={resetFilters}
       />
 
       {loading ? (
         <LoadingState />
       ) : (
         <div className="ca-videos-sections-wrap">
-          {/* Section 1: Your YouTube Channel Videos */}
+          {/* Main Video Section with Responsive Grid & AnimatePresence */}
           <VideoSection
-            title="Your Videos"
-            empty="Sync your connected YouTube channel to see videos here."
-            videos={own}
-            onSelect={open}
-            onDelete={(v) => void removeVideo(v)}
-            action={syncButton}
-            disabled={busy || syncing}
-          />
-
-          {/* Section 2: Selected Videos from Discover */}
-          <VideoSection
-            title="Selected Videos"
-            empty="Choose videos from creators in Discover, then create a short here."
-            videos={picked}
+            videos={filteredVideos}
             onSelect={open}
             onDelete={(v) => void removeVideo(v)}
             disabled={busy || syncing}
+            empty={
+              searchQuery
+                ? `No videos match "${searchQuery}". Try a different keyword.`
+                : selectedStatus !== "all"
+                ? `No videos with status "${selectedStatus}".`
+                : activeTopTab === "your_videos"
+                ? "No channel videos synced. Connect your YouTube channel and click 'Sync YouTube' to import your videos."
+                : activeTopTab === "targeted_videos"
+                ? "No targeted videos yet. Paste any YouTube URL above to target and import a video for AI shorts!"
+                : "Your video library is empty. Paste a YouTube link above to start generating shorts!"
+            }
           />
         </div>
       )}

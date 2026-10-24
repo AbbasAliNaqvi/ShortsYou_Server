@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -398,7 +399,10 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 		Start, End     float64
 		Text           string
 		ViralScore     float64
+		EmotionScore   float64
+		SpeechEmphasis float64
 		EmotionType    string
+		Category       models.ClipCategory
 		SemanticLabels []string
 		HookScore      float64
 		SuggestedHook  string
@@ -422,9 +426,16 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			continue
 		}
 
-		// Viral score formula — emotion defaults to 0.7 until /emotion is integrated
-		emotionDefault := 0.70
-		viralScore := 0.25*emotionDefault +
+		segmentText := ""
+		for _, storedSegment := range stored.Segments {
+			if storedSegment.Index == seg.Index {
+				segmentText = storedSegment.Text
+				break
+			}
+		}
+		emotionScore, emotionType := inferEmotion(segmentText, nlp.SemanticLabels, nlp.HookScore)
+		speechEmphasis := clampScore(0.45*nlp.HookScore + 0.30*nlp.ClarityScore + 0.25*nlp.NoveltyScore)
+		viralScore := 0.25*emotionScore +
 			0.30*nlp.SemanticScore +
 			0.20*nlp.HookScore +
 			0.15*nlp.ClarityScore +
@@ -443,7 +454,10 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			End:            end,
 			Text:           seg.Text,
 			ViralScore:     viralScore,
-			EmotionType:    "excited",
+			EmotionScore:   emotionScore,
+			SpeechEmphasis: speechEmphasis,
+			EmotionType:    emotionType,
+			Category:       classifyClipCategory(nlp.SemanticLabels, emotionScore, nlp.HookScore, nlp.ClarityScore, nlp.NoveltyScore),
 			SemanticLabels: nlp.SemanticLabels,
 			HookScore:      nlp.HookScore,
 			SuggestedHook:  nlp.SuggestedHook,
@@ -505,13 +519,17 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			EndTime:          cs.End,
 			DurationSeconds:  cs.End - cs.Start,
 			TranscriptText:   cs.Text,
-			Category:         models.CategoryViral,
+			Category:         cs.Category,
 			ViralScore:       cs.ViralScore,
 			GenericPredScore: cs.ViralScore,
+			ConfidenceInterval: models.ConfidenceInterval{
+				Low:  clampScore(cs.ViralScore * 0.85),
+				High: clampScore(cs.ViralScore * 1.15),
+			},
 			Scores: models.ClipScores{
-				Emotion:        0.70,
+				Emotion:        cs.EmotionScore,
 				SemanticImpact: cs.NlpScores.SemanticScore,
-				SpeechEmphasis: cs.NlpScores.HookScore,
+				SpeechEmphasis: cs.SpeechEmphasis,
 				Clarity:        cs.NlpScores.ClarityScore,
 				Novelty:        cs.NlpScores.NoveltyScore,
 			},
@@ -531,10 +549,13 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 			ClipID:              clipID,
 			VideoID:             videoID,
 			UserID:              userID,
+			EmotionScore:        cs.EmotionScore,
 			SemanticImpactScore: cs.NlpScores.SemanticScore,
+			SpeechEmphasisScore: cs.SpeechEmphasis,
 			ClarityScore:        cs.NlpScores.ClarityScore,
 			NoveltyScore:        cs.NlpScores.NoveltyScore,
 			HookScore:           cs.HookScore,
+			TopicAffinityScore:  clampScore(cs.NlpScores.SemanticScore*0.7 + cs.NlpScores.NoveltyScore*0.3),
 			DurationSeconds:     cs.End - cs.Start,
 			VideoPositionRatio:  posRatio,
 		})
@@ -744,6 +765,59 @@ func (h *InternalHandler) ForecastDone(c *gin.Context) {
 	}
 	_ = h.trendRepo.Upsert(c.Request.Context(), f)
 	response.OK(c, gin.H{"userId": f.UserID.Hex(), "topic": f.Topic})
+}
+
+func clampScore(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
+}
+
+func inferEmotion(text string, labels []string, hookScore float64) (float64, string) {
+	lower := strings.ToLower(text + " " + strings.Join(labels, " "))
+	score := 0.45
+	emotion := "neutral"
+	for _, marker := range []string{"exciting", "shocking", "surprising", "amazing", "funny"} {
+		if strings.Contains(lower, marker) {
+			score += 0.18
+			emotion = "excited"
+			break
+		}
+	}
+	for _, marker := range []string{"sad", "heartbreaking", "loss", "pain"} {
+		if strings.Contains(lower, marker) {
+			score += 0.12
+			emotion = "sad"
+			break
+		}
+	}
+	if strings.Contains(lower, "angry") || strings.Contains(lower, "controversial") {
+		score += 0.15
+		emotion = "angry"
+	}
+	score += clampScore(hookScore) * 0.1
+	return clampScore(score), emotion
+}
+
+func classifyClipCategory(labels []string, emotion, hook, clarity, novelty float64) models.ClipCategory {
+	lower := strings.ToLower(strings.Join(labels, " "))
+	if strings.Contains(lower, "how-to") || strings.Contains(lower, "tutorial") {
+		return models.CategoryEvergreen
+	}
+	if hook > 0.85 {
+		return models.CategoryViral
+	}
+	if emotion > 0.8 {
+		return models.CategoryEmotion
+	}
+	if clarity > 0.9 && novelty < 0.5 {
+		return models.CategoryNarrative
+	}
+	return models.CategoryViral
 }
 
 func truncateStr(s string, n int) string {

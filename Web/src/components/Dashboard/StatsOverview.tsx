@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 
 export interface StatsOverviewProps {
@@ -31,10 +30,8 @@ export const StatsOverview = memo(
     onBrowseMetrics,
   }: StatsOverviewProps) {
     return (
-      <motion.div
+      <div
         className="ca-floating-stats-bar ca-glass-card"
-        whileHover={{ y: -3 }}
-        transition={{ duration: 0.2 }}
       >
         {/* Stat 1: Videos */}
         <div className="ca-stat-item">
@@ -44,11 +41,9 @@ export const StatsOverview = memo(
             <span>Videos</span>
           </div>
           <div className="ca-stat-bar">
-            <motion.div
+            <div
               className="ca-stat-bar-fill ca-fill-blue"
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(15, videoCount * 25))}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
+              style={{ width: `${Math.min(100, Math.max(15, videoCount * 25))}%` }}
             />
           </div>
         </div>
@@ -61,11 +56,9 @@ export const StatsOverview = memo(
             <span>Clips</span>
           </div>
           <div className="ca-stat-bar">
-            <motion.div
+            <div
               className="ca-stat-bar-fill ca-fill-pink"
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(20, clipCount * 18))}%` }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.1 }}
+              style={{ width: `${Math.min(100, Math.max(20, clipCount * 18))}%` }}
             />
           </div>
         </div>
@@ -78,11 +71,9 @@ export const StatsOverview = memo(
             <span>Viral Score</span>
           </div>
           <div className="ca-stat-bar">
-            <motion.div
+            <div
               className="ca-stat-bar-fill ca-fill-green"
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(30, avgViralScore))}%` }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+              style={{ width: `${Math.min(100, Math.max(30, avgViralScore))}%` }}
             />
           </div>
         </div>
@@ -95,26 +86,22 @@ export const StatsOverview = memo(
             <span>Rendered</span>
           </div>
           <div className="ca-stat-bar">
-            <motion.div
+            <div
               className="ca-stat-bar-fill ca-fill-orange"
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(20, renderedCount * 25))}%` }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+              style={{ width: `${Math.min(100, Math.max(20, renderedCount * 25))}%` }}
             />
           </div>
         </div>
 
         {/* Next Circle Arrow Button */}
-        <motion.button
+        <button
           className="ca-stats-arrow-circle"
           aria-label="Browse metrics"
           onClick={onBrowseMetrics}
-          whileHover={{ scale: 1.12, rotate: 5 }}
-          whileTap={{ scale: 0.92 }}
         >
           <ChevronRight size={18} />
-        </motion.button>
-      </motion.div>
+        </button>
+      </div>
     );
   },
   // Custom comparator: skip re-render if all numeric props are identical.

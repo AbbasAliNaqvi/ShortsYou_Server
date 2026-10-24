@@ -2,7 +2,6 @@
 
 import { memo, type FormEvent } from "react";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
 import { Bot } from "lucide-react";
 import { IngestPanel } from "./IngestPanel";
 import { StatsOverview } from "./StatsOverview";
@@ -51,11 +50,8 @@ export const HeroBanner = memo(function HeroBanner({
   onBrowseMetrics,
 }: HeroBannerProps) {
   return (
-    <motion.div
+    <div
       className="ca-hero-card ca-glass"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* Concentric Wireframe Orbit Rings */}
       <div className="ca-hero-rings" aria-hidden="true">
@@ -72,22 +68,16 @@ export const HeroBanner = memo(function HeroBanner({
       </div>
 
       <div className="ca-hero-body">
-        <motion.span
+        <span
           className="ca-hero-eyebrow"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
         >
           <Bot size={12} /> AI-Powered Shorts Engine
-        </motion.span>
-        <motion.h1
+        </span>
+        <h1
           className="ca-hero-headline"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
         >
           Optimize<br />Your Metrics
-        </motion.h1>
+        </h1>
         <p className="ca-hero-subtext">
           Paste any YouTube video. AI transcribes, finds viral moments,
           writes scroll-stopping hooks, and renders production-ready shorts.
@@ -111,6 +101,6 @@ export const HeroBanner = memo(function HeroBanner({
         avgViralScore={avgViralScore}
         onBrowseMetrics={onBrowseMetrics}
       />
-    </motion.div>
+    </div>
   );
 });

@@ -219,11 +219,18 @@ func (h *VideoHandler) ListVideos(c *gin.Context) {
 		return
 	}
 
-	videos, err := h.videoRepo.FindByUserID(
+	limit, skip, valid := pagination(c)
+	if !valid {
+		response.BadRequest(c, "page must be >= 1 and limit must be between 1 and 200")
+		return
+	}
+	sort := c.Query("sort")
+	videos, err := h.videoRepo.FindByUserIDWithSort(
 		c.Request.Context(),
 		userID,
-		50,
-		0,
+		limit,
+		skip,
+		sort,
 	)
 	if err != nil {
 		response.InternalError(c)
@@ -362,6 +369,9 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 	// document keeps the Videos library stable when a creator is revisited.
 	existing, _ := h.videoRepo.FindByYouTubeID(c.Request.Context(), ytVideoID, userID)
 	if existing != nil {
+		_ = h.videoRepo.UpdateFields(c.Request.Context(), existing.ID, map[string]any{
+			"updatedAt": time.Now(),
+		})
 		response.OK(c, gin.H{
 			"message": "video already in your library",
 			"videoId": existing.ID.Hex(),
@@ -388,6 +398,11 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 	// Create Video document in MongoDB
 	videoID := primitive.NewObjectID()
 	jobID := primitive.NewObjectID().Hex()
+	now := time.Now()
+	sourceType := "public"
+	if channelID == "direct" {
+		sourceType = "direct"
+	}
 
 	video := models.Video{
 		ID:               videoID,
@@ -402,8 +417,10 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 		CommentCount:     meta.CommentCount,
 		PublishedAt:      meta.PublishedAt,
 		ProcessingStatus: models.StatusPending,
-		SourceType:       "public",
+		SourceType:       sourceType,
 		SourceChannelID:  channelID,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	if err := h.videoRepo.Insert(c.Request.Context(), video); err != nil {

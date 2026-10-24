@@ -270,7 +270,14 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			s.fmRepo,
 			s.clipRepo,
 			s.abRepo,
+			s.cfg,
 		)
+
+		protected.POST("/analytics/dna/generate", analyticsHandler.GenerateDNA)
+		protected.POST("/analytics/dna/generate/sync", func(c *gin.Context) {
+			c.Request.URL.RawQuery = "sync=true"
+			analyticsHandler.GenerateDNA(c)
+		})
 
 		protected.GET(
 			"/analytics/dna",

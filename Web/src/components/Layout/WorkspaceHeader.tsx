@@ -1,7 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { motion } from "framer-motion";
 import { LogOut, Mail, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import type { User } from "@/lib/api";
@@ -46,37 +45,31 @@ export function WorkspaceHeader({
         {customActions}
 
         {/* Messages / Mail Button */}
-        <motion.button
+        <button
           className="ca-glass-circle-btn ca-btn-mail"
           title="Messages & Notifications"
           onClick={onMessagesClick}
-          whileHover={{ scale: 1.08, y: -2 }}
-          whileTap={{ scale: 0.94 }}
         >
           <Mail size={17} />
           <span className="ca-btn-dot" />
-        </motion.button>
+        </button>
 
         {/* Search & Refresh Studio Button */}
         {onRefresh && (
-          <motion.button
+          <button
             className="ca-glass-circle-btn ca-btn-search"
             onClick={onRefresh}
             aria-label="Refresh studio"
             title="Search & Refresh Studio Data"
-            whileHover={{ scale: 1.08, y: -2 }}
-            whileTap={{ scale: 0.94 }}
           >
             <Search size={17} className={refreshing ? "spin" : ""} />
-          </motion.button>
+          </button>
         )}
 
         {/* User Profile Badge ("My Image") */}
-        <motion.div
+        <div
           className="ca-header-user-badge"
           title={displayName ? `${displayName} (${displayEmail ?? "Creator"})` : (displayEmail ?? "Creator")}
-          whileHover={{ scale: 1.06, y: -2 }}
-          whileTap={{ scale: 0.94 }}
         >
           <div className="ca-header-avatar-inner">
             {user?.profilePicture ? (
@@ -90,19 +83,17 @@ export function WorkspaceHeader({
             )}
           </div>
           <span className="ca-avatar-online-dot" title="Active in Studio" />
-        </motion.div>
+        </div>
 
         {/* Log Out Button */}
         {onSignOut && (
-          <motion.button
+          <button
             className="ca-glass-circle-btn ca-btn-logout"
             onClick={onSignOut}
             title="Sign Out"
-            whileHover={{ scale: 1.08, y: -2 }}
-            whileTap={{ scale: 0.94 }}
           >
             <LogOut size={17} />
-          </motion.button>
+          </button>
         )}
       </div>
     </header>

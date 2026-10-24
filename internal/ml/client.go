@@ -41,31 +41,42 @@ func (c *Client) Transcribe(
 	ctx context.Context,
 	req TranscribeRequest,
 ) (*TranscribeResponse, error) {
+	callback := c.callbackBase + "/api/internal/transcription/done"
 	type asyncReq struct {
-		JobID       string `json:"job_id"`
-		VideoID     string `json:"videoId"`
-		UserID      string `json:"userId"`
-		AudioURL    string `json:"audioUrl"`
-		Language    string `json:"language,omitempty"`
-		CallbackURL string `json:"callbackUrl,omitempty"`
-		InternalKey string `json:"internalKey,omitempty"`
+		JobID            string `json:"job_id"`
+		VideoID          string `json:"videoId"`
+		VideoIDSnake     string `json:"video_id,omitempty"`
+		UserID           string `json:"userId"`
+		UserIDSnake      string `json:"user_id,omitempty"`
+		AudioURL         string `json:"audioUrl"`
+		AudioURLSnake    string `json:"audio_url,omitempty"`
+		Language         string `json:"language,omitempty"`
+		CallbackURL      string `json:"callbackUrl,omitempty"`
+		CallbackURLSnake string `json:"callback_url,omitempty"`
+		InternalKey      string `json:"internalKey,omitempty"`
+		InternalKeySnake string `json:"internal_key,omitempty"`
 	}
 
 	body := asyncReq{
-		JobID:       req.JobID,
-		VideoID:     req.VideoID,
-		UserID:      req.UserID,
-		AudioURL:    req.AudioURL,
-		Language:    req.Language,
-		CallbackURL: c.callbackBase + "/api/internal/transcription/done",
-		InternalKey: c.callbackKey,
+		JobID:            req.JobID,
+		VideoID:          req.VideoID,
+		VideoIDSnake:     req.VideoID,
+		UserID:           req.UserID,
+		UserIDSnake:      req.UserID,
+		AudioURL:         req.AudioURL,
+		AudioURLSnake:    req.AudioURL,
+		Language:         req.Language,
+		CallbackURL:      callback,
+		CallbackURLSnake: callback,
+		InternalKey:      c.callbackKey,
+		InternalKeySnake: c.callbackKey,
 	}
 
 	var resp AcceptedResponse
 
 	if err := c.post(
 		ctx,
-		c.nlpURL+"/transcribe",
+		c.audioURL+"/transcribe",
 		body,
 		&resp,
 	); err != nil {
@@ -83,28 +94,37 @@ func (c *Client) Transcribe(
 
 // Results come back via POST to /api/internal/analysis/done
 func (c *Client) Analyze(ctx context.Context, req AnalyzeRequest) (*AnalyzeResponse, error) {
+	callback := c.callbackBase + "/api/internal/analysis/done"
 	type asyncReq struct {
-		JobID       string              `json:"job_id"`
-		VideoID     string              `json:"video_id"`
-		UserID      string              `json:"user_id"`
-		Language    string              `json:"language"`
-		Segments    []TranscriptSegment `json:"segments"`
-		FillerWords []FillerWord        `json:"fillerWords"`
-		SilenceGaps []SilenceGap        `json:"silenceGaps"`
-		CallbackURL string              `json:"callbackUrl,omitempty"`
-		InternalKey string              `json:"internalKey,omitempty"`
+		JobID            string              `json:"job_id"`
+		VideoID          string              `json:"video_id"`
+		VideoIDCamel     string              `json:"videoId,omitempty"`
+		UserID           string              `json:"user_id"`
+		UserIDCamel      string              `json:"userId,omitempty"`
+		Language         string              `json:"language"`
+		Segments         []TranscriptSegment `json:"segments"`
+		FillerWords      []FillerWord        `json:"fillerWords"`
+		SilenceGaps      []SilenceGap        `json:"silenceGaps"`
+		CallbackURL      string              `json:"callbackUrl,omitempty"`
+		CallbackURLSnake string              `json:"callback_url,omitempty"`
+		InternalKey      string              `json:"internalKey,omitempty"`
+		InternalKeySnake string              `json:"internal_key,omitempty"`
 	}
 
 	body := asyncReq{
-		JobID:       req.JobID,
-		VideoID:     req.VideoID,
-		UserID:      req.UserID,
-		Language:    req.Language,
-		Segments:    req.Segments,
-		FillerWords: req.FillerWords,
-		SilenceGaps: req.SilenceGaps,
-		CallbackURL: c.callbackBase + "/api/internal/analysis/done",
-		InternalKey: c.callbackKey,
+		JobID:            req.JobID,
+		VideoID:          req.VideoID,
+		VideoIDCamel:     req.VideoID,
+		UserID:           req.UserID,
+		UserIDCamel:      req.UserID,
+		Language:         req.Language,
+		Segments:         req.Segments,
+		FillerWords:      req.FillerWords,
+		SilenceGaps:      req.SilenceGaps,
+		CallbackURL:      callback,
+		CallbackURLSnake: callback,
+		InternalKey:      c.callbackKey,
+		InternalKeySnake: c.callbackKey,
 	}
 
 	var resp AcceptedResponse
@@ -132,6 +152,7 @@ func (c *Client) post(ctx context.Context, url string, body, dest any) error {
 		return fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}

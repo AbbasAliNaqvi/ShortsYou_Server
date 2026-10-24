@@ -33,9 +33,12 @@ export function NotificationCenter() {
   useEffect(() => {
     let initialSnapshot = true;
     let mounted = true;
+    let inFlight = false;
     const checkJobs = async () => {
+      if (inFlight || document.visibilityState === "hidden") return;
       const token = localStorage.getItem("shortsyou_jwt");
       if (!token) return;
+      inFlight = true;
       try {
         const jobs = await api.jobs(token);
         if (!mounted) return;
@@ -48,10 +51,17 @@ export function NotificationCenter() {
         });
         initialSnapshot = false;
       } catch { /* The normal page-level API handling remains responsible for errors. */ }
+      finally { inFlight = false; }
     };
     void checkJobs();
-    const interval = window.setInterval(() => void checkJobs(), 15_000);
-    return () => { mounted = false; window.clearInterval(interval); };
+    const interval = window.setInterval(() => void checkJobs(), 60_000);
+    const handleVisibility = () => { if (document.visibilityState === "visible") void checkJobs(); };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   return <div className="notification-center" role="status" aria-live="polite">

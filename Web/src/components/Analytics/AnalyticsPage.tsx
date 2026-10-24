@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { api, type Clip, type PerformanceAnalytics, type User } from "@/lib/api";
+import { api, type Clip, type CreatorDNA, type PerformanceAnalytics, type User } from "@/lib/api";
 import { WorkspaceShell } from "@/components/Layout";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { AnalyticsHeroBanner } from "./AnalyticsHeroBanner";
 import { AnalyticsKpiGrid } from "./AnalyticsKpiGrid";
 import { TopClipsLeaderboard } from "./TopClipsLeaderboard";
 import { AnalyticsInsightsGrid } from "./AnalyticsInsightsGrid";
+import { CreatorDNAPanel } from "./CreatorDNAPanel";
 
 // Dynamically import heavy client-only charting components with ssr: false
 // and layout-preserving skeleton fallbacks to prevent CLS
@@ -48,7 +49,9 @@ export function AnalyticsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [performance, setPerformance] = useState<PerformanceAnalytics | null>(null);
+  const [dna, setDna] = useState<CreatorDNA | null>(null);
   const [busy, setBusy] = useState(true);
+  const [dnaBusy, setDnaBusy] = useState(false);
   const [range, setRange] = useState("7d");
 
   const load = useCallback(async () => {
@@ -59,17 +62,34 @@ export function AnalyticsPage() {
       return;
     }
     setBusy(true);
-    const [userResult, clipsResult, performanceResult] = await Promise.allSettled([
+    const [userResult, clipsResult, performanceResult, dnaResult] = await Promise.allSettled([
       api.me(token),
       api.clips(token),
       api.analytics.performance(token),
+      api.analytics.dna(token),
     ]);
 
     if (userResult.status === "fulfilled") setUser(userResult.value);
     if (clipsResult.status === "fulfilled") setClips(clipsResult.value);
     if (performanceResult.status === "fulfilled") setPerformance(performanceResult.value);
+    if (dnaResult.status === "fulfilled") setDna(dnaResult.value);
     setBusy(false);
-  }, []);
+  }, [router]);
+
+  const generateDNA = useCallback(async (sync: boolean) => {
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) return;
+    setDnaBusy(true);
+    try {
+      await api.analytics.generateDNA(token, sync);
+      notify("Creator DNA started", "Your profile will appear here when the NLP service finishes.", "success");
+      if (sync) await load();
+    } catch (error) {
+      notify("Creator DNA failed", error instanceof Error ? error.message : "Unable to generate DNA.", "error");
+    } finally {
+      setDnaBusy(false);
+    }
+  }, [load]);
 
   useEffect(() => {
     queueMicrotask(() => void load());
@@ -134,6 +154,8 @@ export function AnalyticsPage() {
           totalViews={totalViews}
           averageScore={averageScore}
         />
+
+        <CreatorDNAPanel dna={dna} busy={dnaBusy} onGenerate={(sync) => void generateDNA(sync)} />
 
         {/* Bento Two-Column Section: Left Charts + Right Leaderboard */}
         <div className="ca-analytics-bento-grid">

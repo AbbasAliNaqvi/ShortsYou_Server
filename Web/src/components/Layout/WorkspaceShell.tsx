@@ -2,16 +2,14 @@
 
 import { memo, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import FallingColorBackground from "@/components/LiquidGlass/FallingColorBackground";
 import { WorkspaceHeader, type WorkspaceHeaderProps } from "./WorkspaceHeader";
 import { LoadingState } from "./LoadingState";
+import { CreatorPointer } from "./CreatorPointer";
 
 export interface WorkspaceShellProps extends WorkspaceHeaderProps {
   children: ReactNode;
   contentClassName?: string;
-  showBackground?: boolean;
 }
 
 /**
@@ -29,7 +27,6 @@ export interface WorkspaceShellProps extends WorkspaceHeaderProps {
 export const WorkspaceShell = memo(function WorkspaceShell({
   children,
   contentClassName = "",
-  showBackground = true,
   onRefresh,
   ...headerProps
 }: WorkspaceShellProps) {
@@ -65,7 +62,6 @@ export const WorkspaceShell = memo(function WorkspaceShell({
   if (!isAuthenticated) {
     return (
       <main className="workspace-page ca-canvas-container" style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-        {showBackground && <FallingColorBackground />}
         <LoadingState />
       </main>
     );
@@ -73,22 +69,15 @@ export const WorkspaceShell = memo(function WorkspaceShell({
 
   return (
     <main className="workspace-page ca-canvas-container">
-      {/* Dynamic Animated Liquid Glass Multi-Directional Waves & Ambient Glows */}
-      {showBackground && <FallingColorBackground />}
+      <CreatorPointer />
 
       <div className="workspace-main ca-main-viewport">
         {/* Upper Header Bar & Controls */}
         <WorkspaceHeader {...headerProps} onRefresh={handleRefresh} />
 
-        {/* Content Area with smooth entrance animation */}
-        <motion.div
-          className={`workspace-content ca-dashboard-content ${contentClassName}`}
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        >
+        <div className={`workspace-content ca-dashboard-content ${contentClassName}`}>
           {children}
-        </motion.div>
+        </div>
       </div>
     </main>
   );

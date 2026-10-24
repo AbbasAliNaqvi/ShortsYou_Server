@@ -1,12 +1,23 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Clapperboard, Compass, Info, Sparkles, X } from "lucide-react";
+import {
+  Bot,
+  Clapperboard,
+  Compass,
+  Info,
+  Link2,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 export interface VideosIntroBannerProps {
   totalCount: number;
   ownCount: number;
+  importedCount?: number;
   pickedCount: number;
+  processingCount?: number;
   notice?: string;
   onClearNotice?: () => void;
 }
@@ -14,7 +25,9 @@ export interface VideosIntroBannerProps {
 export function VideosIntroBanner({
   totalCount,
   ownCount,
+  importedCount = 0,
   pickedCount,
+  processingCount = 0,
   notice,
   onClearNotice,
 }: VideosIntroBannerProps) {
@@ -23,7 +36,7 @@ export function VideosIntroBanner({
       className="ca-videos-hero ca-glass"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="ca-videos-hero-top">
         <span className="ca-videos-eyebrow">
@@ -35,14 +48,30 @@ export function VideosIntroBanner({
         <div className="ca-videos-stat-chips">
           <span className="ca-stat-chip">
             <Clapperboard size={12} />
-            <strong>{ownCount}</strong> Channel Videos
+            <strong>{ownCount}</strong> Channel
           </span>
+
+          {importedCount > 0 && (
+            <span className="ca-stat-chip">
+              <Link2 size={12} />
+              <strong>{importedCount}</strong> Imported URL
+            </span>
+          )}
+
           {pickedCount > 0 && (
             <span className="ca-stat-chip">
               <Compass size={12} />
-              <strong>{pickedCount}</strong> Selected Videos
+              <strong>{pickedCount}</strong> Discover
             </span>
           )}
+
+          {processingCount > 0 && (
+            <span className="ca-stat-chip ca-stat-chip-processing">
+              <Loader2 size={12} className="spin" />
+              <strong>{processingCount}</strong> Processing
+            </span>
+          )}
+
           <span className="ca-stat-chip ca-stat-chip-accent">
             <Sparkles size={12} />
             <strong>{totalCount}</strong> Total in Studio
@@ -51,12 +80,12 @@ export function VideosIntroBanner({
       </div>
 
       <h1 className="ca-videos-headline">
-        Your videos. AI creates the shorts.
+        Your Videos. AI Creates the Shorts.
       </h1>
 
       <p className="ca-videos-subtext">
-        Select any video and let AI find the strongest moments, generate hooks, and render
-        production-ready shorts — or fine-tune every detail yourself.
+        Import any YouTube link or pick from your channel. AI discovers high-engagement
+        moments, synthesizes dynamic hooks, aligns SFX, and exports viral shorts in seconds.
       </p>
 
       {/* Dynamic Notification / Notice Banner */}

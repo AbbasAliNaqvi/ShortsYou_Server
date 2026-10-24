@@ -3,7 +3,6 @@ package downloader
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,6 +20,10 @@ func WatchURL(youtubeVideoID string) string {
 	return "https://www.youtube.com/watch?v=" + youtubeVideoID
 }
 
+// playerClients contains YouTube player clients in priority order.
+// These public session clients bypass bot challenges without requiring browser cookies.
+var playerClients = []string{"tv_embedded", "mweb", "web_safari", "android"}
+
 func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
 	url := WatchURL(youtubeVideoID)
 
@@ -36,70 +39,64 @@ func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
 	outputTemplate := filepath.Join(tmpDir, "video.%(ext)s")
 	finalPath := filepath.Join(tmpDir, "video.mp4")
 
-	args := []string{
-		"--quiet",
-		"--no-warnings",
-		"--format",
-		"bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
-		"--output",
-		outputTemplate,
-		"--merge-output-format",
-		"mp4",
+	proxy := strings.TrimSpace(os.Getenv("YOUTUBE_PROXY"))
+	if proxy == "" {
+		proxy = strings.TrimSpace(os.Getenv("HTTP_PROXY"))
 	}
 
-	if encodedCookies := strings.TrimSpace(os.Getenv("YOUTUBE_COOKIES_BASE64")); encodedCookies != "" {
-		cookies, err := base64.StdEncoding.DecodeString(encodedCookies)
-		if err != nil {
+	var failures []string
+
+	for _, client := range playerClients {
+		if ctx.Err() != nil {
 			cleanup()
-			return nil, fmt.Errorf("decode YOUTUBE_COOKIES_BASE64: %w", err)
+			return nil, ctx.Err()
 		}
 
-		cookiePath := filepath.Join(tmpDir, "youtube-cookies.txt")
-		if err := os.WriteFile(cookiePath, cookies, 0o600); err != nil {
-			cleanup()
-			return nil, fmt.Errorf("write YouTube cookies: %w", err)
+		_ = os.Remove(finalPath)
+
+		args := []string{
+			"--quiet",
+			"--no-warnings",
+			"--no-playlist",
+			"--extractor-args", fmt.Sprintf("youtube:player_client=%s", client),
+			"--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+			"--output", outputTemplate,
+			"--merge-output-format", "mp4",
 		}
 
-		args = append(args, "--cookies", cookiePath)
-	}
+		if proxy != "" {
+			args = append(args, "--proxy", proxy)
+		}
 
-	args = append(args, url)
+		args = append(args, url)
 
-	cmd := exec.CommandContext(ctx,
-		"yt-dlp",
-		args...,
-	)
+		cmd := exec.CommandContext(ctx, "yt-dlp", args...)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		cleanup()
+		if err := cmd.Run(); err == nil {
+			if fi, statErr := os.Stat(finalPath); statErr == nil && fi.Size() > 1024 {
+				return &Result{
+					FilePath:    finalPath,
+					ContentType: "video/mp4",
+					Cleanup:     cleanup,
+				}, nil
+			}
+		}
 
 		errMsg := strings.TrimSpace(stderr.String())
 		if errMsg == "" {
-			errMsg = err.Error()
+			errMsg = "empty video output"
 		}
-
-		return nil, fmt.Errorf("yt-dlp: %s", errMsg)
+		failures = append(failures, fmt.Sprintf("%s: %s", client, errMsg))
 	}
 
-	if _, err := os.Stat(finalPath); err != nil {
-		cleanup()
-		return nil, fmt.Errorf("yt-dlp output not found at %s: %w", finalPath, err)
-	}
-
-	return &Result{
-		FilePath:    finalPath,
-		ContentType: "video/mp4",
-		Cleanup:     cleanup,
-	}, nil
+	cleanup()
+	return nil, fmt.Errorf("yt-dlp download failed across all clients: %s", strings.Join(failures, " | "))
 }
 
 // DownloadAudio downloads an audio-only M4A rendition suitable for a remote
-// speech-to-text provider. A YouTube watch URL is an HTML document, not media;
-// passing one directly to Deepgram (or a similar provider) results in a 415.
-// The caller owns Cleanup and must call it after the file has been uploaded.
+// speech-to-text provider using multi-client public session fallback.
 func DownloadAudio(ctx context.Context, youtubeVideoID string) (*Result, error) {
 	url := WatchURL(youtubeVideoID)
 	tmpDir, err := os.MkdirTemp("", "shortsyou-audio-*")
@@ -109,50 +106,63 @@ func DownloadAudio(ctx context.Context, youtubeVideoID string) (*Result, error) 
 	cleanup := func() { _ = os.RemoveAll(tmpDir) }
 
 	finalPath := filepath.Join(tmpDir, "audio.m4a")
-	args := []string{
-		"--quiet", "--no-warnings", "--no-playlist",
-		"--format", "bestaudio[ext=m4a]/bestaudio",
-		"--extract-audio", "--audio-format", "m4a", "--audio-quality", "5",
-		"--output", finalPath,
-	}
-	if err := appendCookies(&args, tmpDir); err != nil {
-		cleanup()
-		return nil, err
+
+	proxy := strings.TrimSpace(os.Getenv("YOUTUBE_PROXY"))
+	if proxy == "" {
+		proxy = strings.TrimSpace(os.Getenv("HTTP_PROXY"))
 	}
 
-	cmd := exec.CommandContext(ctx, "yt-dlp", append(args, url)...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		cleanup()
+	var failures []string
+
+	for _, client := range playerClients {
+		if ctx.Err() != nil {
+			cleanup()
+			return nil, ctx.Err()
+		}
+
+		_ = os.Remove(finalPath)
+
+		args := []string{
+			"--quiet",
+			"--no-warnings",
+			"--no-playlist",
+			"--extractor-args", fmt.Sprintf("youtube:player_client=%s", client),
+			"--format", "bestaudio[ext=m4a]/bestaudio/best",
+			"--extract-audio",
+			"--audio-format", "m4a",
+			"--audio-quality", "5",
+			"--output", finalPath,
+		}
+
+		if proxy != "" {
+			args = append(args, "--proxy", proxy)
+		}
+
+		args = append(args, url)
+
+		cmd := exec.CommandContext(ctx, "yt-dlp", args...)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err == nil {
+			if fi, statErr := os.Stat(finalPath); statErr == nil && fi.Size() > 1024 {
+				return &Result{
+					FilePath:    finalPath,
+					ContentType: "audio/mp4",
+					Cleanup:     cleanup,
+				}, nil
+			}
+		}
+
 		errMsg := strings.TrimSpace(stderr.String())
 		if errMsg == "" {
-			errMsg = err.Error()
+			errMsg = "empty audio output"
 		}
-		return nil, fmt.Errorf("yt-dlp audio: %s", errMsg)
+		failures = append(failures, fmt.Sprintf("%s: %s", client, errMsg))
 	}
-	if _, err := os.Stat(finalPath); err != nil {
-		cleanup()
-		return nil, fmt.Errorf("yt-dlp audio output not found at %s: %w", finalPath, err)
-	}
-	return &Result{FilePath: finalPath, ContentType: "audio/mp4", Cleanup: cleanup}, nil
-}
 
-func appendCookies(args *[]string, tmpDir string) error {
-	encodedCookies := strings.TrimSpace(os.Getenv("YOUTUBE_COOKIES_BASE64"))
-	if encodedCookies == "" {
-		return nil
-	}
-	cookies, err := base64.StdEncoding.DecodeString(encodedCookies)
-	if err != nil {
-		return fmt.Errorf("decode YOUTUBE_COOKIES_BASE64: %w", err)
-	}
-	cookiePath := filepath.Join(tmpDir, "youtube-cookies.txt")
-	if err := os.WriteFile(cookiePath, cookies, 0o600); err != nil {
-		return fmt.Errorf("write YouTube cookies: %w", err)
-	}
-	*args = append(*args, "--cookies", cookiePath)
-	return nil
+	cleanup()
+	return nil, fmt.Errorf("yt-dlp audio download failed across all clients: %s", strings.Join(failures, " | "))
 }
 
 // VideoKey returns the Supabase object path relative to the raw-videos bucket.

@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { Activity, Bot, Download, Video as VideoIcon, WandSparkles } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
 
@@ -29,11 +28,8 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
   const activeVideo = activeJob ? videos.find((v) => v.id === activeJob.videoId) : null;
 
   return (
-    <motion.div
+    <div
       className="ca-pipeline-card ca-glass"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="ca-pipeline-header">
         <div className="ca-pipeline-header-title">
@@ -54,26 +50,20 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
         <div className="ca-chart-svg-box">
           <svg viewBox="0 0 280 90" className="ca-sparkline-full">
             {/* Green / Cyan Wave */}
-            <motion.path
+            <path
               d="M 5 70 Q 55 50 95 60 T 185 40 T 275 75"
               fill="none"
               stroke="#06b6d4"
               strokeWidth="2.5"
               strokeLinecap="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
             />
             {/* Gold / Yellow Wave */}
-            <motion.path
+            <path
               d="M 5 55 Q 50 10 105 50 T 200 15 T 275 60"
               fill="none"
               stroke="#f59e0b"
               strokeWidth="3"
               strokeLinecap="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 1.8, ease: "easeOut" }}
             />
             {/* Active Pointer */}
             <line x1="230" y1="12" x2="230" y2="80" stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
@@ -81,11 +71,8 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
           </svg>
 
           {/* Active Progress Popover Pill */}
-          <motion.div
+          <div
             className="ca-chart-popover-pill"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.6 }}
           >
             <span>
               {activeJob
@@ -95,7 +82,7 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
                 : "50%"}
             </span>
             <div className="ca-chart-popover-glow" />
-          </motion.div>
+          </div>
         </div>
       </div>
 
@@ -105,15 +92,14 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
           const Icon = s.icon;
           const activeHere = activeJob ? stageIndex(activeJob.stage || activeJob.status) === i : false;
           return (
-            <motion.div
+            <div
               key={s.key}
               className={`ca-pipeline-stage-node ${activeHere ? "active" : ""}`}
               title={s.label}
-              whileHover={{ scale: 1.06, y: -2 }}
             >
               <Icon size={12} />
               <span>{s.label}</span>
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -129,6 +115,6 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
           <b>{Math.round(activeJob.progress * 100)}%</b>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 });

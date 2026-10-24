@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { Activity, WandSparkles, Zap } from "lucide-react";
 
 // Bar config is static — defined outside the component so it is never
@@ -43,28 +42,21 @@ export const LiquidGlassHeroGraphic = memo(function LiquidGlassHeroGraphic() {
       <div className="ca-liquid-graphic-glow" />
 
       {/* Orbiting Frosted Glass Ring 1 */}
-      <motion.div
+      <div
         className="ca-liquid-ring ca-liquid-ring-outer"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
       >
         <span className="ca-orbit-satellite ca-sat-1" />
         <span className="ca-orbit-satellite ca-sat-2" />
-      </motion.div>
+      </div>
 
       {/* Orbiting Frosted Glass Ring 2 */}
-      <motion.div
+      <div
         className="ca-liquid-ring ca-liquid-ring-inner"
-        animate={{ rotate: -360 }}
-        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
       />
 
       {/* Apple Vision Pro Glass Console */}
-      <motion.div
+      <div
         className="ca-apple-console"
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        whileHover={{ scale: 1.02 }}
       >
         {/* Console Top Bar */}
         <div className="ca-console-top">
@@ -88,18 +80,10 @@ export const LiquidGlassHeroGraphic = memo(function LiquidGlassHeroGraphic() {
           </div>
           <div className="ca-waveform-equalizer">
             {BARS.map((bar, i) => (
-              <motion.span
+              <span
                 key={i}
                 className="ca-waveform-bar"
-                animate={{
-                  height: [`${bar.minH}%`, `${bar.maxH}%`, `${bar.minH}%`],
-                }}
-                transition={{
-                  duration: 1.2 + bar.delay,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: bar.delay,
-                }}
+                style={{ height: `${bar.maxH}%` }}
               />
             ))}
           </div>
@@ -120,7 +104,7 @@ export const LiquidGlassHeroGraphic = memo(function LiquidGlassHeroGraphic() {
             <span>Karaoke Subtitles</span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 });

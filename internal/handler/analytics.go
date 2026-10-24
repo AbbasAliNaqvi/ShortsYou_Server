@@ -1,11 +1,17 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"math"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 )
@@ -17,6 +23,7 @@ type AnalyticsHandler struct {
 	fmRepo      *repository.FeatureMatrixRepository
 	clipRepo    *repository.ClipRepository
 	abRepo      *repository.ABExperimentRepository
+	cfg         *config.Config
 }
 
 func NewAnalyticsHandler(
@@ -26,6 +33,7 @@ func NewAnalyticsHandler(
 	fmRepo *repository.FeatureMatrixRepository,
 	clipRepo *repository.ClipRepository,
 	abRepo *repository.ABExperimentRepository,
+	cfg *config.Config,
 ) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		dnaRepo:     dnaRepo,
@@ -34,11 +42,73 @@ func NewAnalyticsHandler(
 		fmRepo:      fmRepo,
 		clipRepo:    clipRepo,
 		abRepo:      abRepo,
+		cfg:         cfg,
 	}
 }
 
+func (h *AnalyticsHandler) GenerateDNA(c *gin.Context) {
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	syncMode := c.Query("sync") == "true"
+	endpoint := "/generate-dna"
+	if syncMode {
+		endpoint += "/sync"
+	}
+
+	body, err := json.Marshal(map[string]any{
+		"job_id":      fmt.Sprintf("dna-%d", time.Now().UnixNano()),
+		"userId":      userID.Hex(),
+		"callbackUrl": h.cfg.BaseURL + "/api/internal/dna/done",
+		"internalKey": h.cfg.InternalAPIKey,
+	})
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	req, err := http.NewRequestWithContext(
+		c.Request.Context(),
+		http.MethodPost,
+		h.cfg.MLNLPServiceURL+endpoint,
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+h.cfg.MLAPIKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	upstream, err := client.Do(req)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	defer upstream.Body.Close()
+
+	if upstream.StatusCode < 200 || upstream.StatusCode >= 300 {
+		response.InternalError(c)
+		return
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(upstream.Body).Decode(&result); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, result)
+}
+
 func (h *AnalyticsHandler) GetDNA(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	dna, err := h.dnaRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -54,7 +124,11 @@ func (h *AnalyticsHandler) GetDNA(c *gin.Context) {
 
 // GetKnowledgeGraph powers VIZ-01 D3.js force-directed topic graph.
 func (h *AnalyticsHandler) GetKnowledgeGraph(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	dna, err := h.dnaRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -74,7 +148,11 @@ func (h *AnalyticsHandler) GetKnowledgeGraph(c *gin.Context) {
 
 // GetContentGaps powers VIZ-10 opportunity score radar and table.
 func (h *AnalyticsHandler) GetContentGaps(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	dna, err := h.dnaRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -90,7 +168,11 @@ func (h *AnalyticsHandler) GetContentGaps(c *gin.Context) {
 
 // GetPersonas powers VIZ-06 audience persona bubble chart.
 func (h *AnalyticsHandler) GetPersonas(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	persona, err := h.personaRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -106,7 +188,11 @@ func (h *AnalyticsHandler) GetPersonas(c *gin.Context) {
 
 // GetTrendForecast powers VIZ-03 Prophet time-series chart.
 func (h *AnalyticsHandler) GetTrendForecast(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	forecasts, err := h.trendRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -125,7 +211,11 @@ type perfPoint struct {
 
 // GetPerformance powers VIZ-05 actual vs predicted scatter plot.
 func (h *AnalyticsHandler) GetPerformance(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	clips, err := h.clipRepo.FindByUserID(c.Request.Context(), userID, 200, 0)
 	if err != nil {
@@ -155,7 +245,11 @@ func (h *AnalyticsHandler) GetPerformance(c *gin.Context) {
 
 // GetModelAccuracy powers VIZ-08 learning curve and VIZ-09 SHAP feature importance.
 func (h *AnalyticsHandler) GetModelAccuracy(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	labeled, err := h.fmRepo.CountLabeledForUser(c.Request.Context(), userID)
 	if err != nil {
@@ -190,7 +284,11 @@ func (h *AnalyticsHandler) GetModelAccuracy(c *gin.Context) {
 
 // GetABTests powers VIZ-07 A/B hook test results dashboard.
 func (h *AnalyticsHandler) GetABTests(c *gin.Context) {
-	userID := extractUserID(c)
+	userID, ok := extractUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 
 	experiments, err := h.abRepo.FindByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -200,10 +298,20 @@ func (h *AnalyticsHandler) GetABTests(c *gin.Context) {
 	response.OK(c, gin.H{"experiments": experiments})
 }
 
-func extractUserID(c *gin.Context) primitive.ObjectID {
-	raw, _ := c.Get("userID")
-	id, _ := primitive.ObjectIDFromHex(raw.(string))
-	return id
+func extractUserID(c *gin.Context) (primitive.ObjectID, bool) {
+	raw, exists := c.Get("userID")
+	if !exists {
+		return primitive.NilObjectID, false
+	}
+	userID, ok := raw.(string)
+	if !ok || userID == "" {
+		return primitive.NilObjectID, false
+	}
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return primitive.NilObjectID, false
+	}
+	return id, true
 }
 
 func computePearsonR(points []perfPoint) float64 {

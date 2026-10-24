@@ -53,7 +53,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 		300,
 		"/",
 		"",
-		false,
+		h.cfg.Env == "production",
 		true,
 	)
 
@@ -88,7 +88,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		-1,
 		"/",
 		"",
-		false,
+		h.cfg.Env == "production",
 		true,
 	)
 

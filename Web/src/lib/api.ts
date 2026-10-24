@@ -34,7 +34,8 @@ export async function apiRequest<T>(
 export const api = {
   health: () => apiRequest<Health>("/health"),
   me: (token: string) => apiRequest<User>("/api/v1/auth/me", { token }),
-  videos: (token: string) => apiRequest<Video[]>("/api/v1/videos", { token }),
+  videos: (token: string, sort?: string) =>
+    apiRequest<Video[]>(`/api/v1/videos${sort ? `?sort=${encodeURIComponent(sort)}` : ""}`, { token }),
   searchVideos: (token: string, query: string) =>
     apiRequest<PublicVideo[]>(`/api/v1/videos/search?q=${encodeURIComponent(query)}`, { token }),
   deleteVideo: (token: string, videoId: string) =>
@@ -162,7 +163,12 @@ export const api = {
   },
   analytics: {
     dna: (token: string) =>
-      apiRequest<unknown>("/api/v1/analytics/dna", { token }),
+      apiRequest<CreatorDNA>("/api/v1/analytics/dna", { token }),
+    generateDNA: (token: string, sync = false) =>
+      apiRequest<{ accepted: boolean; userId: string }>(
+        `/api/v1/analytics/dna/generate${sync ? "/sync" : ""}`,
+        { method: "POST", token },
+      ),
     knowledgeGraph: (token: string) =>
       apiRequest<unknown>("/api/v1/analytics/knowledge-graph", { token }),
     contentGaps: (token: string) =>
@@ -209,6 +215,8 @@ export type Video = {
   publishedAt: string;
   sourceType?: string;
   sourceChannelId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 export type TranscriptWord = {
   word: string;
@@ -236,12 +244,36 @@ export type Transcript = {
 export type Clip = {
   id: string;
   videoId: string;
+  userId: string;
+  startTime: number;
+  endTime: number;
   viralScore: number;
+  genericPredictionScore: number;
+  personalizedPredictionScore: number;
   hookScore: number;
   transcriptText: string;
   originalHook?: string;
   selectedHook?: string;
   semanticLabels?: string[];
+  emotionType?: string;
+  suggestedHooks?: { text: string; hookScore: number }[];
+  scores?: {
+    emotion: number;
+    semanticImpact: number;
+    speechEmphasis: number;
+    clarity: number;
+    novelty: number;
+    trendAlignment: number;
+  };
+  editSettings: EditSettings;
+  predictionConfidenceInterval?: { low: number; high: number };
+  performanceData?: {
+    views48h: number;
+    ctr48h: number;
+    avgWatchTimeSec: number;
+    engagementRate: number;
+    collectedAt: string;
+  };
   status: string;
   category: string;
   durationSeconds: number;
@@ -250,6 +282,9 @@ export type Clip = {
   thumbnailOptions?: string[];
   supabaseShortUrl?: string;
   supabaseRawClipUrl?: string;
+  abTestGroup?: string;
+  updatedAt?: string;
+  exportedAt?: string;
 };
 export type ClipCollection = { clips: Clip[]; count: number };
 export type ClipAction = { clipId: string; status: string; message: string };
@@ -306,6 +341,16 @@ export type PerformanceAnalytics = {
   }[];
   pearsonR: number;
   n: number;
+};
+export type CreatorDNA = {
+  ready?: boolean;
+  message?: string;
+  topicDistribution?: { topic: string; label: string; weight: number }[];
+  emotionalRange?: { dominantEmotion?: string; mean?: number; min?: number; max?: number };
+  speechProfile?: { avgWpm?: number; pauseFrequency?: number; emphasisFrequency?: number };
+  vocabularyProfile?: { topWords?: string[]; avgSentenceLength?: number; readabilityScore?: number };
+  dnaVector?: number[];
+  lastUpdatedAt?: string;
 };
 export type ModelAccuracy = {
   accuracyHistory: { date?: string; accuracy?: number; value?: number }[];

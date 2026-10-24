@@ -60,7 +60,7 @@ export function PlaceholderDashboard() {
       setError("The studio API is unavailable. Check that the Go server is running on port 5050.");
     setLoading(false);
     setRefreshing(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

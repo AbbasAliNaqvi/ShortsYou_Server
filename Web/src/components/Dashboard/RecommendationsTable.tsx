@@ -2,7 +2,6 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { memo, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
 import { ChevronDown, Download, MoreHorizontal, Play, RefreshCw } from "lucide-react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { Clip, Video } from "@/lib/api";
@@ -45,16 +44,8 @@ const RecommendationRow = memo(function RecommendationRow({
     fallbackThumbs[index % fallbackThumbs.length];
 
   return (
-    <motion.div
+    <div
       className="ca-table-row ca-glass"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3) }}
-      whileHover={{
-        scale: 1.008,
-        y: -2,
-        boxShadow: "0 14px 35px rgba(0, 0, 0, 0.5)",
-      }}
     >
       {/* Video Info Column */}
       <div className="ca-row-media-cell">
@@ -111,7 +102,7 @@ const RecommendationRow = memo(function RecommendationRow({
 
       {/* Action Column */}
       <div className="ca-row-action-cell">
-        <motion.button
+        <button
           className="ca-row-action-btn"
           onClick={() => onCreateShort(clip.id)}
           disabled={rendering}
@@ -122,8 +113,6 @@ const RecommendationRow = memo(function RecommendationRow({
               ? "Rendering Short..."
               : "Create Short"
           }
-          whileHover={{ scale: 1.12 }}
-          whileTap={{ scale: 0.92 }}
         >
           {rendering ? (
             <RefreshCw className="spin" size={14} />
@@ -132,9 +121,9 @@ const RecommendationRow = memo(function RecommendationRow({
           ) : (
             <MoreHorizontal size={18} />
           )}
-        </motion.button>
+        </button>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
@@ -165,22 +154,17 @@ export const RecommendationsTable = memo(function RecommendationsTable({
   });
 
   return (
-    <motion.section
+    <section
       className="ca-bottom-table-panel ca-glass"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="ca-table-top-bar">
         <h2>Your top videos in this period</h2>
-        <motion.button
+        <button
           className="ca-filter-pill-btn"
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
         >
           <span>Popularity</span>
           <ChevronDown size={14} />
-        </motion.button>
+        </button>
       </div>
 
       <div className="ca-table-col-headers">
@@ -255,6 +239,6 @@ export const RecommendationsTable = memo(function RecommendationsTable({
           <EmptyState text="Your AI-created shorts will appear here. Paste a YouTube URL above to get started." />
         )}
       </div>
-    </motion.section>
+    </section>
   );
 });

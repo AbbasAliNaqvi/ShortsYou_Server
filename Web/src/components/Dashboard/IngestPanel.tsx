@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, type FormEvent } from "react";
-import { motion } from "framer-motion";
 import { Copy, RefreshCw } from "lucide-react";
 
 export interface IngestPanelProps {
@@ -40,12 +39,10 @@ export const IngestPanel = memo(function IngestPanel({
             <Copy size={13} />
           </button>
         </div>
-        <motion.button
+        <button
           className="ca-hero-start-btn"
           type="submit"
           disabled={creating || !sourceUrl.trim()}
-          whileHover={{ scale: 1.03, y: -1 }}
-          whileTap={{ scale: 0.97 }}
         >
           {creating ? (
             <>
@@ -54,7 +51,7 @@ export const IngestPanel = memo(function IngestPanel({
           ) : (
             "Start Now"
           )}
-        </motion.button>
+        </button>
       </form>
       {notice && <p className="ca-hero-notice">{notice}</p>}
     </div>

@@ -83,20 +83,19 @@ export function DiscoverPage() {
     setBusy(true);
     const startMsg = `Adding ${videoIds.length} video${videoIds.length === 1 ? "" : "s"} to your selected videos...`;
     setMessage(startMsg);
-    let queued = 0;
-    for (const videoId of videoIds) {
-      try {
-        await api.processPublicVideo(token, channel.channelId, videoId, transcribe);
-        queued += 1;
-      } catch {
-        /* Existing or unavailable videos do not stop the batch. */
-      }
-    }
+    const results = await Promise.allSettled(
+      videoIds.map((videoId) =>
+        api.processPublicVideo(token, channel.channelId, videoId, transcribe)
+      )
+    );
+    const queued = results.filter((result) => result.status === "fulfilled").length;
+    const failed = results.length - queued;
     setSelected([]);
-    const successMsg = `${queued} video${queued === 1 ? "" : "s"} added. Open Your Videos to choose how to create each short.`;
+    const successMsg = `${queued} video${queued === 1 ? "" : "s"} added${failed ? `, ${failed} could not be added` : ""}. Opening Your Videos...`;
     setMessage(successMsg);
-    notify("Videos Queued", successMsg, "success");
+    notify("Videos Queued", successMsg, failed ? "info" : "success");
     setBusy(false);
+    if (queued > 0) router.push("/videos");
   }
 
   async function addChannelAndQueue() {

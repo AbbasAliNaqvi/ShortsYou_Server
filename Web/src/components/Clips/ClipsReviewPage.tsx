@@ -4,17 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Clapperboard } from "lucide-react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { motion, AnimatePresence } from "framer-motion";
 import { api, type Clip, type User, type Video } from "@/lib/api";
+import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell } from "@/components/Layout";
 import { ClipsHeroBanner } from "./ClipsHeroBanner";
 import { ClipsMetricsOverview } from "./ClipsMetricsOverview";
 import { ClipsFilterBar } from "./ClipsFilterBar";
 import { ClipCard } from "./ClipCard";
+import { ClipPreviewModal } from "./ClipPreviewModal";
 
 export function ClipsReviewPage() {
   const router = useRouter();
-  const parentRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
 
   const [clips, setClips] = useState<Clip[]>([]);
@@ -22,11 +23,16 @@ export function ClipsReviewPage() {
   const [user, setUser] = useState<User | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedVideoId, setSelectedVideoId] = useState("all");
+  const [sortBy, setSortBy] = useState("viral_desc");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
-  const [columnCount, setColumnCount] = useState(4);
+  const [previewClip, setPreviewClip] = useState<Clip | null>(null);
 
-  const refresh = useCallback(async () => {
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const refresh = useCallback(async (silent = false) => {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       router.replace("/login");
@@ -42,47 +48,144 @@ export function ClipsReviewPage() {
       setClips(clipsResult ?? []);
       setVideos(videosResult ?? []);
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Unable to refresh clips."
-      );
+      if (!silent) {
+        const msg = error instanceof Error ? error.message : "Unable to refresh clips.";
+        setNotice(msg);
+      }
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     queueMicrotask(() => void refresh());
   }, [refresh]);
 
-  // Responsive column detection for virtualized grid chunking
+  // Check if any clip is currently rendering or queued
+  const hasRenderingClips = useMemo(() => {
+    return clips.some((c) => {
+      const st = (c.status || "").toLowerCase();
+      return st === "editing" || st === "queued" || st === "processing";
+    });
+  }, [clips]);
+
+  // Background Auto-Polling when clips are rendering
   useEffect(() => {
-    const updateColumns = () => {
-      const width = parentRef.current?.offsetWidth ?? (typeof window !== "undefined" ? window.innerWidth - 120 : 1200);
-      // minmax(215px, 1fr) with 16px gap
-      const cols = Math.max(1, Math.floor((width + 16) / (215 + 16)));
-      setColumnCount(cols);
+    if (hasRenderingClips) {
+      if (!pollIntervalRef.current) {
+        pollIntervalRef.current = setInterval(() => {
+          void refresh(true);
+        }, 4000);
+      }
+    } else {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
     };
-    updateColumns();
-    window.addEventListener("resize", updateColumns, { passive: true });
-    return () => window.removeEventListener("resize", updateColumns);
-  }, []);
+  }, [hasRenderingClips, refresh]);
 
-  const visible = useMemo(
-    () =>
-      clips.filter(
-        (clip) =>
-          filter === "all" ||
-          (filter === "ready"
-            ? ["detected", "exported"].includes(clip.status)
-            : clip.category === filter)
-      ),
-    [clips, filter]
-  );
-
-  // O(1) indexed video map lookup instead of O(N) Array.find on every card
+  // Indexed video map for fast lookup
   const videoMap = useMemo(() => {
     const map = new Map<string, Video>();
     for (const v of videos) map.set(v.id, v);
     return map;
   }, [videos]);
+
+  // Pre-calculate tab counts
+  const counts = useMemo(() => {
+    let ready = 0;
+    let detected = 0;
+    let rendering = 0;
+    let viral = 0;
+    let narrative = 0;
+
+    for (const c of clips) {
+      const st = (c.status || "").toLowerCase();
+      if (st === "exported" || st === "published" || Boolean(c.supabaseShortUrl)) {
+        ready++;
+      } else if (st === "editing" || st === "queued" || st === "processing") {
+        rendering++;
+      } else if (st === "detected") {
+        detected++;
+      }
+
+      if (c.category === "viral") viral++;
+      else if (c.category === "narrative") narrative++;
+    }
+
+    return {
+      total: clips.length,
+      ready,
+      detected,
+      rendering,
+      viral,
+      narrative,
+    };
+  }, [clips]);
+
+  // Filtered & Sorted clips
+  const visible = useMemo(() => {
+    let result = [...clips];
+
+    // 1. Status / Category Filter
+    if (filter === "ready") {
+      result = result.filter(
+        (c) =>
+          ["exported", "published"].includes(c.status) || Boolean(c.supabaseShortUrl)
+      );
+    } else if (filter === "rendering") {
+      result = result.filter((c) =>
+        ["editing", "queued", "processing"].includes(c.status)
+      );
+    } else if (filter === "detected") {
+      result = result.filter((c) => c.status === "detected");
+    } else if (filter === "viral" || filter === "narrative") {
+      result = result.filter((c) => c.category === filter);
+    }
+
+    // 2. Video Picker Filter
+    if (selectedVideoId !== "all") {
+      result = result.filter((c) => c.videoId === selectedVideoId);
+    }
+
+    // 3. Search Query Filter
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((c) => {
+        const title = (c.originalHook || c.selectedHook || "").toLowerCase();
+        const transcript = (c.transcriptText || "").toLowerCase();
+        const videoTitle = (videoMap.get(c.videoId)?.title || "").toLowerCase();
+        return (
+          title.includes(q) || transcript.includes(q) || videoTitle.includes(q)
+        );
+      });
+    }
+
+    // 4. Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "viral_asc":
+          return (a.viralScore || 0) - (b.viralScore || 0);
+        case "newest":
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case "duration_desc":
+          return (b.durationSeconds || 0) - (a.durationSeconds || 0);
+        case "duration_asc":
+          return (a.durationSeconds || 0) - (b.durationSeconds || 0);
+        case "viral_desc":
+        default:
+          return (b.viralScore || 0) - (a.viralScore || 0);
+      }
+    });
+
+    return result;
+  }, [clips, filter, selectedVideoId, searchQuery, sortBy, videoMap]);
 
   const handleFilterChange = useCallback((newFilter: string) => {
     startTransition(() => {
@@ -95,13 +198,20 @@ export function ClipsReviewPage() {
       const token = localStorage.getItem("shortsyou_jwt");
       if (!token) return;
       setBusy(clipId);
-      setNotice("Queueing 4K export...");
+      setNotice("Queueing 4K export with AI effects & captions…");
       try {
         await api.exportClip(token, clipId);
-        setNotice("Export queued. The card will update after the worker finishes.");
-        await refresh();
+        notify(
+          "Export Queued",
+          "AI is now rendering your 9:16 short. It will automatically update when finished.",
+          "info"
+        );
+        setNotice("AI is rendering your short. This card will update live once finished.");
+        await refresh(true);
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : "Export failed.");
+        const msg = error instanceof Error ? error.message : "Export failed.";
+        setNotice(msg);
+        notify("Export Error", msg, "error");
       } finally {
         setBusy(null);
       }
@@ -114,13 +224,16 @@ export function ClipsReviewPage() {
       const token = localStorage.getItem("shortsyou_jwt");
       if (!token) return;
       setBusy(clipId);
-      setNotice("Publishing clip...");
+      setNotice("Publishing clip…");
       try {
         await api.publishClip(token, clipId);
+        notify("Clip Published", "Short published and analytics tracking initiated.", "success");
         setNotice("Clip published and analytics collection scheduled.");
-        await refresh();
+        await refresh(true);
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : "Publish failed.");
+        const msg = error instanceof Error ? error.message : "Publish failed.";
+        setNotice(msg);
+        notify("Publish Error", msg, "error");
       } finally {
         setBusy(null);
       }
@@ -134,11 +247,14 @@ export function ClipsReviewPage() {
     setBusy(clipId);
     try {
       const result = await api.downloadClip(token, clipId);
-      window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
+      if (result.downloadUrl) {
+        window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
+        notify("Download Started", "Opening high-resolution vertical MP4.", "success");
+      }
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Download is not ready yet."
-      );
+      const msg = error instanceof Error ? error.message : "Download is not ready yet.";
+      setNotice(msg);
+      notify("Download Error", msg, "error");
     } finally {
       setBusy(null);
     }
@@ -147,17 +263,17 @@ export function ClipsReviewPage() {
   const removeClip = useCallback(
     async (clip: Clip) => {
       const token = localStorage.getItem("shortsyou_jwt");
-      if (!token || !window.confirm("Remove this clip?")) return;
+      if (!token || !window.confirm("Remove this short from your library?")) return;
       setBusy(clip.id);
       try {
         await api.deleteClip(token, clip.id);
         setSelected((ids) => ids.filter((id) => id !== clip.id));
-        setNotice("Clip removed.");
-        await refresh();
+        notify("Clip Removed", "The short was deleted.", "info");
+        await refresh(true);
       } catch (error) {
-        setNotice(
-          error instanceof Error ? error.message : "Could not remove the clip."
-        );
+        const msg = error instanceof Error ? error.message : "Could not remove the clip.";
+        setNotice(msg);
+        notify("Delete Failed", msg, "error");
       } finally {
         setBusy(null);
       }
@@ -194,23 +310,12 @@ export function ClipsReviewPage() {
     );
   }, [visible]);
 
-  // Chunk visible items into grid rows for row-level virtualization
-  const isVirtualized = visible.length > 8;
-  const chunkedRows = useMemo(() => {
-    if (!isVirtualized) return [];
-    const rows: Clip[][] = [];
-    for (let i = 0; i < visible.length; i += columnCount) {
-      rows.push(visible.slice(i, i + columnCount));
-    }
-    return rows;
-  }, [visible, columnCount, isVirtualized]);
-
-  const virtualizer = useWindowVirtualizer({
-    count: isVirtualized ? chunkedRows.length : 0,
-    estimateSize: () => 440,
-    overscan: 2,
-    scrollMargin: parentRef.current?.offsetTop ?? 0,
-  });
+  function resetFilters() {
+    setFilter("all");
+    setSearchQuery("");
+    setSelectedVideoId("all");
+    setSortBy("viral_desc");
+  }
 
   return (
     <WorkspaceShell
@@ -235,100 +340,84 @@ export function ClipsReviewPage() {
         {/* 4 Performance Metric Cards */}
         <ClipsMetricsOverview clips={clips} videos={videos} />
 
-        {/* Filter Toolbar & Select All */}
+        {/* Filter Toolbar, Search, and Video Picker */}
         <ClipsFilterBar
           filter={filter}
           onFilterChange={handleFilterChange}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          selectedVideoId={selectedVideoId}
+          onVideoChange={setSelectedVideoId}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          videos={videos}
+          counts={counts}
           allSelected={selected.length === visible.length && visible.length > 0}
           onToggleSelectAll={toggleSelectAll}
-          totalCount={clips.length}
+          onResetFilters={resetFilters}
         />
 
-        {/* Main Clips Grid with window-level row virtualization */}
+        {/* Main Clips Grid with Fluid Framer Motion Grid (Virtualizer removed for stability) */}
         {visible.length > 0 ? (
-          <div ref={parentRef}>
-            {isVirtualized ? (
-              <div
-                style={{
-                  height: `${virtualizer.getTotalSize()}px`,
-                  width: "100%",
-                  position: "relative",
-                }}
-              >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                  const rowClips = chunkedRows[virtualRow.index] ?? [];
-                  const startIndex = virtualRow.index * columnCount;
-
-                  return (
-                    <div
-                      key={virtualRow.index}
-                      ref={virtualizer.measureElement}
-                      data-index={virtualRow.index}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${
-                          virtualRow.start - (virtualizer.options.scrollMargin ?? 0)
-                        }px)`,
-                      }}
-                    >
-                      <div className="ca-clips-grid" style={{ marginBottom: "16px" }}>
-                        {rowClips.map((clip, colIndex) => {
-                          const globalIndex = startIndex + colIndex;
-                          return (
-                            <ClipCard
-                              key={clip.id}
-                              clip={clip}
-                              video={videoMap.get(clip.videoId)}
-                              selected={selected.includes(clip.id)}
-                              busy={busy === clip.id}
-                              onSelect={() => toggleSelectClip(clip.id)}
-                              onExport={() => void exportClip(clip.id)}
-                              onDownload={() => void downloadClip(clip.id)}
-                              onDelete={() => void removeClip(clip)}
-                              index={globalIndex}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="ca-clips-grid">
-                {visible.map((clip, index) => (
-                  <ClipCard
-                    key={clip.id}
-                    clip={clip}
-                    video={videoMap.get(clip.videoId)}
-                    selected={selected.includes(clip.id)}
-                    busy={busy === clip.id}
-                    onSelect={() => toggleSelectClip(clip.id)}
-                    onExport={() => void exportClip(clip.id)}
-                    onDownload={() => void downloadClip(clip.id)}
-                    onDelete={() => void removeClip(clip)}
-                    index={index}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          <motion.div className="ca-clips-grid" layout>
+            <AnimatePresence mode="popLayout">
+              {visible.map((clip, index) => (
+                <ClipCard
+                  key={clip.id}
+                  clip={clip}
+                  video={videoMap.get(clip.videoId)}
+                  selected={selected.includes(clip.id)}
+                  busy={busy === clip.id}
+                  onSelect={() => toggleSelectClip(clip.id)}
+                  onExport={() => void exportClip(clip.id)}
+                  onDownload={() => void downloadClip(clip.id)}
+                  onDelete={() => void removeClip(clip)}
+                  onPreview={(c) => setPreviewClip(c)}
+                  index={index}
+                />
+              ))}
+            </AnimatePresence>
+          </motion.div>
         ) : (
           <div className="ca-clips-empty-canvas ca-glass">
             <Clapperboard size={36} className="ca-empty-icon" />
-            <h2>No AI-created shorts yet</h2>
+            <h2>
+              {searchQuery
+                ? `No clips match "${searchQuery}"`
+                : filter !== "all"
+                ? `No clips with filter "${filter}"`
+                : "No AI-created shorts yet"}
+            </h2>
             <p>
-              Paste a YouTube URL in the Studio and let AI create your shorts
-              automatically — they&apos;ll appear here when ready.
+              {searchQuery || filter !== "all"
+                ? "Try adjusting your search query or reset the filters."
+                : "Select a video from Your Videos or Targeted Videos and let AI generate viral shorts for you."}
             </p>
-            <Link href="/dashboard" className="ca-empty-primary-btn">
-              Go to AI Studio
-            </Link>
+            {searchQuery || filter !== "all" ? (
+              <button
+                type="button"
+                className="ca-empty-primary-btn"
+                onClick={resetFilters}
+              >
+                Reset Filters
+              </button>
+            ) : (
+              <Link href="/videos" className="ca-empty-primary-btn">
+                Browse Videos
+              </Link>
+            )}
           </div>
         )}
+
+        {/* In-App Clip Video Preview Modal */}
+        <ClipPreviewModal
+          clip={previewClip}
+          video={previewClip ? videoMap.get(previewClip.videoId) : undefined}
+          onClose={() => setPreviewClip(null)}
+          onDownload={(id) => void downloadClip(id)}
+          onExport={(id) => void exportClip(id)}
+          busy={busy !== null}
+        />
       </div>
     </WorkspaceShell>
   );

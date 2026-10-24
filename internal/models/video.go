@@ -35,6 +35,7 @@ type Video struct {
 	SourceType      string `bson:"sourceType"              json:"sourceType"`
 	SourceChannelID string `bson:"sourceChannelId,omitempty" json:"sourceChannelId,omitempty"`
 	AutoCreate      bool   `bson:"autoCreate"              json:"autoCreate"`
+	AudioURL        string `bson:"audioUrl,omitempty"      json:"audioUrl,omitempty"`
 
 	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`

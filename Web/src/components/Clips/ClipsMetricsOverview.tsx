@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { BarChart3, Film, Radio, Zap } from "lucide-react";
 import type { Clip, Video } from "@/lib/api";
 
@@ -48,19 +47,15 @@ export function ClipsMetricsOverview({ clips, videos }: ClipsMetricsOverviewProp
   ];
 
   return (
-    <motion.section
+    <section
       className="ca-clips-metrics-grid"
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
     >
       {metrics.map((metric) => {
         const Icon = metric.icon;
         return (
-          <motion.article
+          <article
             key={metric.label}
             className="ca-clips-metric-card ca-glass"
-            whileHover={{ y: -3, transition: { duration: 0.15 } }}
           >
             <div className="ca-clips-metric-top">
               <div
@@ -74,9 +69,9 @@ export function ClipsMetricsOverview({ clips, videos }: ClipsMetricsOverviewProp
 
             <strong className="ca-clips-metric-value">{metric.value}</strong>
             <span className="ca-clips-metric-label">{metric.label}</span>
-          </motion.article>
+          </article>
         );
       })}
-    </motion.section>
+    </section>
   );
 }

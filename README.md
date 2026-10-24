@@ -30,13 +30,15 @@ make tidy     tidy go modules
 make clean    remove build artifacts
 ```
 
-## YouTube downloads on Render
+## YouTube downloads
 
-If `yt-dlp` reports `Sign in to confirm you're not a bot`, add a Render secret
-environment variable named `YOUTUBE_COOKIES_BASE64`. Set it to the base64-encoded
-Netscape cookies file exported from a YouTube account that can view the video.
-The server uses it only while downloading and removes the temporary cookie file
-afterward. Do not commit the cookies file or its decoded contents.
+Video and audio ingestion uses `yt-dlp` with a resilient multi-client strategy
+(`tv_embedded`, `mweb`, `web_safari`, and `android`). This eliminates bot verification
+challenges on public sessions without requiring browser cookie export (`YOUTUBE_COOKIES_BASE64`).
+
+If deploying on cloud datacenters (Render, AWS, GCP) where YouTube blocks datacenter
+IP subnets, you can optionally configure a rotating proxy via `YOUTUBE_PROXY` or
+standard `HTTP_PROXY` environment variables. No cookies or accounts are required.
 
 ## Transcription and analysis integration
 

@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/aitools"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/config"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/downloader"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/edit"
@@ -36,6 +38,7 @@ type TaskHandlers struct {
 	llmRotator     *llm.Rotator
 	queue          *Client
 	editClient     *edit.Client
+	aiTools        *aitools.Engine
 }
 
 func NewTaskHandlers(
@@ -66,6 +69,7 @@ func NewTaskHandlers(
 		llmRotator:     llmRotator,
 		queue:          queue,
 		editClient:     edit.NewClient(cfg.EditServiceURL, cfg.InternalAPIKey),
+		aiTools:        aitools.NewEngine(llmRotator, log),
 	}
 }
 
@@ -102,27 +106,41 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		if p.JobID != "" {
 			_ = h.jobRepo.Fail(ctx, p.JobID, err.Error())
 		}
+		if isPermanentSourceFailure(err) {
+			log.Warn().Msg("permanent source failure — skipping queue retry")
+			return nil
+		}
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	// A Render datacenter IP is frequently challenged by YouTube. Fetch audio
-	// through the media worker (the same host that renders the source) and use
-	// its public Supabase object for transcription.
-	log.Info().Msg("preparing transcription audio")
-	_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
-	if p.JobID != "" {
-		_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
-	}
+	audioURL := video.AudioURL
+	if audioURL == "" {
+		// A Render datacenter IP is frequently challenged by YouTube. Fetch audio
+		// through the media worker (the same host that renders the source) and use
+		// its public Supabase object for transcription.
+		log.Info().Msg("preparing transcription audio")
+		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
+		if p.JobID != "" {
+			_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
+		}
 
-	audio, err := h.editClient.ExtractAudio(ctx, edit.ExtractAudioRequest{
-		VideoURL: downloader.WatchURL(video.YouTubeVideoID),
-		UserID:   p.UserID,
-		VideoID:  p.VideoID,
-	})
-	if err != nil {
-		return fail("extract transcription audio with media worker", err)
+		audio, err := h.editClient.ExtractAudio(ctx, edit.ExtractAudioRequest{
+			VideoURL: downloader.WatchURL(video.YouTubeVideoID),
+			UserID:   p.UserID,
+			VideoID:  p.VideoID,
+		})
+		if err != nil {
+			return fail("extract transcription audio with media worker", err)
+		}
+		audioURL = audio.AudioURL
+		log.Info().Int("audioBytes", audio.Bytes).Str("audioUrl", audioURL).Msg("transcription audio ready from media worker")
+
+		_ = h.videoRepo.UpdateFields(ctx, videoID, map[string]any{
+			"audioUrl": audioURL,
+		})
+	} else {
+		log.Info().Str("audioUrl", audioURL).Msg("reusing previously extracted transcription audio")
 	}
-	log.Info().Int("audioBytes", audio.Bytes).Msg("transcription audio ready from media worker")
 
 	// Stage 2 — Fire async transcription
 	// Results come back via /api/internal/transcription/done
@@ -136,7 +154,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		JobID:    p.JobID,
 		VideoID:  p.VideoID,
 		UserID:   p.UserID,
-		AudioURL: audio.AudioURL,
+		AudioURL: audioURL,
 		Language: "auto",
 	})
 	if err != nil {
@@ -146,6 +164,22 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	// Job hands off here — Mayank's service will callback when transcription is done
 	log.Info().Msg("transcription job accepted — waiting for callback")
 	return nil
+}
+
+func isPermanentSourceFailure(err error) bool {
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"this video is not available",
+		"video unavailable",
+		"private video",
+		"video has been removed",
+		"sign in to confirm",
+	} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // Generates an AI hook via Groq then calls the Python edit service.
@@ -186,27 +220,23 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		Str("videoId", video.ID.Hex()).
 		Msg("video found")
 
-	// Generate a fresh AI hook if the selected hook is still the original transcript.
+	// Generate a fresh AI hook if the selected hook is still the original transcript, empty, or default.
 	hookText := clip.SelectedHook
-	if hookText == "" || hookText == clip.OriginalHook {
-		log.Info().Msg("generating ai hook via llm rotator")
-
-		generated, err := h.llmRotator.Call(ctx, hookPrompt(clip.TranscriptText))
-		if err == nil && generated != "" {
-			hookText = generated
-
+	if hookText == "" || hookText == clip.OriginalHook || hookText == "Your strongest moment starts here" {
+		sourceText := clip.TranscriptText
+		if strings.TrimSpace(sourceText) == "" {
+			sourceText = video.Title
+		}
+		if strings.TrimSpace(sourceText) != "" {
+			log.Info().Msg("generating ai viral hook via Groq AI tools")
+			hookText = h.aiTools.GenerateViralHook(ctx, sourceText, clip.EmotionType)
 			_ = h.clipRepo.UpdateFields(ctx, clipID, map[string]any{
 				"selectedHook": hookText,
 				"updatedAt":    time.Now(),
 			})
-
-			log.Info().
-				Str("hook", truncate(hookText, 80)).
-				Msg("ai hook generated")
+			log.Info().Str("hook", truncate(hookText, 80)).Msg("ai viral hook generated")
 		} else {
-			log.Warn().
-				Err(err).
-				Msg("hook generation failed — using original")
+			hookText = ""
 		}
 	}
 
@@ -224,6 +254,14 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		log.Info().Str("captionSource", "transcription_service").Int("captionWords", len(captionWords)).Msg("render will use stored transcription captions")
 	}
 
+	clipDuration := clip.EndTime - clip.StartTime
+	if clipDuration <= 0 {
+		clipDuration = 30.0
+	}
+
+	// Use AI Tools via Groq API to plan bespoke, contextual sound effects matching the clip's narrative beats
+	sfxEvents := h.aiTools.PlanAudioEffects(ctx, clip.TranscriptText, captionWords, clipDuration, clip.EmotionType)
+
 	editReq := edit.CreateShortRequest{
 		JobID: p.ClipID, ClipID: p.ClipID, UserID: p.UserID, VideoURL: videoURL,
 		StartTime: clip.StartTime, EndTime: clip.EndTime, Style: style, HookText: hookText,
@@ -233,7 +271,7 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 		CallbackKey: h.cfg.InternalAPIKey, Layout: layoutFromSettings(clip.EditSettings),
 		BackgroundStyle: backgroundFromSettings(clip.EditSettings), ColorGrade: gradeFromSettings(clip.EditSettings),
 		CaptionStyle: captionFromSettings(clip.EditSettings),
-		EmotionType:  clip.EmotionType, SFXEvents: []edit.SFXEvent{},
+		EmotionType:  clip.EmotionType, SFXEvents: sfxEvents,
 	}
 	if len(captionWords) > 0 && (editReq.RemoveSilences || editReq.RemoveFillers) {
 		// The caption clock is based on the original clip. A destructive edit
@@ -275,13 +313,31 @@ func (h *TaskHandlers) captionWordsForClip(ctx context.Context, videoID string, 
 	}
 	words := make([]edit.CaptionWord, 0)
 	for _, segment := range transcript.Segments {
-		for _, word := range segment.Words {
-			if word.Word == "" || word.End <= start || word.Start >= end {
-				continue
+		if len(segment.Words) > 0 {
+			for _, word := range segment.Words {
+				if word.Word == "" || word.End <= start || word.Start >= end {
+					continue
+				}
+				words = append(words, edit.CaptionWord{
+					Word: word.Word, Start: maxFloat(0, word.Start-start), End: minFloat(end-start, word.End-start),
+				})
 			}
-			words = append(words, edit.CaptionWord{
-				Word: word.Word, Start: maxFloat(0, word.Start-start), End: minFloat(end-start, word.End-start),
-			})
+		} else if strings.TrimSpace(segment.Text) != "" && segment.End > start && segment.Start < end {
+			// Fallback: If segment text exists without explicit word-level timestamps,
+			// interpolate words across segment duration so captions are never omitted.
+			textWords := strings.Fields(segment.Text)
+			if len(textWords) > 0 {
+				segStart := maxFloat(start, segment.Start)
+				segEnd := minFloat(end, segment.End)
+				wordDuration := (segEnd - segStart) / float64(len(textWords))
+				for i, tw := range textWords {
+					wStart := segStart + float64(i)*wordDuration
+					wEnd := wStart + wordDuration
+					words = append(words, edit.CaptionWord{
+						Word: tw, Start: maxFloat(0, wStart-start), End: minFloat(end-start, wEnd-start),
+					})
+				}
+			}
 		}
 	}
 	return words
@@ -439,7 +495,7 @@ func backgroundFromSettings(s models.EditSettings) string {
 	if s.BackgroundStyle != "" && s.BackgroundStyle != "two_frame" {
 		return s.BackgroundStyle
 	}
-	return "blur"
+	return "crop"
 }
 
 func gradeFromSettings(s models.EditSettings) string {

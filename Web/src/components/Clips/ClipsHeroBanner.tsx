@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { Download, Film, Info, Send, Sparkles, X } from "lucide-react";
 
 export interface ClipsHeroBannerProps {
@@ -24,11 +23,8 @@ export function ClipsHeroBanner({
   onPublishSelected,
 }: ClipsHeroBannerProps) {
   return (
-    <motion.section
+    <section
       className="ca-clips-hero ca-glass"
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
     >
       <div className="ca-clips-hero-content">
         <div className="ca-clips-hero-text">
@@ -75,15 +71,8 @@ export function ClipsHeroBanner({
         </div>
       </div>
 
-      <AnimatePresence>
-        {notice && (
-          <motion.div
-            className="ca-notice-banner ca-glass"
-            initial={{ opacity: 0, y: -4, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -4, height: 0 }}
-            transition={{ duration: 0.2 }}
-          >
+      {notice && (
+          <div className="ca-notice-banner ca-glass">
             <div className="ca-notice-content">
               <Info size={16} className="ca-notice-icon" />
               <span className="ca-notice-text">{notice}</span>
@@ -98,9 +87,8 @@ export function ClipsHeroBanner({
                 <X size={14} />
               </button>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.section>
+          </div>
+      )}
+    </section>
   );
 }

@@ -2,7 +2,6 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { Activity, Bot, Download, Terminal, Video as VideoIcon, WandSparkles, Zap } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
 import { SectionTitle } from "@/components/Layout/SectionTitle";
@@ -36,10 +35,9 @@ export const JobsShelf = memo(function JobsShelf({ jobs, videos, onInspectLogs }
         {active.slice(0, 4).map((job) => {
           const video = videos.find((item) => item.id === job.videoId);
           return (
-            <motion.article
+            <article
               className="job-card ca-glass"
               key={job.jobId}
-              whileHover={{ y: -3, scale: 1.01 }}
             >
               <div className="job-top">
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -69,7 +67,7 @@ export const JobsShelf = memo(function JobsShelf({ jobs, videos, onInspectLogs }
                   <Terminal size={13} /> Inspect logs
                 </button>
               </div>
-            </motion.article>
+            </article>
           );
         })}
       </div>

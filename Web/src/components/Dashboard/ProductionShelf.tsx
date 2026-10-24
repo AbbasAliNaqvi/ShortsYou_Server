@@ -3,7 +3,6 @@
 
 import { memo, useMemo, useRef } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ChevronRight, Clapperboard, Send, Sparkles } from "lucide-react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { Clip, Video } from "@/lib/api";
@@ -24,10 +23,8 @@ const ProductionCard = memo(function ProductionCard({ video, clipsCount }: Produ
   const status = video.processingStatus || "ready";
 
   return (
-    <motion.article
+    <article
       className="production-card ca-glass"
-      whileHover={{ y: -3, scale: 1.008 }}
-      transition={{ type: "spring", stiffness: 350, damping: 25 }}
     >
       <div className="production-thumb">
         {video.thumbnailUrl ? (
@@ -68,7 +65,7 @@ const ProductionCard = memo(function ProductionCard({ video, clipsCount }: Produ
           </Link>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 });
 

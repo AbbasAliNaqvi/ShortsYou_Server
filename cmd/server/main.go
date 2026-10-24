@@ -104,9 +104,7 @@ func main() {
 	llmRotator := llm.NewRotator(cfg.GroqKeys, cfg.GeminiKeys)
 	var mlClient ml.Service
 
-	if cfg.Env == "development" {
-		mlClient = ml.NewMockService()
-	} else {
+	if cfg.MLNLPServiceURL != "" {
 		mlClient = ml.NewClient(
 			cfg.MLNLPServiceURL,
 			cfg.MLAudioServiceURL,
@@ -114,6 +112,8 @@ func main() {
 			cfg.BaseURL,
 			cfg.InternalAPIKey,
 		)
+	} else {
+		mlClient = ml.NewMockService()
 	}
 
 	supabase := storage.NewSupabase(cfg.SupabaseURL, cfg.SupabaseKey)

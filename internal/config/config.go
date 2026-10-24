@@ -109,7 +109,7 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.Port == "" {
-		cfg.Port = "8080"
+		cfg.Port = "5050"
 	}
 
 	if cfg.BaseURL == "" {

@@ -128,11 +128,16 @@ func (h *ClipHandler) ListClips(c *gin.Context) {
 		return
 	}
 
+	limit, skip, valid := pagination(c)
+	if !valid {
+		response.BadRequest(c, "page must be >= 1 and limit must be between 1 and 100")
+		return
+	}
 	clips, err := h.clipRepo.FindByUserID(
 		c.Request.Context(),
 		userID,
-		50,
-		0,
+		limit,
+		skip,
 	)
 	if err != nil {
 		response.InternalError(c)
@@ -236,12 +241,13 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 		return
 	}
 
-	// Allow any status reset including "detected" for re-processing.
 	if req.Status != nil && *req.Status != "" {
-		if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
-			"status":    *req.Status,
-			"updatedAt": time.Now(),
-		}); err != nil {
+		newStatus := models.ClipStatus(*req.Status)
+		if !isValidClipStatus(newStatus) || !isValidStatusTransition(clip.Status, newStatus) {
+			response.BadRequest(c, "invalid clip status transition")
+			return
+		}
+		if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, newStatus); err != nil {
 			response.InternalError(c)
 			return
 		}
@@ -281,7 +287,11 @@ func (h *ClipHandler) UpdateClip(c *gin.Context) {
 }
 
 func (h *ClipHandler) ExportClip(c *gin.Context) {
-	userIDStr, _ := c.Get("userID")
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
 	clipIDStr := c.Param("id")
 
 	id, err := primitive.ObjectIDFromHex(clipIDStr)
@@ -297,7 +307,7 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 	}
 
 	// Ownership check
-	if clip.UserID.Hex() != userIDStr.(string) {
+	if clip.UserID != userID {
 		response.Forbidden(c)
 		return
 	}
@@ -323,7 +333,7 @@ func (h *ClipHandler) ExportClip(c *gin.Context) {
 		return
 	}
 
-	task, err := queue.NewExportClipTask(clipIDStr, userIDStr.(string))
+	task, err := queue.NewExportClipTask(clipIDStr, userID.Hex())
 	if err != nil {
 		response.InternalError(c)
 		return
@@ -702,23 +712,18 @@ func (h *ClipHandler) ApproveClip(c *gin.Context) {
 		return
 	}
 
-	if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusDetected); err != nil {
-		response.InternalError(c)
+	if !isValidStatusTransition(clip.Status, models.ClipStatusDetected) {
+		response.BadRequest(c, "clip cannot be approved from its current status")
 		return
 	}
-
-	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
-		"status":     "approved",
-		"approvedAt": time.Now(),
-		"updatedAt":  time.Now(),
-	}); err != nil {
+	if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusDetected); err != nil {
 		response.InternalError(c)
 		return
 	}
 
 	response.OK(c, gin.H{
 		"clipId":  c.Param("id"),
-		"status":  "approved",
+		"status":  string(models.ClipStatusDetected),
 		"message": "clip approved and ready for export",
 	})
 }
@@ -740,27 +745,26 @@ func (h *ClipHandler) RejectClip(c *gin.Context) {
 		return
 	}
 
-	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, map[string]any{
-		"status":     "rejected",
-		"rejectedAt": time.Now(),
-		"updatedAt":  time.Now(),
-	}); err != nil {
+	if !isValidStatusTransition(clip.Status, models.ClipStatusRejected) {
+		response.BadRequest(c, "clip cannot be rejected from its current status")
+		return
+	}
+	if err := h.clipRepo.UpdateStatus(c.Request.Context(), id, models.ClipStatusRejected); err != nil {
 		response.InternalError(c)
 		return
 	}
 
 	response.OK(c, gin.H{
 		"clipId":  c.Param("id"),
-		"status":  "rejected",
+		"status":  string(models.ClipStatusRejected),
 		"message": "clip rejected and archived",
 	})
 }
 
 func (h *ClipHandler) ListPendingClips(c *gin.Context) {
-	userIDStr, _ := c.Get("userID")
-	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
-	if err != nil {
-		response.BadRequest(c, "invalid user id")
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
 		return
 	}
 
@@ -777,10 +781,9 @@ func (h *ClipHandler) ListPendingClips(c *gin.Context) {
 }
 
 func (h *ClipHandler) ListApprovedClips(c *gin.Context) {
-	userIDStr, _ := c.Get("userID")
-	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
-	if err != nil {
-		response.BadRequest(c, "invalid user id")
+	userID, ok := authenticatedUserID(c)
+	if !ok {
+		response.Unauthorized(c)
 		return
 	}
 

@@ -45,7 +45,11 @@ func (r *JobRepository) FindByUserID(ctx context.Context, userID primitive.Objec
 		limit = 20
 	}
 
-	cursor, err := r.col.Find(ctx, bson.M{"userId": userID}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)))
+	cursor, err := r.col.Find(
+		ctx,
+		bson.M{"userId": userID},
+		options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("JobRepository.FindByUserID: %w", err)
 	}

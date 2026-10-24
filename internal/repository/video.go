@@ -91,23 +91,64 @@ func (r *VideoRepository) FindByUserID(
 	limit int64,
 	skip int64,
 ) ([]models.Video, error) {
+	return r.FindByUserIDWithSort(ctx, userID, limit, skip, "recent")
+}
+
+func (r *VideoRepository) FindByUserIDWithSort(
+	ctx context.Context,
+	userID primitive.ObjectID,
+	limit int64,
+	skip int64,
+	sortBy string,
+) ([]models.Video, error) {
 	if limit <= 0 {
-		limit = 20
+		limit = 100
 	}
 
-	if limit > 100 {
-		limit = 100
+	if limit > 200 {
+		limit = 200
 	}
 
 	if skip < 0 {
 		skip = 0
 	}
 
-	opts := options.Find().
-		SetSort(bson.D{
+	var sortBson bson.D
+	switch sortBy {
+	case "published", "published_desc":
+		sortBson = bson.D{
 			{Key: "publishedAt", Value: -1},
 			{Key: "_id", Value: -1},
-		}).
+		}
+	case "published_asc":
+		sortBson = bson.D{
+			{Key: "publishedAt", Value: 1},
+			{Key: "_id", Value: 1},
+		}
+	case "duration", "duration_desc":
+		sortBson = bson.D{
+			{Key: "durationSeconds", Value: -1},
+			{Key: "_id", Value: -1},
+		}
+	case "duration_asc":
+		sortBson = bson.D{
+			{Key: "durationSeconds", Value: 1},
+			{Key: "_id", Value: 1},
+		}
+	case "clips", "clips_desc":
+		sortBson = bson.D{
+			{Key: "clipsDetected", Value: -1},
+			{Key: "_id", Value: -1},
+		}
+	default: // "recent", "newest", or empty
+		sortBson = bson.D{
+			{Key: "createdAt", Value: -1},
+			{Key: "_id", Value: -1},
+		}
+	}
+
+	opts := options.Find().
+		SetSort(sortBson).
 		SetLimit(limit).
 		SetSkip(skip)
 
