@@ -1,23 +1,21 @@
-/* ShortsYou Hero — Apple/Superhuman Glassmorphism Architecture */
+/* ShortsYou Hero — Apple & Superhuman Glassmorphism Architecture */
 :root {
-  --night: #121035;
-  --lilac: #ddd8ff;
-  --sky-indigo: #4a52b0;
-  --sky-lilac: #7a86cf;
-  --sky-pink: #f1b3b9;
+  --night: #090d16;
   --ink: #ffffff;
-  --ink-2: rgba(255, 255, 255, 0.95);
+  --ink-2: rgba(255, 255, 255, 0.94);
   --ink-3: rgba(255, 255, 255, 0.78);
-  --line: rgba(255, 255, 255, 0.32);
-  --glass-a: rgba(38, 42, 82, 0.72);
-  --glass-b: rgba(20, 22, 54, 0.84);
-  --accent-from: #5b63e6;
-  --accent-to: #c46fd0;
+  --line: rgba(255, 255, 255, 0.42);
+  --line-highlight: rgba(255, 255, 255, 0.82);
+  --glass-a: rgba(255, 255, 255, 0.28);
+  --glass-b: rgba(255, 255, 255, 0.14);
+  --accent-from: #6366f1;
+  --accent-to: #ec4899;
   --hx-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hx {
   position: relative;
+  z-index: 2;
   min-height: max(100svh, 840px);
   overflow: hidden;
   isolation: isolate;
@@ -26,32 +24,29 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Centered Man Profile Hero Photo with Scroll Parallax & Zoom ─────────── */
+/* ── Dynamic Creator Hero Photo with Scroll Parallax & Zoom ─────────────── */
 .hx-sky {
   position: absolute;
-  inset: -12% -25%;
+  inset: 0;
   z-index: -3;
-  background-image:
-    linear-gradient(180deg, rgba(16, 14, 45, 0.42) 0%, rgba(20, 18, 55, 0.1) 28%, rgba(25, 20, 50, 0.45) 100%),
-    url("/hero.jpg");
-  background-position: center 20%;
+  background-position: 50% 25%;
   background-size: cover;
   background-repeat: no-repeat;
-  transform: scaleX(-1);
-  translate: calc(var(--px, 0) * 12px + 180px) calc(var(--py, 0) * -12px + var(--scroll-y, 0) * 0.28px);
-  scale: calc(1 + var(--scroll-p, 0) * 0.12);
+  translate: calc(var(--px, 0) * 10px) calc(var(--py, 0) * -10px + var(--scroll-y, 0) * 0.22px);
+  scale: calc(1 + var(--scroll-p, 0) * 0.08);
   will-change: translate, scale;
+  transition: opacity 0.4s ease-in-out;
 }
 
 .hx-sky-tint {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: radial-gradient(circle at 48% 42%, transparent 32%, rgba(14, 12, 38, 0.45) 88%);
+  background: radial-gradient(circle at 50% 45%, transparent 35%, rgba(12, 10, 32, 0.4) 90%);
   pointer-events: none;
 }
 
-/* ── Nav ────────────────────────────────────────────────────────────────── */
+/* ── Nav — Superhuman Frosted Styling ─────────────────────────────────────── */
 .hx-nav {
   position: relative;
   z-index: 10;
@@ -65,22 +60,23 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #fff;
+  color: #ffffff;
   text-decoration: none;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   font-size: 18px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .hx-mark {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: #fff;
-  color: #3b429f;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   flex-shrink: 0;
 }
@@ -92,18 +88,16 @@
 
 .hx-links a,
 .hx-login {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.88);
   text-decoration: none;
-  font-size: 15.5px;
-  font-weight: 500;
-  opacity: 0.92;
-  transition: opacity 0.2s;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+  font-size: 15px;
+  font-weight: 550;
+  transition: color 0.2s;
 }
 
 .hx-links a:hover,
 .hx-login:hover {
-  opacity: 1;
+  color: #ffffff;
   text-decoration: underline;
   text-underline-offset: 6px;
 }
@@ -112,28 +106,28 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 20px;
 }
 
 .hx-signup {
-  padding: 11px 20px;
-  border-radius: 12px;
-  background: var(--lilac);
-  color: var(--night);
-  font-weight: 600;
-  font-size: 15px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #090d16;
+  font-weight: 650;
+  font-size: 14.5px;
   text-decoration: none;
-  box-shadow: 0 4px 16px rgba(18, 16, 53, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   transition: transform 0.25s var(--hx-ease), background 0.2s;
   letter-spacing: -0.01em;
 }
 
 .hx-signup:hover {
   transform: translateY(-1px);
-  background: #ffffff;
+  background: #f1f5f9;
 }
 
-/* ── Centered Headline & CTA with Scroll Float & Fade ───────────────────── */
+/* ── Centered Headline & CTA ────────────────────────────────────────────── */
 .hx-head {
   position: absolute;
   z-index: 5;
@@ -149,12 +143,12 @@
 
 .hx-title {
   margin: 0;
-  font-size: clamp(24px, 2.4vw, 35px);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
+  font-size: clamp(26px, 2.6vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
   color: #ffffff;
-  text-shadow: 0 2px 24px rgba(10, 8, 30, 0.75), 0 1px 4px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .hx-cta {
@@ -163,24 +157,27 @@
   gap: 14px;
   margin-top: 22px;
   padding: 7px 7px 7px 22px;
-  border-radius: 16px;
-  background: #100e2e;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 18px;
+  background: rgba(18, 16, 42, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(24px) saturate(180%);
   color: #ffffff;
   font-family: inherit;
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   box-shadow:
-    0 0 0 4px rgba(16, 14, 46, 0.45),
-    0 20px 45px -10px rgba(10, 8, 30, 0.85);
-  transition: transform 0.3s var(--hx-ease);
+    0 0 0 4px rgba(255, 255, 255, 0.1),
+    0 20px 48px -10px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: transform 0.3s var(--hx-ease), background 0.2s;
   letter-spacing: -0.01em;
 }
 
 .hx-cta:hover {
   transform: translateY(-2px);
+  background: rgba(28, 24, 60, 0.85);
 }
 
 .hx-cta:focus-visible,
@@ -196,37 +193,40 @@
   place-items: center;
   width: 42px;
   height: 38px;
-  border-radius: 11px;
+  border-radius: 12px;
   background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+  color: #ffffff;
   transition: translate 0.3s var(--hx-ease);
   flex-shrink: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .hx-cta:hover .hx-cta-arrow {
   translate: 3px 0;
 }
 
-/* ── Apple-Grade Frosted Glass ──────────────────────────────────────────── */
+/* ── Universal Liquid Glassmorphism Surface ──────────────────────────────── */
 .glass {
-  background: linear-gradient(160deg, var(--glass-a), var(--glass-b));
-  border: 1px solid var(--line);
+  background: linear-gradient(135deg, var(--glass-a) 0%, var(--glass-b) 100%);
+  border: 1.5px solid var(--line);
+  border-top: 2px solid var(--line-highlight);
   border-radius: 22px;
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
-    0 32px 64px -16px rgba(10, 8, 28, 0.75);
+    0 24px 50px -12px rgba(10, 8, 28, 0.45),
+    0 4px 16px rgba(10, 8, 28, 0.2),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.5);
+  color: #ffffff;
 }
 
 @supports not (backdrop-filter: blur(1px)) {
   .glass {
-    background: rgba(24, 26, 62, 0.94);
+    background: rgba(30, 26, 60, 0.92);
   }
 }
 
-/* ── Entrance Animation ─────────────────────────────────────────────────── */
+/* ── Floating Piece Entrance Mechanics ──────────────────────────────────── */
 .fx {
   position: absolute;
   z-index: 4;
@@ -240,80 +240,92 @@
     opacity: 0;
     transform: translateY(20px) scale(0.98);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-/* ── 1. Left Card: AI Assistant (Compact Height, Non-Overlapping) ───────── */
+/* ── 1. Left Card: AI Assistant (hx-chat) ───────────────────────────────── */
 .hx-chat {
-  left: 2.5%;
-  top: 16%;
-  width: clamp(270px, 20vw, 330px);
-  padding: 16px 18px 14px;
+  left: clamp(16px, 2.5vw, 36px);
+  top: clamp(84px, 12vh, 115px);
+  width: clamp(250px, 18vw, 290px);
+  padding: 14px 16px 12px;
   translate:
     calc(var(--px, 0) * -8px + var(--scroll-p, 0) * -75px)
     calc(var(--py, 0) * -8px + var(--scroll-p, 0) * -45px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
 }
 
 .hx-card-kicker {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 10.5px;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 10px;
+  color: #fbbf24;
+  margin-bottom: 8px;
 }
 
 .hx-chat-lead {
-  margin: 0 0 10px;
-  font-size: 14.5px;
-  line-height: 1.5;
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
   color: #ffffff;
-  font-weight: 450;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-weight: 550;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .hx-bubble {
-  margin: 6px 0 10px auto;
+  margin: 2px 0 8px auto;
   width: fit-content;
-  padding: 7px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.24);
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.35);
-  font-size: 13.5px;
-  font-weight: 500;
   color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .hx-times {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .hx-time {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(16, 14, 45, 0.7);
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .hx-ask {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(14, 12, 38, 0.85);
+  gap: 7px;
+  padding: 5px 5px 5px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .hx-ask input {
@@ -323,23 +335,23 @@
   border: 0;
   color: #ffffff;
   font-family: inherit;
-  font-size: 13.5px;
-  font-weight: 450;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .hx-ask input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .hx-send {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 25px;
+  height: 25px;
   border-radius: 50%;
   border: 0;
   background: #ffffff;
-  color: #1a1848;
+  color: #090d16;
   cursor: pointer;
   transition: transform 0.2s var(--hx-ease);
   flex-shrink: 0;
@@ -347,96 +359,110 @@
 
 .hx-send:hover {
   transform: scale(1.08);
+  background: #f1f5f9;
 }
 
 .hx-done {
   margin: 0;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.95);
-  font-weight: 500;
+  font-size: 12px;
+  color: #34d399;
+  font-weight: 600;
 }
 
-/* ── 2. Tool Dock (Beside Assistant) ─────────────────────────────────────── */
+/* ── 2. Tool Dock (hx-dock) ─────────────────────────────────────────────── */
 .hx-dock {
-  left: 25%;
-  top: 21%;
+  left: clamp(280px, 21.5vw, 335px);
+  top: clamp(105px, 15vh, 145px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 7px;
+  gap: 5px;
+  padding: 6px;
   border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-top: 2px solid rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 20px 48px -10px rgba(10, 8, 28, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
   translate:
     calc(var(--px, 0) * -12px + var(--scroll-p, 0) * -25px)
     calc(var(--py, 0) * -12px + var(--scroll-p, 0) * -35px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
 }
 
 .hx-dock button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 0;
   background: none;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  transition: background 0.2s, transform 0.2s, color 0.2s;
 }
 
 .hx-dock button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  transform: scale(1.06);
 }
 
 .hx-dock button[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+  color: #090d16;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-/* ── 3. Bottom-Left Card: Clip List (Well Below Assistant) ──────────────── */
+/* ── 3. Bottom-Left Card: Clip List (hx-list) ───────────────────────────── */
 .hx-list {
-  left: 2.5%;
-  top: 57%;
-  width: clamp(320px, 25vw, 400px);
-  padding: 14px 6px 10px;
-  border-radius: 20px;
+  left: clamp(16px, 2.5vw, 36px);
+  bottom: clamp(16px, 3vh, 32px);
+  width: clamp(260px, 18.5vw, 305px);
+  padding: 10px 6px 8px;
+  border-radius: 18px;
   translate:
     calc(var(--px, 0) * -6px + var(--scroll-p, 0) * -65px)
     calc(var(--py, 0) * -6px + var(--scroll-p, 0) * 65px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
 }
 
 .hx-tabs {
   display: flex;
-  gap: 16px;
-  padding: 0 16px 10px;
-  font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  margin-bottom: 2px;
+  gap: 12px;
+  padding: 0 10px 7px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
+  margin-bottom: 3px;
 }
 
 .hx-tabs b {
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
-  margin-left: 4px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  margin-left: 3px;
 }
 
 .hx-tab-active {
   color: #ffffff !important;
-  font-weight: 600;
+  font-weight: 700;
   position: relative;
 }
 
 .hx-tab-active::after {
   content: "";
   position: absolute;
-  bottom: -11px;
+  bottom: -8.5px;
   left: 0;
   right: 0;
   height: 2px;
   background: #ffffff;
+  border-radius: 2px;
 }
 
 .hx-rows {
@@ -446,26 +472,26 @@
 
 .hx-row {
   display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 12px;
-  padding: 8px 14px;
-  font-size: 13.5px;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
   border-radius: 7px;
   transition: background 0.15s;
 }
 
 .hx-row.active-row {
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 2.5px 0 0 #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 3px 0 0 #ffffff;
 }
 
 .hx-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .hx-row-name {
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -473,59 +499,64 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.92);
-  font-weight: 450;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
 }
 
-/* ── 4. Toast Notification (Beside List) ─────────────────────────────────── */
+/* ── 4. Toast Notification (hx-toast) ───────────────────────────────────── */
 .hx-toast {
-  left: 27%;
-  top: 78%;
-  width: clamp(210px, 15vw, 270px);
-  padding: 14px 18px;
-  border-radius: 18px;
-  background: linear-gradient(160deg, rgba(62, 28, 56, 0.85) 0%, rgba(36, 16, 36, 0.94) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  left: clamp(285px, 22vw, 350px);
+  bottom: clamp(16px, 3vh, 32px);
+  width: clamp(210px, 14vw, 265px);
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(18, 14, 42, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
   display: flex;
-  gap: 11px;
+  gap: 10px;
   align-items: center;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 24px 50px rgba(15, 8, 25, 0.7);
+    0 20px 45px rgba(10, 8, 28, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
   translate:
     calc(var(--px, 0) * -10px + var(--scroll-p, 0) * -15px)
     calc(var(--py, 0) * -10px + var(--scroll-p, 0) * 80px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.4);
+  z-index: 5;
 }
 
 .hx-toast-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.18);
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: #ffffff;
   flex-shrink: 0;
 }
 
 .hx-toast-text {
-  font-size: 13.5px;
+  font-size: 12px;
   line-height: 1.4;
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 550;
 }
 
-/* ── 5. Right Card: Caption Editor (Clear of Man's Profile) ─────────────── */
+/* ── 5. Right Card: Caption Editor (hx-doc) ─────────────────────────────── */
 .hx-doc {
-  right: 2.5%;
-  top: 38%;
-  width: clamp(300px, 24vw, 390px);
-  padding: 20px 24px 22px;
+  right: clamp(16px, 2.5vw, 36px);
+  top: clamp(170px, 24vh, 250px);
+  width: clamp(280px, 21vw, 345px);
+  padding: 18px 20px 16px;
   translate:
     calc(var(--px, 0) * 12px + var(--scroll-p, 0) * 85px)
     calc(var(--py, 0) * 12px + var(--scroll-p, 0) * 55px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
 }
 
 .hx-doc-top {
@@ -533,32 +564,32 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
   margin-bottom: 14px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .hx-doc-label {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  color: #ffffff;
 }
 
 .hx-doc-share {
   cursor: pointer;
-  opacity: 0.8;
+  color: #93c5fd;
   transition: opacity 0.2s;
 }
 
 .hx-doc-share:hover {
-  opacity: 1;
   text-decoration: underline;
 }
 
 .hx-doc-title {
   margin: 0 0 10px;
-  font-size: 15.5px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
@@ -567,8 +598,8 @@
   margin: 0 0 20px;
   font-size: 14.5px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.94);
-  font-weight: 450;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
 }
 
 .hx-doc-body u {
@@ -577,7 +608,7 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
   color: #ffffff;
-  font-weight: 550;
+  font-weight: 650;
 }
 
 .hx-tools {
@@ -586,12 +617,12 @@
   gap: 8px;
   width: fit-content;
   margin: 0 auto;
-  padding: 7px 14px;
-  border-radius: 12px;
-  background: rgba(14, 12, 38, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  font-size: 14px;
-  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .hx-tools span {
@@ -599,11 +630,12 @@
   text-align: center;
   cursor: pointer;
   border-radius: 6px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .hx-tools span:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 /* ── 6. Chips (hx-chip) ─────────────────────────────────────────────────── */
@@ -611,41 +643,64 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 11px 18px;
+  padding: 10px 18px;
   border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    0 16px 36px rgba(10, 8, 28, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  font-size: 13.5px;
+  font-weight: 600;
   color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .hx-chip.c1 {
-  right: 3.5%;
-  top: 26%;
+  right: clamp(20px, 3.5vw, 48px);
+  top: clamp(96px, 13vh, 130px);
   translate:
     calc(var(--px, 0) * 16px + var(--scroll-p, 0) * 75px)
     calc(var(--py, 0) * 16px + var(--scroll-p, 0) * -55px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.5);
+  z-index: 5;
 }
 
 .hx-chip.c2 {
-  right: 14%;
-  top: 82%;
+  right: clamp(24px, 6vw, 90px);
+  bottom: clamp(16px, 3vh, 32px);
   translate:
     calc(var(--px, 0) * 14px + var(--scroll-p, 0) * 45px)
     calc(var(--py, 0) * 14px + var(--scroll-p, 0) * 85px);
   opacity: calc(1 - var(--scroll-p, 0) * 1.5);
+  z-index: 5;
 }
 
 /* ── Responsive Behavior ────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .hx {
-    min-height: 0;
-    padding-bottom: 56px;
-  }
-
   .hx-links {
     display: none;
+  }
+
+  .hx-head {
+    top: 6%;
+  }
+
+  .hx-dock {
+    left: 20%;
+  }
+
+  .hx-toast {
+    left: 20%;
+  }
+}
+
+@media (max-width: 768px) {
+  .hx {
+    min-height: auto;
+    padding-bottom: 60px;
   }
 
   .hx-head {
@@ -654,7 +709,7 @@
     top: auto;
     translate: none !important;
     opacity: 1 !important;
-    margin: 40px auto 28px;
+    margin: 36px auto 24px;
     padding: 0 20px;
   }
 

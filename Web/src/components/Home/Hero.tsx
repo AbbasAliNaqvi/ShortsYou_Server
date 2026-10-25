@@ -35,6 +35,43 @@ function Icon({ name, size = 18 }: { name: keyof typeof PATHS; size?: number }) 
   );
 }
 
+// ─── Famous Indian Creators Array (Excluding Saurav Joshi) ─────────────────
+export interface CreatorHero {
+  id: string;
+  name: string;
+  channel: string;
+  category: string;
+  subscribers: string;
+  image: string;
+}
+
+export const CREATOR_HEROES: CreatorHero[] = [
+  {
+    id: "samay",
+    name: "Samay Raina",
+    channel: "Samay Raina",
+    category: "India's Got Latent, Chess & Comedy",
+    subscribers: "6.5M+ Followers",
+    image: "/creators/samay.jpg",
+  },
+  {
+    id: "bhuvan",
+    name: "Bhuvan Bam",
+    channel: "BB Ki Vines",
+    category: "Original Character Sketches & Stories",
+    subscribers: "26.5M+ Followers",
+    image: "/creators/bhuvan.jpg",
+  },
+  {
+    id: "ashish",
+    name: "Ashish Chanchlani",
+    channel: "Ashish Chanchlani Vines",
+    category: "High-Energy Comedy & Sketches",
+    subscribers: "30M+ Followers",
+    image: "/creators/ashish.jpg",
+  },
+];
+
 // ─── Real ShortsYou Pipeline Data (from origin/main) ───────────────────────
 const dock = [
   { icon: "spark"    as const, label: "Hooks"    },
@@ -49,13 +86,19 @@ const clips: [string, string][] = [
   ["Hook 02", "Why the first three seconds decide everything"],
   ["Hook 03", "The mistake every podcast makes with intros"],
   ["Hook 04", "What 100 million views taught us about drop-off"],
-  ["Hook 05", "Two guests, one frame, no manual cropping"],
 ];
 
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
   const [sent, setSent] = useState(false);
   const [tool, setTool] = useState(0);
+  const [creator, setCreator] = useState<CreatorHero>(CREATOR_HEROES[0]);
+
+  // ── Randomize creator on page load / refresh ───────────────────────────────
+  useEffect(() => {
+    const randomIdx = Math.floor(Math.random() * CREATOR_HEROES.length);
+    setCreator(CREATOR_HEROES[randomIdx]);
+  }, []);
 
   // ── High-Performance Pure JS Scroll & Parallax Engine (Zero Libraries) ──
   useEffect(() => {
@@ -122,8 +165,14 @@ export function Hero() {
 
   return (
     <section className="hx" ref={ref} id="hero">
-      {/* ── Man Profile Hero Photo with Dynamic Parallax & Scale Zoom ─── */}
-      <div className="hx-sky" aria-hidden="true" />
+      {/* ── Dynamic Creator Hero Photo with Parallax & Scale Zoom ─── */}
+      <div
+        className="hx-sky"
+        aria-hidden="true"
+        style={{
+          backgroundImage: `linear-gradient(180deg, rgba(16, 14, 45, 0.42) 0%, rgba(20, 18, 55, 0.1) 28%, rgba(25, 20, 50, 0.45) 100%), url("${creator.image}")`,
+        }}
+      />
       <div className="hx-sky-tint" aria-hidden="true" />
 
       {/* ── Nav ─────────────────────────────────────────── */}
@@ -164,15 +213,14 @@ export function Hero() {
       >
         <div className="hx-card-kicker">
           <Icon name="spark" size={13} />
-          <span>ShortsYou Assistant</span>
+          <span>ShortsYou Assistant · {creator.name}</span>
         </div>
         <p className="hx-chat-lead">
-          I found 6 strong hooks in EP219 and reframed each to 9:16 vertical. Ready to queue them?
+          I found 6 strong hooks in your latest episode and reframed each to 9:16 vertical. Ready to queue them?
         </p>
         <div className="hx-bubble">yes!</div>
         <div className="hx-times">
           <span className="hx-time"><Icon name="clock" size={12} /> Monday at 6:00 PM</span>
-          <span className="hx-time"><Icon name="clock" size={12} /> Tuesday at 12:30 PM</span>
         </div>
         {sent ? (
           <p className="hx-done">✓ Hook 01 queued for Monday at 6:00 PM.</p>
@@ -240,7 +288,7 @@ export function Hero() {
         aria-hidden="true"
       >
         <div className="hx-toast-icon"><Icon name="spark" size={15} /></div>
-        <div className="hx-toast-text">Cut a 20-second clip from 14:02 and add captions</div>
+        <div className="hx-toast-text">Auto-reframing 9:16 vertical clips for {creator.name}</div>
       </div>
 
       {/* ── 5. Caption Editor (Right Side, Framing the Subject) ─ */}
@@ -250,10 +298,10 @@ export function Hero() {
         aria-label="Caption editor preview"
       >
         <div className="hx-doc-top">
-          <span className="hx-doc-label"><Icon name="video" size={13} /> EP219 Clip Editor</span>
-          <span className="hx-doc-share">Share</span>
+          <span className="hx-doc-label"><Icon name="video" size={13} /> {creator.channel}</span>
+          <span className="hx-doc-share">{creator.subscribers}</span>
         </div>
-        <h3 className="hx-doc-title">EP219 · Hook 01 — Hook Saliency</h3>
+        <h3 className="hx-doc-title">Hook 01 — Peak Curiosity & Saliency</h3>
         <p className="hx-doc-body">
           The best ideas die in <u>unwatched</u> timelines. If the{" "}
           <u>first three seconds</u> don&apos;t earn the next three, nobody stays to
