@@ -141,9 +141,16 @@ export function CreatorPointer({ user }: CreatorPointerProps) {
     }
   }, [user]);
 
-  // Read cached user or fetch from api.me
+  // Read cached user only if valid JWT token exists
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    const token = localStorage.getItem("shortsyou_jwt");
+    if (!token) {
+      // User is not logged in: clear state and don't show any user pill
+      setCurrentUser(null);
+      return;
+    }
 
     if (!currentUser) {
       const cached = localStorage.getItem("shortsyou_user");
@@ -156,26 +163,30 @@ export function CreatorPointer({ user }: CreatorPointerProps) {
         } catch {}
       }
 
-      const token = localStorage.getItem("shortsyou_jwt");
-      if (token) {
-        api.me(token)
-          .then((data) => {
-            if (data && (data.name || data.email)) {
-              setCurrentUser(data);
-              try {
-                localStorage.setItem("shortsyou_user", JSON.stringify(data));
-              } catch {}
-            }
-          })
-          .catch(() => {});
-      }
+      api.me(token)
+        .then((data) => {
+          if (data && (data.name || data.email)) {
+            setCurrentUser(data);
+            try {
+              localStorage.setItem("shortsyou_user", JSON.stringify(data));
+            } catch {}
+          } else {
+            setCurrentUser(null);
+          }
+        })
+        .catch(() => {
+          // Token invalid or expired
+          setCurrentUser(null);
+          try {
+            localStorage.removeItem("shortsyou_jwt");
+            localStorage.removeItem("shortsyou_user");
+          } catch {}
+        });
     }
 
     const handleUserUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<User>;
-      if (customEvent.detail) {
-        setCurrentUser(customEvent.detail);
-      }
+      const customEvent = e as CustomEvent<User | null>;
+      setCurrentUser(customEvent.detail ?? null);
     };
     window.addEventListener("shortsyou_user_updated", handleUserUpdate);
     return () => {
@@ -245,7 +256,7 @@ export function CreatorPointer({ user }: CreatorPointerProps) {
   const displayName =
     currentUser?.name ||
     currentUser?.channelName ||
-    (currentUser?.email ? currentUser.email.split("@")[0] : "Abbas Ali");
+    (currentUser?.email ? currentUser.email.split("@")[0] : null);
 
   const avatarUrl = currentUser?.profilePicture;
 
@@ -284,30 +295,32 @@ export function CreatorPointer({ user }: CreatorPointerProps) {
               />
             </svg>
 
-            {/* Aceternity Pill with Logged-in User Name & Avatar */}
-            <div
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-white shadow-xl backdrop-blur-md transition-all duration-150"
-              style={{
-                backgroundColor: isHovering ? theme.hoverBg : theme.pillBg,
-                boxShadow: isHovering
-                  ? `0 6px 22px ${theme.hoverGlow}, 0 0 0 1px rgba(255, 255, 255, 0.4)`
-                  : `0 4px 16px ${theme.glow}, 0 0 0 1px rgba(255, 255, 255, 0.25)`,
-                transform: "translate(6px, 4px)",
-              }}
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayName}
-                  className="w-4 h-4 rounded-full object-cover border border-white/60"
-                />
-              ) : (
-                <span className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                  {displayName.charAt(0)}
-                </span>
-              )}
-              <span className="tracking-wide text-[11px] font-medium">{displayName}</span>
-            </div>
+            {/* Aceternity Pill: only shown when user is actually logged in */}
+            {displayName && (
+              <div
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-white shadow-xl backdrop-blur-md transition-all duration-150"
+                style={{
+                  backgroundColor: isHovering ? theme.hoverBg : theme.pillBg,
+                  boxShadow: isHovering
+                    ? `0 6px 22px ${theme.hoverGlow}, 0 0 0 1px rgba(255, 255, 255, 0.4)`
+                    : `0 4px 16px ${theme.glow}, 0 0 0 1px rgba(255, 255, 255, 0.25)`,
+                  transform: "translate(6px, 4px)",
+                }}
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-4 h-4 rounded-full object-cover border border-white/60"
+                  />
+                ) : (
+                  <span className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                    {displayName.charAt(0)}
+                  </span>
+                )}
+                <span className="tracking-wide text-[11px] font-medium">{displayName}</span>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
