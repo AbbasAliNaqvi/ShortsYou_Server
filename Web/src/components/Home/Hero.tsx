@@ -93,6 +93,7 @@ export function Hero() {
   const [sent, setSent] = useState(false);
   const [tool, setTool] = useState(0);
   const [creator, setCreator] = useState<CreatorHero>(CREATOR_HEROES[0]);
+  const [mobileTab, setMobileTab] = useState<"chat" | "doc">("chat");
 
   // ── Randomize creator on page load / refresh ───────────────────────────────
   useEffect(() => {
@@ -100,22 +101,21 @@ export function Hero() {
     setCreator(CREATOR_HEROES[randomIdx]);
   }, []);
 
-  // ── High-Performance Pure JS Scroll & Parallax Engine (Zero Libraries) ──
+  // ── High-Performance Pure JS Scroll & Parallax Engine (Universal Mobile & Desktop) ──
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      window.matchMedia("(pointer: coarse)").matches
-    ) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
 
     let targetX = 0;
     let targetY = 0;
     let currentX = 0;
     let currentY = 0;
 
-    let targetScroll = 0;
-    let currentScroll = 0;
+    let targetScroll = window.scrollY || 0;
+    let currentScroll = targetScroll;
 
     let running = true;
     let rafId = 0;
@@ -126,39 +126,52 @@ export function Hero() {
     };
 
     const onScroll = () => {
-      targetScroll = window.scrollY;
+      targetScroll = window.scrollY || 0;
     };
 
-    // Smooth inertia interpolation loop
+    // Initialize CSS properties immediately
+    const vh = window.innerHeight || 800;
+    const initialProgress = Math.min(Math.max(currentScroll / vh, 0), 1);
+    el.style.setProperty("--px", "0");
+    el.style.setProperty("--py", "0");
+    el.style.setProperty("--scroll-y", currentScroll.toFixed(1));
+    el.style.setProperty("--scroll-p", initialProgress.toFixed(4));
+
+    // Smooth inertia interpolation loop (Universal 60FPS)
     const tick = () => {
       if (!running) return;
 
-      // Pointer spring smoothing
-      currentX += (targetX - currentX) * 0.08;
-      currentY += (targetY - currentY) * 0.08;
+      if (hasFinePointer) {
+        currentX += (targetX - currentX) * 0.08;
+        currentY += (targetY - currentY) * 0.08;
+        el.style.setProperty("--px", currentX.toFixed(4));
+        el.style.setProperty("--py", currentY.toFixed(4));
+      }
 
-      // Scroll spring smoothing
-      currentScroll += (targetScroll - currentScroll) * 0.1;
+      // Scroll spring smoothing — active on all screen sizes and mobile touch
+      currentScroll += (targetScroll - currentScroll) * 0.12;
 
       const viewportH = window.innerHeight || 800;
       const progress = Math.min(Math.max(currentScroll / viewportH, 0), 1);
 
-      el.style.setProperty("--px", currentX.toFixed(4));
-      el.style.setProperty("--py", currentY.toFixed(4));
       el.style.setProperty("--scroll-y", currentScroll.toFixed(1));
       el.style.setProperty("--scroll-p", progress.toFixed(4));
 
       rafId = requestAnimationFrame(tick);
     };
 
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    if (hasFinePointer) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+    }
     window.addEventListener("scroll", onScroll, { passive: true });
     rafId = requestAnimationFrame(tick);
 
     return () => {
       running = false;
       cancelAnimationFrame(rafId);
-      window.removeEventListener("pointermove", onPointerMove);
+      if (hasFinePointer) {
+        window.removeEventListener("pointermove", onPointerMove);
+      }
       window.removeEventListener("scroll", onScroll);
     };
   }, []);
@@ -203,11 +216,33 @@ export function Hero() {
           Get ShortsYou
           <span className="hx-cta-arrow"><Icon name="arrow" size={20} /></span>
         </Link>
+
+        {/* ── Mobile Preview Segmented Switcher (Visible only on mobile) ── */}
+        <div className="hx-mobile-tabs" role="tablist" aria-label="Feature preview tabs">
+          <button
+            type="button"
+            className={`hx-mobile-tab ${mobileTab === "chat" ? "active" : ""}`}
+            onClick={() => setMobileTab("chat")}
+            role="tab"
+            aria-selected={mobileTab === "chat"}
+          >
+            <Icon name="spark" size={13} /> AI Assistant
+          </button>
+          <button
+            type="button"
+            className={`hx-mobile-tab ${mobileTab === "doc" ? "active" : ""}`}
+            onClick={() => setMobileTab("doc")}
+            role="tab"
+            aria-selected={mobileTab === "doc"}
+          >
+            <Icon name="video" size={13} /> Viral Hook 01
+          </button>
+        </div>
       </div>
 
       {/* ── 1. Left Card: AI Assistant (Compact & Orbiting on Scroll) ─ */}
       <aside
-        className="fx glass hx-chat"
+        className={`fx glass hx-chat ${mobileTab === "chat" ? "mobile-active" : "mobile-hidden"}`}
         style={{ "--i": 1 } as CSSProperties}
         aria-label="Assistant preview"
       >
@@ -293,7 +328,7 @@ export function Hero() {
 
       {/* ── 5. Caption Editor (Right Side, Framing the Subject) ─ */}
       <article
-        className="fx glass hx-doc"
+        className={`fx glass hx-doc ${mobileTab === "doc" ? "mobile-active" : "mobile-hidden"}`}
         style={{ "--i": 4 } as CSSProperties}
         aria-label="Caption editor preview"
       >

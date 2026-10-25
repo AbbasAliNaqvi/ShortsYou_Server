@@ -678,6 +678,11 @@
   z-index: 5;
 }
 
+/* ── Mobile Preview Tabs (Hidden by default on Desktop) ───────────────────── */
+.hx-mobile-tabs {
+  display: none;
+}
+
 /* ── Responsive Behavior ────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .hx-links {
@@ -698,40 +703,289 @@
 }
 
 @media (max-width: 768px) {
+  /* Dynamic Full-Height Mobile Hero — Top Headroom for Creator */
   .hx {
-    min-height: auto;
-    padding-bottom: 60px;
+    min-height: max(100svh, 680px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Keeps headline tightly at top, above creator face */
+    padding-bottom: 20px;
+    overflow: hidden;
   }
 
+  /* Creator Face Perfectly Centered in the Clear Central Zone */
+  .hx-sky {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background-position: center 38% !important; /* Positions face in the open space below the headline */
+    background-size: cover !important;
+    translate: 0 calc(var(--scroll-y, 0) * 0.18px);
+    scale: calc(1 + var(--scroll-p, 0) * 0.05);
+  }
+
+  /* Nav Header — Solid Single-Line Spacing with Zero Collisions */
+  .hx-nav {
+    padding: 14px 20px 8px;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .hx-brand {
+    font-size: 18px;
+    gap: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .hx-nav-end {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .hx-login {
+    font-size: 14px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .hx-signup {
+    font-size: 13.5px;
+    padding: 8px 18px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Headline & CTA — Positioned strictly ABOVE the creator face */
   .hx-head {
     position: relative;
     left: auto;
     top: auto;
-    translate: none !important;
-    opacity: 1 !important;
-    margin: 36px auto 24px;
-    padding: 0 20px;
+    margin: 6px auto 0;
+    padding: 0 16px;
+    width: min(94vw, 540px);
+    text-align: center;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    translate: 0 calc(var(--scroll-y, 0) * -0.28px);
+    opacity: calc(1 - var(--scroll-p, 0) * 1.8);
   }
 
+  .hx-title {
+    font-size: clamp(20px, 5.2vw, 27px);
+    line-height: 1.22;
+    letter-spacing: -0.025em;
+  }
+
+  .hx-cta {
+    margin-top: 2px;
+    font-size: 14.5px;
+    padding: 5px 5px 5px 16px;
+  }
+
+  /* Mobile Glass Segmented Switcher — Compact & Above Face */
+  .hx-mobile-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+    padding: 3.5px;
+    border-radius: 999px;
+    background: rgba(18, 16, 42, 0.75);
+    border: 1.5px solid rgba(255, 255, 255, 0.30);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .hx-mobile-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 11.5px;
+    font-weight: 650;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+
+  .hx-mobile-tab.active {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  /* Floating Card Positioning — Anchored to bottom with margin-top: auto */
   .fx {
     position: relative;
     inset: auto;
-    width: auto;
-    margin: 0 20px 20px;
-    translate: none !important;
-    opacity: 1 !important;
+    margin: auto auto 0; /* Pushes the card to the bottom, completely clearing the face */
+    width: min(calc(100% - 32px), 460px);
+    z-index: 4;
+    translate: 0 calc(var(--scroll-p, 0) * -35px);
+  }
+
+  /* Toggle between preview cards on mobile */
+  .fx.mobile-hidden {
+    display: none !important;
+  }
+
+  .fx.mobile-active {
+    display: block !important;
+    animation: hx-rise 0.4s var(--hx-ease) both;
   }
 
   .hx-dock,
   .hx-chip,
   .hx-toast,
   .hx-list {
-    display: none;
+    display: none !important;
   }
 
   .hx-chat,
   .hx-doc {
-    width: auto;
+    width: min(calc(100% - 32px), 460px);
+    margin: auto auto 0;
+  }
+}
+
+/* ── Mobile S Optimizations (320px - 480px, e.g. iPhone SE, Galaxy Z Flip) ── */
+@media (max-width: 480px) {
+  .hx {
+    min-height: max(100svh, 620px);
+    padding-bottom: 14px;
+  }
+
+  .hx-sky {
+    background-position: center 36% !important;
+  }
+
+  .hx-nav {
+    padding: 10px 14px 4px;
+    gap: 8px;
+  }
+
+  .hx-brand {
+    font-size: 16px;
+    gap: 8px;
+  }
+
+  .hx-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+
+  .hx-nav-end {
+    gap: 8px;
+  }
+
+  .hx-login {
+    font-size: 12.5px;
+    padding: 5px 8px;
+  }
+
+  .hx-signup {
+    font-size: 12.5px;
+    padding: 5px 13px;
+  }
+
+  .hx-head {
+    margin: 4px auto 0;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .hx-title {
+    font-size: clamp(19px, 5.8vw, 23px);
+    line-height: 1.2;
+  }
+
+  .hx-cta {
+    margin-top: 0;
+    font-size: 13.5px;
+    padding: 4px 4px 4px 13px;
+  }
+
+  .hx-cta-arrow {
+    width: 30px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .hx-mobile-tabs {
+    margin-top: 0;
+    padding: 3px;
+  }
+
+  .hx-mobile-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .hx-chat,
+  .hx-doc {
+    width: min(calc(100% - 20px), 380px);
+    padding: 14px 12px;
+    border-radius: 16px;
+  }
+
+  .hx-chat-lead {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .hx-ask input {
+    font-size: 12.5px;
+    padding: 9px 36px 9px 12px;
+  }
+
+  .hx-doc-top {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .hx-doc-label {
+    font-size: 11.5px;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hx-doc-share {
+    font-size: 10.5px;
+    padding: 2px 7px;
+  }
+
+  .hx-doc-title {
+    font-size: 14.5px;
+    margin: 8px 0 6px;
+  }
+
+  .hx-doc-body {
+    font-size: 12px;
+    line-height: 1.45;
   }
 }
 
