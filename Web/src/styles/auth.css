@@ -1,0 +1,824 @@
+/* ==========================================================================
+   ShortsYou — High-End Executive Liquid Glassmorphism Auth (Login & Register)
+   Apple VisionOS & Superhuman Frosted Glass Aesthetics — 60FPS Optimized
+   ========================================================================== */
+
+:root {
+  --auth-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+  --auth-primary: #090d16;
+  --auth-text-muted: #52617a;
+  --auth-accent-indigo: #4f46e5;
+  --auth-accent-violet: #7c3aed;
+  --auth-accent-pink: #ec4899;
+  --auth-accent-amber: #f59e0b;
+  --auth-accent-emerald: #10b981;
+}
+
+/* Page Root Wrapper — High Performance Native Vector Gradients (Zero Filter Blur Overhead) */
+.auth-sky-page {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  color: var(--auth-primary);
+  font-family: var(--auth-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.08) 35%, transparent 65%),
+    radial-gradient(circle at 88% 10%, rgba(99, 102, 241, 0.24) 0%, rgba(139, 92, 246, 0.10) 38%, transparent 68%),
+    radial-gradient(circle at 50% 88%, rgba(236, 72, 153, 0.18) 0%, rgba(192, 132, 252, 0.06) 40%, transparent 65%),
+    radial-gradient(circle at 82% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 55%),
+    linear-gradient(135deg, #eaf0fb 0%, #edf3fc 35%, #f5f3ff 70%, #faedf3 100%);
+  background-attachment: fixed;
+}
+
+/* Static ambient orbs with zero CPU animations or heavy filter blur passes */
+.auth-ambient-orb,
+.auth-ambient-mesh {
+  display: none; /* Replaced with high-performance native radial gradients on background */
+}
+
+/* ── Top Floating Glass Navbar ─────────────────────────────────────────────── */
+.auth-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(16px, 3vw, 24px) clamp(16px, 4vw, 56px);
+  position: relative;
+  z-index: 10;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #090d16;
+  font-weight: 750;
+  font-size: 19px;
+  letter-spacing: -0.025em;
+  transition: transform 0.2s ease;
+}
+
+.auth-brand:hover {
+  transform: translateY(-1px);
+}
+
+.auth-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #090d16 0%, #1e1b4b 55%, #4338ca 100%);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow:
+    0 4px 14px rgba(99, 102, 241, 0.30),
+    0 1px 3px rgba(15, 23, 42, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.auth-nav-end {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+}
+
+.auth-nav-end span {
+  color: var(--auth-text-muted);
+  font-weight: 500;
+}
+
+.auth-nav-end a {
+  color: #090d16;
+  text-decoration: none;
+  font-weight: 650;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.70);
+  border: 1.5px solid rgba(255, 255, 255, 0.90);
+  border-top: 2px solid #ffffff;
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.04),
+    inset 0 1px 2px rgba(255, 255, 255, 1);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-nav-end a:hover {
+  background: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.08),
+    inset 0 1px 2px #ffffff;
+}
+
+/* ── Main Auth Layout Grid ─────────────────────────────────────────────────── */
+.auth-layout {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vw, 64px);
+  padding: clamp(16px, 3.5vw, 40px) clamp(16px, 3vw, 40px);
+}
+
+/* ── Executive Frosted Glass Form Card (Hardware Accelerated) ─────────────── */
+.auth-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(255, 255, 255, 0.46) 65%,
+    rgba(255, 255, 255, 0.58) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-top: 2px solid #ffffff;
+  border-left: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 30px;
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  transform: translateZ(0); /* Promotes to dedicated hardware GPU layer */
+  contain: layout style;
+  box-shadow:
+    0 28px 65px -15px rgba(26, 32, 64, 0.12),
+    0 8px 20px -5px rgba(26, 32, 64, 0.04),
+    inset 0 2px 2px 0 rgba(255, 255, 255, 1),
+    inset 0 -1.5px 2px 0 rgba(255, 255, 255, 0.45);
+  padding: clamp(28px, 4.5vw, 44px);
+  width: min(100%, 460px);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Specular top glass highlight line */
+.auth-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 40%, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0.9) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Kicker Badge */
+.auth-kicker {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  padding: 5px 13px;
+  border-radius: 999px;
+  width: fit-content;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.auth-card h1 {
+  margin: 0 0 8px;
+  font-size: clamp(23px, 2.8vw, 31px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  color: #090d16;
+  line-height: 1.2;
+}
+
+.auth-card .auth-subtitle {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--auth-text-muted);
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+/* ── Frosted OAuth Provider Buttons (Google, Apple, SSO) ─────────────────────── */
+.auth-providers {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.auth-providers button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.70);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-top: 1.5px solid #ffffff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.03),
+    inset 0 1px 1.5px rgba(255, 255, 255, 1);
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.auth-providers button:hover {
+  background: #ffffff;
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow:
+    0 6px 18px rgba(99, 102, 241, 0.14),
+    inset 0 1px 1.5px #ffffff;
+}
+
+.auth-providers button:active {
+  transform: translateY(0);
+}
+
+.auth-providers button:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* ── Divider ───────────────────────────────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  font-size: 12px;
+  font-weight: 650;
+  color: #8b9bb4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0.04));
+}
+
+/* ── Form Fields ───────────────────────────────────────────────────────────── */
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.auth-field label {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auth-field label span.auth-hint {
+  color: #8b9bb4;
+  font-weight: 450;
+  font-size: 12px;
+}
+
+.auth-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auth-field-row a {
+  font-size: 13px;
+  color: #4f46e5;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.auth-field-row a:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+/* ── Zero-Lag Translucent Input Wells (Inherits Card Blur) ─────────────────── */
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.90);
+  border-top: 1.5px solid #ffffff;
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 1.5px 3px rgba(15, 23, 42, 0.03),
+    0 1px 4px rgba(15, 23, 42, 0.02),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.auth-input-wrap:focus-within {
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.20),
+    0 3px 12px rgba(99, 102, 241, 0.06),
+    inset 0 1px 1.5px #ffffff;
+}
+
+.auth-input-wrap svg {
+  position: absolute;
+  left: 14px;
+  color: #8b9bb4;
+  pointer-events: none;
+  flex-shrink: 0;
+  transition: color 0.18s;
+}
+
+.auth-input-wrap:focus-within svg {
+  color: #4f46e5;
+}
+
+.auth-input-wrap input {
+  flex: 1;
+  padding: 12px 14px 12px 42px;
+  background: none;
+  border: 0;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.auth-input-wrap input::placeholder {
+  color: #94a3b8;
+}
+
+.auth-input-wrap input:focus {
+  outline: none;
+}
+
+/* Password Eye Button */
+.auth-eye-btn {
+  position: absolute;
+  right: 10px;
+  padding: 6px;
+  border: 0;
+  background: none;
+  color: #8b9bb4;
+  cursor: pointer;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.auth-eye-btn:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.05);
+}
+
+/* ── Validation Alerts ─────────────────────────────────────────────────────── */
+.auth-error-msg {
+  font-size: 12.5px;
+  color: #dc2626;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  padding: 8px 13px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.auth-success-msg {
+  font-size: 12.5px;
+  color: #059669;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.10);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  padding: 8px 13px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ── Checkbox / Remember ───────────────────────────────────────────────────── */
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--auth-text-muted);
+  font-weight: 500;
+  margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auth-remember input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  cursor: pointer;
+  accent-color: #4f46e5;
+}
+
+/* ── Primary Submit Button ─────────────────────────────────────────────────── */
+.auth-submit {
+  width: 100%;
+  padding: 13px 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #090d16 0%, #1e1b4b 55%, #3730a3 100%);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 6px 20px -4px rgba(9, 13, 22, 0.35),
+    0 2px 6px rgba(79, 70, 229, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.auth-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #111827 0%, #312e81 50%, #4f46e5 100%);
+  box-shadow:
+    0 10px 26px -4px rgba(79, 70, 229, 0.40),
+    0 3px 8px rgba(79, 70, 229, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.auth-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Bottom Switcher */
+.auth-foot {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--auth-text-muted);
+  font-weight: 500;
+}
+
+.auth-foot a {
+  color: #4f46e5;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.auth-foot a:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Executive Frosted Glass Preview Card (Right Sidebar Showcase)
+   ========================================================================== */
+.auth-preview {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.40) 65%,
+    rgba(255, 255, 255, 0.52) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-top: 2px solid #ffffff;
+  border-left: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 30px;
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  transform: translateZ(0);
+  contain: layout style;
+  box-shadow:
+    0 28px 65px -15px rgba(26, 32, 64, 0.10),
+    0 8px 20px -5px rgba(26, 32, 64, 0.03),
+    inset 0 2px 2px 0 rgba(255, 255, 255, 1),
+    inset 0 -1.5px 2px 0 rgba(255, 255, 255, 0.45);
+  padding: clamp(26px, 3.5vw, 36px);
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-preview::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 40%, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0.9) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+@media (max-width: 960px) {
+  .auth-preview {
+    display: none;
+  }
+}
+
+.auth-preview-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-preview-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  padding: 4px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.auth-preview-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6d28d9;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.30);
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.auth-preview-title {
+  font-size: 19px;
+  font-weight: 750;
+  color: #090d16;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.auth-preview-sub {
+  font-size: 13px;
+  color: var(--auth-text-muted);
+  margin: -8px 0 6px;
+  line-height: 1.5;
+}
+
+/* ── Frosted Clip Cards inside Preview ─────────────────────────────────────── */
+.auth-clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-clip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-top: 1.5px solid #ffffff;
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.03),
+    inset 0 1px 1px #ffffff;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.auth-clip-item:hover {
+  transform: translateY(-2px);
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow:
+    0 6px 18px rgba(15, 23, 42, 0.06),
+    inset 0 1px 1px #ffffff;
+}
+
+.auth-clip-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  box-shadow:
+    0 4px 12px rgba(99, 102, 241, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.auth-clip-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-clip-name {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-clip-meta {
+  font-size: 12px;
+  color: var(--auth-text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-clip-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.auth-clip-status.done {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.30);
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.auth-clip-status.processing {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* ── Frosted Feature Callout Box inside Preview ────────────────────────────── */
+.auth-feature-box {
+  margin-top: 6px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(238, 242, 255, 0.65) 0%,
+    rgba(245, 243, 255, 0.45) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-top: 1.5px solid #ffffff;
+  box-shadow:
+    inset 0 1.5px 1.5px #ffffff,
+    0 4px 14px rgba(99, 102, 241, 0.05);
+}
+
+.auth-feature-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #4338ca;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-feature-desc {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+  font-weight: 450;
+}
+
+/* ── Glass Footer ──────────────────────────────────────────────────────────── */
+.auth-page-footer {
+  position: relative;
+  z-index: 2;
+  padding: 16px clamp(16px, 4vw, 56px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--auth-text-muted);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.auth-page-footer nav {
+  display: flex;
+  gap: 18px;
+}
+
+.auth-page-footer nav a {
+  color: var(--auth-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.auth-page-footer nav a:hover {
+  color: #090d16;
+}
+
+/* ── Mobile Optimization (Mobile S, 320px - 480px) ─────────────────────────── */
+@media (max-width: 480px) {
+  .auth-nav {
+    padding: 14px 16px;
+  }
+  .auth-brand {
+    font-size: 17px;
+  }
+  .auth-brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .auth-nav-end span {
+    display: none;
+  }
+  .auth-nav-end a {
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+  .auth-layout {
+    padding: 12px 12px 28px;
+  }
+  .auth-card {
+    padding: 24px 18px;
+    border-radius: 24px;
+  }
+  .auth-providers {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .auth-providers button {
+    width: 100%;
+    padding: 11px;
+  }
+}

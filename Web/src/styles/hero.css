@@ -1,0 +1,1012 @@
+/* ShortsYou Hero — Apple & Superhuman Glassmorphism Architecture */
+:root {
+  --night: #090d16;
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.94);
+  --ink-3: rgba(255, 255, 255, 0.78);
+  --line: rgba(255, 255, 255, 0.42);
+  --line-highlight: rgba(255, 255, 255, 0.82);
+  --glass-a: rgba(255, 255, 255, 0.28);
+  --glass-b: rgba(255, 255, 255, 0.14);
+  --accent-from: #6366f1;
+  --accent-to: #ec4899;
+  --hx-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hx {
+  position: relative;
+  z-index: 2;
+  min-height: max(100svh, 840px);
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--ink);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Dynamic Creator Hero Photo with Scroll Parallax & Zoom ─────────────── */
+.hx-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background-position: 50% 25%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  translate: calc(var(--px, 0) * 10px) calc(var(--py, 0) * -10px + var(--scroll-y, 0) * 0.22px);
+  scale: calc(1 + var(--scroll-p, 0) * 0.08);
+  will-change: translate, scale;
+  transition: opacity 0.4s ease-in-out;
+}
+
+.hx-sky-tint {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(circle at 50% 45%, transparent 35%, rgba(12, 10, 32, 0.4) 90%);
+  pointer-events: none;
+}
+
+/* ── Nav — Superhuman Frosted Styling ─────────────────────────────────────── */
+.hx-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  padding: 24px clamp(24px, 3.5vw, 56px);
+}
+
+.hx-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 18px;
+}
+
+.hx-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.hx-links {
+  display: flex;
+  gap: 30px;
+}
+
+.hx-links a,
+.hx-login {
+  color: rgba(255, 255, 255, 0.88);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 550;
+  transition: color 0.2s;
+}
+
+.hx-links a:hover,
+.hx-login:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.hx-nav-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.hx-signup {
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #090d16;
+  font-weight: 650;
+  font-size: 14.5px;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s var(--hx-ease), background 0.2s;
+  letter-spacing: -0.01em;
+}
+
+.hx-signup:hover {
+  transform: translateY(-1px);
+  background: #f1f5f9;
+}
+
+/* ── Centered Headline & CTA ────────────────────────────────────────────── */
+.hx-head {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 8.5%;
+  translate: -50% calc(var(--scroll-y, 0) * -0.45px);
+  opacity: calc(1 - var(--scroll-p, 0) * 2.2);
+  width: min(92vw, 760px);
+  text-align: center;
+  pointer-events: auto;
+  will-change: translate, opacity;
+}
+
+.hx-title {
+  margin: 0;
+  font-size: clamp(26px, 2.6vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: #ffffff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.hx-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 7px 7px 7px 22px;
+  border-radius: 18px;
+  background: rgba(18, 16, 42, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(24px) saturate(180%);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.1),
+    0 20px 48px -10px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: transform 0.3s var(--hx-ease), background 0.2s;
+  letter-spacing: -0.01em;
+}
+
+.hx-cta:hover {
+  transform: translateY(-2px);
+  background: rgba(28, 24, 60, 0.85);
+}
+
+.hx-cta:focus-visible,
+.hx a:focus-visible,
+.hx button:focus-visible,
+.hx input:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.hx-cta-arrow {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+  color: #ffffff;
+  transition: translate 0.3s var(--hx-ease);
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.hx-cta:hover .hx-cta-arrow {
+  translate: 3px 0;
+}
+
+/* ── Universal Liquid Glassmorphism Surface ──────────────────────────────── */
+.glass {
+  background: linear-gradient(135deg, var(--glass-a) 0%, var(--glass-b) 100%);
+  border: 1.5px solid var(--line);
+  border-top: 2px solid var(--line-highlight);
+  border-radius: 22px;
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 24px 50px -12px rgba(10, 8, 28, 0.45),
+    0 4px 16px rgba(10, 8, 28, 0.2),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background: rgba(30, 26, 60, 0.92);
+  }
+}
+
+/* ── Floating Piece Entrance Mechanics ──────────────────────────────────── */
+.fx {
+  position: absolute;
+  z-index: 4;
+  animation: hx-rise 0.9s var(--hx-ease) both;
+  animation-delay: calc(0.12s + var(--i, 0) * 0.08s);
+  will-change: translate, opacity;
+}
+
+@keyframes hx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── 1. Left Card: AI Assistant (hx-chat) ───────────────────────────────── */
+.hx-chat {
+  left: clamp(16px, 2.5vw, 36px);
+  top: clamp(84px, 12vh, 115px);
+  width: clamp(250px, 18vw, 290px);
+  padding: 14px 16px 12px;
+  translate:
+    calc(var(--px, 0) * -8px + var(--scroll-p, 0) * -75px)
+    calc(var(--py, 0) * -8px + var(--scroll-p, 0) * -45px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
+}
+
+.hx-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fbbf24;
+  margin-bottom: 8px;
+}
+
+.hx-chat-lead {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #ffffff;
+  font-weight: 550;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.hx-bubble {
+  margin: 2px 0 8px auto;
+  width: fit-content;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.hx-times {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.hx-time {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.hx-ask {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 5px 5px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.hx-ask input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.hx-ask input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.hx-send {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: 0;
+  background: #ffffff;
+  color: #090d16;
+  cursor: pointer;
+  transition: transform 0.2s var(--hx-ease);
+  flex-shrink: 0;
+}
+
+.hx-send:hover {
+  transform: scale(1.08);
+  background: #f1f5f9;
+}
+
+.hx-done {
+  margin: 0;
+  font-size: 12px;
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* ── 2. Tool Dock (hx-dock) ─────────────────────────────────────────────── */
+.hx-dock {
+  left: clamp(280px, 21.5vw, 335px);
+  top: clamp(105px, 15vh, 145px);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-top: 2px solid rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 20px 48px -10px rgba(10, 8, 28, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  translate:
+    calc(var(--px, 0) * -12px + var(--scroll-p, 0) * -25px)
+    calc(var(--py, 0) * -12px + var(--scroll-p, 0) * -35px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
+}
+
+.hx-dock button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, color 0.2s;
+}
+
+.hx-dock button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.hx-dock button[aria-pressed="true"] {
+  background: #ffffff;
+  color: #090d16;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ── 3. Bottom-Left Card: Clip List (hx-list) ───────────────────────────── */
+.hx-list {
+  left: clamp(16px, 2.5vw, 36px);
+  bottom: clamp(16px, 3vh, 32px);
+  width: clamp(260px, 18.5vw, 305px);
+  padding: 10px 6px 8px;
+  border-radius: 18px;
+  translate:
+    calc(var(--px, 0) * -6px + var(--scroll-p, 0) * -65px)
+    calc(var(--py, 0) * -6px + var(--scroll-p, 0) * 65px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
+}
+
+.hx-tabs {
+  display: flex;
+  gap: 12px;
+  padding: 0 10px 7px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
+  margin-bottom: 3px;
+}
+
+.hx-tabs b {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  margin-left: 3px;
+}
+
+.hx-tab-active {
+  color: #ffffff !important;
+  font-weight: 700;
+  position: relative;
+}
+
+.hx-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: -8.5px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+}
+
+.hx-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.hx-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 7px;
+  transition: background 0.15s;
+}
+
+.hx-row.active-row {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 3px 0 0 #ffffff;
+}
+
+.hx-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hx-row-name {
+  color: #ffffff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hx-row-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+}
+
+/* ── 4. Toast Notification (hx-toast) ───────────────────────────────────── */
+.hx-toast {
+  left: clamp(285px, 22vw, 350px);
+  bottom: clamp(16px, 3vh, 32px);
+  width: clamp(210px, 14vw, 265px);
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(18, 14, 42, 0.82);
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow:
+    0 20px 45px rgba(10, 8, 28, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  translate:
+    calc(var(--px, 0) * -10px + var(--scroll-p, 0) * -15px)
+    calc(var(--py, 0) * -10px + var(--scroll-p, 0) * 80px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.4);
+  z-index: 5;
+}
+
+.hx-toast-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.hx-toast-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffffff;
+  font-weight: 550;
+}
+
+/* ── 5. Right Card: Caption Editor (hx-doc) ─────────────────────────────── */
+.hx-doc {
+  right: clamp(16px, 2.5vw, 36px);
+  top: clamp(170px, 24vh, 250px);
+  width: clamp(280px, 21vw, 345px);
+  padding: 18px 20px 16px;
+  translate:
+    calc(var(--px, 0) * 12px + var(--scroll-p, 0) * 85px)
+    calc(var(--py, 0) * 12px + var(--scroll-p, 0) * 55px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.3);
+  z-index: 5;
+}
+
+.hx-doc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hx-doc-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffffff;
+}
+
+.hx-doc-share {
+  cursor: pointer;
+  color: #93c5fd;
+  transition: opacity 0.2s;
+}
+
+.hx-doc-share:hover {
+  text-decoration: underline;
+}
+
+.hx-doc-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.hx-doc-body {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+}
+
+.hx-doc-body u {
+  text-decoration: underline;
+  text-decoration-color: #ffffff;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  color: #ffffff;
+  font-weight: 650;
+}
+
+.hx-tools {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hx-tools span {
+  width: 26px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hx-tools span:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* ── 6. Chips (hx-chip) ─────────────────────────────────────────────────── */
+.hx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    0 16px 36px rgba(10, 8, 28, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.hx-chip.c1 {
+  right: clamp(20px, 3.5vw, 48px);
+  top: clamp(96px, 13vh, 130px);
+  translate:
+    calc(var(--px, 0) * 16px + var(--scroll-p, 0) * 75px)
+    calc(var(--py, 0) * 16px + var(--scroll-p, 0) * -55px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.5);
+  z-index: 5;
+}
+
+.hx-chip.c2 {
+  right: clamp(24px, 6vw, 90px);
+  bottom: clamp(16px, 3vh, 32px);
+  translate:
+    calc(var(--px, 0) * 14px + var(--scroll-p, 0) * 45px)
+    calc(var(--py, 0) * 14px + var(--scroll-p, 0) * 85px);
+  opacity: calc(1 - var(--scroll-p, 0) * 1.5);
+  z-index: 5;
+}
+
+/* ── Mobile Preview Tabs (Hidden by default on Desktop) ───────────────────── */
+.hx-mobile-tabs {
+  display: none;
+}
+
+/* ── Responsive Behavior ────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .hx-links {
+    display: none;
+  }
+
+  .hx-head {
+    top: 6%;
+  }
+
+  .hx-dock {
+    left: 20%;
+  }
+
+  .hx-toast {
+    left: 20%;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Dynamic Full-Height Mobile Hero — Top Headroom for Creator */
+  .hx {
+    min-height: max(100svh, 680px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Keeps headline tightly at top, above creator face */
+    padding-bottom: 20px;
+    overflow: hidden;
+  }
+
+  /* Creator Face Perfectly Centered in the Clear Central Zone */
+  .hx-sky {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background-position: center 38% !important; /* Positions face in the open space below the headline */
+    background-size: cover !important;
+    translate: 0 calc(var(--scroll-y, 0) * 0.18px);
+    scale: calc(1 + var(--scroll-p, 0) * 0.05);
+  }
+
+  /* Nav Header — Solid Single-Line Spacing with Zero Collisions */
+  .hx-nav {
+    padding: 14px 20px 8px;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .hx-brand {
+    font-size: 18px;
+    gap: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .hx-nav-end {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .hx-login {
+    font-size: 14px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .hx-signup {
+    font-size: 13.5px;
+    padding: 8px 18px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Headline & CTA — Positioned strictly ABOVE the creator face */
+  .hx-head {
+    position: relative;
+    left: auto;
+    top: auto;
+    margin: 6px auto 0;
+    padding: 0 16px;
+    width: min(94vw, 540px);
+    text-align: center;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    translate: 0 calc(var(--scroll-y, 0) * -0.28px);
+    opacity: calc(1 - var(--scroll-p, 0) * 1.8);
+  }
+
+  .hx-title {
+    font-size: clamp(20px, 5.2vw, 27px);
+    line-height: 1.22;
+    letter-spacing: -0.025em;
+  }
+
+  .hx-cta {
+    margin-top: 2px;
+    font-size: 14.5px;
+    padding: 5px 5px 5px 16px;
+  }
+
+  /* Mobile Glass Segmented Switcher — Compact & Above Face */
+  .hx-mobile-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+    padding: 3.5px;
+    border-radius: 999px;
+    background: rgba(18, 16, 42, 0.75);
+    border: 1.5px solid rgba(255, 255, 255, 0.30);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .hx-mobile-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 11.5px;
+    font-weight: 650;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+
+  .hx-mobile-tab.active {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  /* Floating Card Positioning — Anchored to bottom with margin-top: auto */
+  .fx {
+    position: relative;
+    inset: auto;
+    margin: auto auto 0; /* Pushes the card to the bottom, completely clearing the face */
+    width: min(calc(100% - 32px), 460px);
+    z-index: 4;
+    translate: 0 calc(var(--scroll-p, 0) * -35px);
+  }
+
+  /* Toggle between preview cards on mobile */
+  .fx.mobile-hidden {
+    display: none !important;
+  }
+
+  .fx.mobile-active {
+    display: block !important;
+    animation: hx-rise 0.4s var(--hx-ease) both;
+  }
+
+  .hx-dock,
+  .hx-chip,
+  .hx-toast,
+  .hx-list {
+    display: none !important;
+  }
+
+  .hx-chat,
+  .hx-doc {
+    width: min(calc(100% - 32px), 460px);
+    margin: auto auto 0;
+  }
+}
+
+/* ── Mobile S Optimizations (320px - 480px, e.g. iPhone SE, Galaxy Z Flip) ── */
+@media (max-width: 480px) {
+  .hx {
+    min-height: max(100svh, 620px);
+    padding-bottom: 14px;
+  }
+
+  .hx-sky {
+    background-position: center 36% !important;
+  }
+
+  .hx-nav {
+    padding: 10px 14px 4px;
+    gap: 8px;
+  }
+
+  .hx-brand {
+    font-size: 16px;
+    gap: 8px;
+  }
+
+  .hx-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+
+  .hx-nav-end {
+    gap: 8px;
+  }
+
+  .hx-login {
+    font-size: 12.5px;
+    padding: 5px 8px;
+  }
+
+  .hx-signup {
+    font-size: 12.5px;
+    padding: 5px 13px;
+  }
+
+  .hx-head {
+    margin: 4px auto 0;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .hx-title {
+    font-size: clamp(19px, 5.8vw, 23px);
+    line-height: 1.2;
+  }
+
+  .hx-cta {
+    margin-top: 0;
+    font-size: 13.5px;
+    padding: 4px 4px 4px 13px;
+  }
+
+  .hx-cta-arrow {
+    width: 30px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .hx-mobile-tabs {
+    margin-top: 0;
+    padding: 3px;
+  }
+
+  .hx-mobile-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .hx-chat,
+  .hx-doc {
+    width: min(calc(100% - 20px), 380px);
+    padding: 14px 12px;
+    border-radius: 16px;
+  }
+
+  .hx-chat-lead {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .hx-ask input {
+    font-size: 12.5px;
+    padding: 9px 36px 9px 12px;
+  }
+
+  .hx-doc-top {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .hx-doc-label {
+    font-size: 11.5px;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hx-doc-share {
+    font-size: 10.5px;
+    padding: 2px 7px;
+  }
+
+  .hx-doc-title {
+    font-size: 14.5px;
+    margin: 8px 0 6px;
+  }
+
+  .hx-doc-body {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx,
+  .hx-done {
+    animation: none;
+  }
+
+  .fx,
+  .hx-sky,
+  .hx-head {
+    translate: none !important;
+    opacity: 1 !important;
+    scale: none !important;
+  }
+
+  .hx-cta,
+  .hx-signup,
+  .hx-send,
+  .hx-cta-arrow {
+    transition: none;
+  }
+}
