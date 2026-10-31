@@ -157,6 +157,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, input, output 
 	if c.internalKey != "" {
 		req.Header.Set("X-Internal-API-Key", c.internalKey)
 	}
+	req.Header.Set("ngrok-skip-browser-warning", "true")
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("call edit service: %w", err)

@@ -68,6 +68,8 @@
   filter: blur(55px);
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .ambient-glow-top-right {
@@ -81,6 +83,8 @@
   filter: blur(60px);
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .ambient-glow-bottom {
@@ -94,6 +98,8 @@
   filter: blur(75px);
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .ambient-glow-rose {
@@ -107,6 +113,8 @@
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
+  will-change: transform;
   animation: pulseGlow 14s ease-in-out infinite alternate;
 }
 
@@ -121,6 +129,8 @@
   filter: blur(75px);
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
+  will-change: transform;
   animation: pulseGlow 16s ease-in-out infinite alternate-reverse;
 }
 

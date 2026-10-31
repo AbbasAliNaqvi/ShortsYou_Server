@@ -2,7 +2,8 @@
 
 import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api, type Job } from "@/lib/api";
+import { useJobs } from "@/lib/tanstack";
+import type { Job } from "@/lib/api";
 
 type Notice = { id: number; title: string; message: string; tone: "success" | "error" | "info" };
 type NoticeEvent = CustomEvent<{ title: string; message: string; tone?: Notice["tone"] }>;
@@ -13,13 +14,21 @@ export function notify(title: string, message: string, tone: Notice["tone"] = "i
 
 export function NotificationCenter() {
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [token, setToken] = useState<string | null>(null);
   const knownJobs = useRef(new Map<string, string>());
+  const initialSnapshot = useRef(true);
 
   function addNotice(title: string, message: string, tone: Notice["tone"] = "info") {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setNotices((current) => [...current.slice(-2), { id, title, message, tone }]);
     window.setTimeout(() => setNotices((current) => current.filter((notice) => notice.id !== id)), 10_000);
   }
+
+  useEffect(() => {
+    setToken(localStorage.getItem("shortsyou_jwt"));
+  }, []);
+
+  const { data: jobs = [] } = useJobs(token, 15_000);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -31,38 +40,28 @@ export function NotificationCenter() {
   }, []);
 
   useEffect(() => {
-    let initialSnapshot = true;
-    let mounted = true;
-    let inFlight = false;
-    const checkJobs = async () => {
-      if (inFlight || document.visibilityState === "hidden") return;
-      const token = localStorage.getItem("shortsyou_jwt");
-      if (!token) return;
-      inFlight = true;
-      try {
-        const jobs = await api.jobs(token);
-        if (!mounted) return;
-        jobs.forEach((job: Job) => {
-          const previous = knownJobs.current.get(job.jobId);
-          knownJobs.current.set(job.jobId, job.status);
-          if (initialSnapshot || previous === job.status) return;
-          if (job.status === "completed") addNotice("Your video is ready", `${job.clipsFound} clip${job.clipsFound === 1 ? "" : "s"} ready to review.`, "success");
-          if (job.status === "failed") addNotice("Video processing needs attention", job.error || "The video could not be processed. You can try again from Videos.", "error");
-        });
-        initialSnapshot = false;
-      } catch { /* The normal page-level API handling remains responsible for errors. */ }
-      finally { inFlight = false; }
-    };
-    void checkJobs();
-    const interval = window.setInterval(() => void checkJobs(), 60_000);
-    const handleVisibility = () => { if (document.visibilityState === "visible") void checkJobs(); };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      mounted = false;
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, []);
+    if (!jobs || jobs.length === 0) return;
+    jobs.forEach((job: Job) => {
+      const previous = knownJobs.current.get(job.jobId);
+      knownJobs.current.set(job.jobId, job.status);
+      if (initialSnapshot.current || previous === job.status) return;
+      if (job.status === "completed") {
+        addNotice(
+          "Your video is ready",
+          `${job.clipsFound} clip${job.clipsFound === 1 ? "" : "s"} ready to review.`,
+          "success",
+        );
+      }
+      if (job.status === "failed") {
+        addNotice(
+          "Video processing needs attention",
+          job.error || "The video could not be processed. You can try again from Videos.",
+          "error",
+        );
+      }
+    });
+    initialSnapshot.current = false;
+  }, [jobs]);
 
   return <div className="notification-center" role="status" aria-live="polite">
     {notices.map((notice) => <article className={`apple-notification ${notice.tone}`} key={notice.id}>

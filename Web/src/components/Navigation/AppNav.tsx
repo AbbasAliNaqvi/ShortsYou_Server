@@ -8,6 +8,7 @@ import {
   Bell,
   Clapperboard,
   Compass,
+  Flame,
   LayoutDashboard,
   Menu,
   Settings,
@@ -18,6 +19,7 @@ import { useState, useEffect, memo } from "react";
 
 const links = [
   ["Studio", "/dashboard", BarChart3],
+  ["Swipe", "/swipe", Flame],
   ["Videos", "/videos", Clapperboard],
   ["Custom Editor", "/editor", WandSparkles],
   ["Discover", "/discover", Compass],

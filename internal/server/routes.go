@@ -213,6 +213,18 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			s.supabase,
 			aiTools,
 		)
+		swipeHandler := handler.NewSwipeHandler(
+			s.clipRepo,
+			s.videoRepo,
+			s.transcriptRepo,
+			s.queueClient,
+			s.supabase,
+			aiTools,
+		)
+		protected.GET("/swipe/deck", swipeHandler.GetDeck)
+		protected.POST("/swipe/action", swipeHandler.HandleAction)
+		protected.POST("/swipe/undo", swipeHandler.HandleUndo)
+		protected.GET("/swipe/stats", swipeHandler.GetStats)
 		protected.GET("/clips/daily-reels", clipHandler.GetDailyReels)
 		protected.POST("/editor/auto-compose", clipHandler.AutoCompose)
 		protected.POST("/editor/generate-hooks", clipHandler.GenerateHooks)

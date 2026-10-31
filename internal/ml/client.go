@@ -50,7 +50,10 @@ func (c *Client) Transcribe(
 		UserIDSnake      string `json:"user_id,omitempty"`
 		AudioURL         string `json:"audioUrl"`
 		AudioURLSnake    string `json:"audio_url,omitempty"`
+		VideoURL         string `json:"videoUrl,omitempty"`
 		Language         string `json:"language,omitempty"`
+		Task             string `json:"task,omitempty"`
+		Translate        bool   `json:"translate"`
 		CallbackURL      string `json:"callbackUrl,omitempty"`
 		CallbackURLSnake string `json:"callback_url,omitempty"`
 		InternalKey      string `json:"internalKey,omitempty"`
@@ -58,14 +61,19 @@ func (c *Client) Transcribe(
 	}
 
 	body := asyncReq{
-		JobID:            req.JobID,
-		VideoID:          req.VideoID,
-		VideoIDSnake:     req.VideoID,
-		UserID:           req.UserID,
-		UserIDSnake:      req.UserID,
-		AudioURL:         req.AudioURL,
-		AudioURLSnake:    req.AudioURL,
-		Language:         req.Language,
+		JobID:         req.JobID,
+		VideoID:       req.VideoID,
+		VideoIDSnake:  req.VideoID,
+		UserID:        req.UserID,
+		UserIDSnake:   req.UserID,
+		AudioURL:      req.AudioURL,
+		AudioURLSnake: req.AudioURL,
+		VideoURL:      req.VideoURL,
+		Language:      req.Language,
+		// Explicitly request transcription in the spoken language. Some Whisper
+		// compatible services default to English translation unless this is sent.
+		Task:             "transcribe",
+		Translate:        false,
 		CallbackURL:      callback,
 		CallbackURLSnake: callback,
 		InternalKey:      c.callbackKey,

@@ -53,10 +53,15 @@ func Load() (*Config, error) {
 		fmt.Printf("warning: could not read .env file: %v\n", err)
 	}
 
+	baseURL := v.GetString("BASE_URL")
+	if baseURL == "" {
+		baseURL = v.GetString("RENDER_EXTERNAL_URL")
+	}
+
 	cfg := &Config{
 		Env:         v.GetString("ENV"),
 		Port:        v.GetString("PORT"),
-		BaseURL:     v.GetString("BASE_URL"),
+		BaseURL:     baseURL,
 		FrontendURL: v.GetString("FRONTEND_URL"),
 
 		MongoURI:    v.GetString("MONGO_URI"),

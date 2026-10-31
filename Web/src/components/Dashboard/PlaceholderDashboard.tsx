@@ -4,7 +4,17 @@ import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { api, type Clip, type DailyReel, type Job, type PublicVideo, type User, type Video } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCurrentUser,
+  useVideos,
+  useClips,
+  useJobs,
+  useDailyReels,
+  useExportClipMutation,
+  queryKeys,
+} from "@/lib/tanstack";
+import { api, type PublicVideo } from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState } from "@/components/Layout";
 import { HeroBanner } from "./HeroBanner";
@@ -22,70 +32,57 @@ const VideoSearchResults = dynamic(
 
 export function PlaceholderDashboard() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [dailyReels, setDailyReels] = useState<DailyReel[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [token, setToken] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
   const [videoResults, setVideoResults] = useState<PublicVideo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [exportingClip, setExportingClip] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const loadDashboard = useCallback(async () => {
-    const token = localStorage.getItem("shortsyou_jwt");
-    if (!token) {
-      setLoading(false);
-      router.replace("/login");
-      return;
-    }
-    setRefreshing(true);
-    setError("");
-    const results = await Promise.allSettled([
-      api.me(token),
-      api.videos(token),
-      api.clips(token),
-      api.jobs(token),
-      api.dailyReels(token),
-    ]);
-    const [userResult, videosResult, clipsResult, jobsResult, dailyResult] = results;
-    if (userResult.status === "fulfilled") {
-      setUser(userResult.value);
-      try {
-        localStorage.setItem("shortsyou_user", JSON.stringify(userResult.value));
-      } catch {}
-    }
-    if (videosResult.status === "fulfilled") setVideos(videosResult.value ?? []);
-    if (clipsResult.status === "fulfilled") setClips(clipsResult.value ?? []);
-    if (jobsResult.status === "fulfilled") setJobs(jobsResult.value ?? []);
-    if (dailyResult.status === "fulfilled") setDailyReels(dailyResult.value ?? []);
-    if (results.every((result) => result.status === "rejected"))
-      setError("The studio API is unavailable. Check that the Go server is running on port 5050.");
-    setLoading(false);
-    setRefreshing(false);
-  }, [router]);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      localStorage.setItem("shortsyou_jwt", token);
+    const paramToken = params.get("token");
+    if (paramToken) {
+      localStorage.setItem("shortsyou_jwt", paramToken);
       window.history.replaceState({}, document.title, "/dashboard");
+      setToken(paramToken);
     } else {
-      const legacyToken = sessionStorage.getItem("shortsyou_jwt");
-      if (legacyToken) {
-        localStorage.setItem("shortsyou_jwt", legacyToken);
-        sessionStorage.removeItem("shortsyou_jwt");
+      const stored = localStorage.getItem("shortsyou_jwt") || sessionStorage.getItem("shortsyou_jwt");
+      if (stored) {
+        localStorage.setItem("shortsyou_jwt", stored);
+        setToken(stored);
+      } else {
+        router.replace("/login");
       }
     }
-    queueMicrotask(() => void loadDashboard());
-  }, [loadDashboard]);
+  }, [router]);
+
+  // TanStack Queries for high-performance reactive caching and zero redundant network waterfalls
+  const { data: user = null } = useCurrentUser(token);
+  const { data: videos = [], isLoading: videosLoading, error: videosError } = useVideos(token);
+  const { data: clips = [], isLoading: clipsLoading, error: clipsError } = useClips(token);
+  const { data: dailyReels = [], isLoading: reelsLoading } = useDailyReels(token);
+  const { data: jobs = [] } = useJobs(token, 10_000);
+
+  const exportMutation = useExportClipMutation(token);
+
+  const loading = Boolean(token) && (videosLoading || clipsLoading || reelsLoading);
+  const error = videosError || clipsError ? "The studio API is unavailable. Check that the Go server is running." : "";
+
+  const loadDashboard = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.videos.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.clips.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient]);
 
   // Stabilize heavy computations with useMemo to isolate re-render cascades
   const recommendations = useMemo(
@@ -115,8 +112,9 @@ export function PlaceholderDashboard() {
 
   const signOut = useCallback(() => {
     localStorage.removeItem("shortsyou_jwt");
+    queryClient.clear();
     router.push("/login");
-  }, [router]);
+  }, [router, queryClient]);
 
   const handleSourceUrlChange = useCallback((val: string) => {
     startTransition(() => {
@@ -127,7 +125,6 @@ export function PlaceholderDashboard() {
   const handleAutoCreate = useCallback(
     async (event: FormEvent) => {
       event.preventDefault();
-      const token = localStorage.getItem("shortsyou_jwt");
       if (!token || !sourceUrl.trim()) return;
 
       if (!/^https?:\/\//i.test(sourceUrl.trim())) {
@@ -152,7 +149,8 @@ export function PlaceholderDashboard() {
           "Your shorts are being created automatically. AI will transcribe, find viral moments, generate hooks, and render your shorts.",
           "success"
         );
-        await loadDashboard();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
       } catch (ingestError) {
         setNotice(
           ingestError instanceof Error ? ingestError.message : "Unable to start AI Auto-Create."
@@ -161,12 +159,11 @@ export function PlaceholderDashboard() {
         setCreating(false);
       }
     },
-    [sourceUrl, loadDashboard]
+    [sourceUrl, token, queryClient]
   );
 
   const ingestSearchResult = useCallback(
     async (video: PublicVideo) => {
-      const token = localStorage.getItem("shortsyou_jwt");
       if (!token) return;
       setNotice("AI Auto-Create started for this video...");
       try {
@@ -178,12 +175,13 @@ export function PlaceholderDashboard() {
         setSourceUrl("");
         setNotice(`${result.title} — AI Auto-Create in progress! Your shorts will appear below when ready.`);
         notify("AI Auto-Create Started", `${video.title} is being processed.`, "success");
-        await loadDashboard();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
       } catch (err) {
         setNotice(err instanceof Error ? err.message : "Unable to queue this video.");
       }
     },
-    [loadDashboard]
+    [token, queryClient]
   );
 
   const copySource = useCallback(() => {
@@ -193,14 +191,12 @@ export function PlaceholderDashboard() {
 
   const createShort = useCallback(
     async (clipId: string) => {
-      const token = localStorage.getItem("shortsyou_jwt");
       if (!token) return;
       setExportingClip(clipId);
       setNotice("Creating your short...");
       try {
-        await api.exportClip(token, clipId);
+        await exportMutation.mutateAsync(clipId);
         setNotice("Short rendering started. It will appear as downloadable when ready.");
-        await loadDashboard();
       } catch (createError) {
         setNotice(
           createError instanceof Error ? createError.message : "Unable to create this short."
@@ -209,7 +205,7 @@ export function PlaceholderDashboard() {
         setExportingClip(null);
       }
     },
-    [loadDashboard]
+    [token, exportMutation]
   );
 
   const clearVideoResults = useCallback(() => setVideoResults([]), []);

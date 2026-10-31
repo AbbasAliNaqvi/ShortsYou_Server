@@ -213,6 +213,77 @@ export const api = {
     keyHealth: (token: string) =>
       apiRequest<AdminKeyHealthResponse>("/api/v1/admin/key-health", { token }),
   },
+  swipe: {
+    deck: (token: string) =>
+      apiRequest<SwipeDeckItem[]>("/api/v1/swipe/deck", { token }),
+    action: (
+      token: string,
+      req: {
+        clipId: string;
+        videoId: string;
+        action: "accept" | "reject" | "super";
+        startTime?: number;
+        endTime?: number;
+        hookText?: string;
+        editSettings?: EditSettings;
+      },
+    ) =>
+      apiRequest<{ status: string; clipId: string; message: string }>(
+        "/api/v1/swipe/action",
+        {
+          method: "POST",
+          body: JSON.stringify(req),
+          token,
+        },
+      ),
+    undo: (token: string, clipId: string) =>
+      apiRequest<{ status: string; clipId: string; message: string }>(
+        "/api/v1/swipe/undo",
+        {
+          method: "POST",
+          body: JSON.stringify({ clipId }),
+          token,
+        },
+      ),
+    stats: (token: string) =>
+      apiRequest<SwipeStats>("/api/v1/swipe/stats", { token }),
+  },
+};
+
+export type SwipeDeckItem = {
+  id: string;
+  videoId: string;
+  videoTitle: string;
+  hookText: string;
+  reasoning: string;
+  viralScore: number;
+  durationSeconds: number;
+  startTime: number;
+  endTime: number;
+  category: string;
+  thumbnailUrl: string;
+  playableUrl?: string;
+  audioTrackTitle: string;
+  tags: string[];
+  emotionType: string;
+  scores: {
+    emotion: number;
+    semanticImpact: number;
+    speechEmphasis: number;
+    clarity: number;
+    novelty: number;
+    trendAlignment: number;
+  };
+  isExistingClip: boolean;
+  status: string;
+};
+
+export type SwipeStats = {
+  totalSwiped: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  renderingJobs: number;
+  readyCount: number;
 };
 
 export type Health = {

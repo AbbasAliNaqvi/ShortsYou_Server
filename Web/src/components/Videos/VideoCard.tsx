@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -53,12 +53,12 @@ export const VideoCard = memo(
     // Detect Source Type
     const isDirect = video.sourceType === "direct" || video.sourceChannelId === "direct";
     const isChannel = !video.sourceChannelId || video.sourceType === "own";
-    const isDiscover = !isDirect && !isChannel;
 
     // Detect if newly added within the last 24 hours
-    const isNew = video.createdAt
-      ? Date.now() - new Date(video.createdAt).getTime() < 24 * 60 * 60 * 1000
-      : false;
+    const isNew = useMemo(() => {
+      if (!video.createdAt) return false;
+      return Date.now() - new Date(video.createdAt).getTime() < 24 * 60 * 60 * 1000;
+    }, [video.createdAt]);
 
     return (
       <motion.article

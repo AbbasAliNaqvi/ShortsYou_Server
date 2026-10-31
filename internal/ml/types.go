@@ -5,6 +5,7 @@ type TranscribeRequest struct {
 	VideoID  string `json:"videoId"`
 	UserID   string `json:"userId"`
 	AudioURL string `json:"audioUrl"`
+	VideoURL string `json:"videoUrl,omitempty"`
 	Language string `json:"language"`
 }
 

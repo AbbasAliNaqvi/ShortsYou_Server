@@ -119,14 +119,57 @@ export function Hero() {
 
     let running = true;
     let rafId = 0;
+    let animating = false;
+
+    const tick = () => {
+      if (!running) return;
+
+      let needsNextFrame = false;
+
+      if (hasFinePointer) {
+        const dx = targetX - currentX;
+        const dy = targetY - currentY;
+        if (Math.abs(dx) > 0.0005 || Math.abs(dy) > 0.0005) {
+          currentX += dx * 0.1;
+          currentY += dy * 0.1;
+          el.style.setProperty("--px", currentX.toFixed(4));
+          el.style.setProperty("--py", currentY.toFixed(4));
+          needsNextFrame = true;
+        }
+      }
+
+      const ds = targetScroll - currentScroll;
+      if (Math.abs(ds) > 0.5) {
+        currentScroll += ds * 0.15;
+        const viewportH = window.innerHeight || 800;
+        const progress = Math.min(Math.max(currentScroll / viewportH, 0), 1);
+        el.style.setProperty("--scroll-y", currentScroll.toFixed(1));
+        el.style.setProperty("--scroll-p", progress.toFixed(4));
+        needsNextFrame = true;
+      }
+
+      if (needsNextFrame) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        animating = false;
+      }
+    };
+
+    const requestTick = () => {
+      if (animating || !running) return;
+      animating = true;
+      rafId = requestAnimationFrame(tick);
+    };
 
     const onPointerMove = (e: PointerEvent) => {
       targetX = (e.clientX / window.innerWidth) * 2 - 1;
       targetY = (e.clientY / window.innerHeight) * 2 - 1;
+      requestTick();
     };
 
     const onScroll = () => {
       targetScroll = window.scrollY || 0;
+      requestTick();
     };
 
     // Initialize CSS properties immediately
@@ -137,34 +180,10 @@ export function Hero() {
     el.style.setProperty("--scroll-y", currentScroll.toFixed(1));
     el.style.setProperty("--scroll-p", initialProgress.toFixed(4));
 
-    // Smooth inertia interpolation loop (Universal 60FPS)
-    const tick = () => {
-      if (!running) return;
-
-      if (hasFinePointer) {
-        currentX += (targetX - currentX) * 0.08;
-        currentY += (targetY - currentY) * 0.08;
-        el.style.setProperty("--px", currentX.toFixed(4));
-        el.style.setProperty("--py", currentY.toFixed(4));
-      }
-
-      // Scroll spring smoothing — active on all screen sizes and mobile touch
-      currentScroll += (targetScroll - currentScroll) * 0.12;
-
-      const viewportH = window.innerHeight || 800;
-      const progress = Math.min(Math.max(currentScroll / viewportH, 0), 1);
-
-      el.style.setProperty("--scroll-y", currentScroll.toFixed(1));
-      el.style.setProperty("--scroll-p", progress.toFixed(4));
-
-      rafId = requestAnimationFrame(tick);
-    };
-
     if (hasFinePointer) {
       window.addEventListener("pointermove", onPointerMove, { passive: true });
     }
     window.addEventListener("scroll", onScroll, { passive: true });
-    rafId = requestAnimationFrame(tick);
 
     return () => {
       running = false;

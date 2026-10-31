@@ -113,34 +113,15 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		return fmt.Errorf("%s: %w", stage, err)
 	}
 
-	audioURL := video.AudioURL
-	if audioURL == "" {
-		// A Render datacenter IP is frequently challenged by YouTube. Fetch audio
-		// through the media worker (the same host that renders the source) and use
-		// its public Supabase object for transcription.
-		log.Info().Msg("preparing transcription audio")
-		_ = h.videoRepo.UpdateStatus(ctx, videoID, models.StatusDownloading, "")
-		if p.JobID != "" {
-			_ = h.jobRepo.UpdateStatus(ctx, p.JobID, models.JobStatusDownloading, "preparing_source", 0.1)
-		}
-
-		audio, err := h.editClient.ExtractAudio(ctx, edit.ExtractAudioRequest{
-			VideoURL: downloader.WatchURL(video.YouTubeVideoID),
-			UserID:   p.UserID,
-			VideoID:  p.VideoID,
-		})
-		if err != nil {
-			return fail("extract transcription audio with media worker", err)
-		}
-		audioURL = audio.AudioURL
-		log.Info().Int("audioBytes", audio.Bytes).Str("audioUrl", audioURL).Msg("transcription audio ready from media worker")
-
-		_ = h.videoRepo.UpdateFields(ctx, videoID, map[string]any{
-			"audioUrl": audioURL,
-		})
-	} else {
-		log.Info().Str("audioUrl", audioURL).Msg("reusing previously extracted transcription audio")
+	// The transcription service accepts a publicly reachable source video URL
+	// in audioUrl (confirmed by its working API request). Send that URL directly
+	// and bypass local yt-dlp extraction, which is often blocked by YouTube.
+	videoURL := downloader.WatchURL(video.YouTubeVideoID)
+	mediaURL := video.AudioURL
+	if mediaURL == "" {
+		mediaURL = videoURL
 	}
+	log.Info().Str("mediaUrl", mediaURL).Msg("sending source URL directly to transcription service")
 
 	// Stage 2 — Fire async transcription
 	// Results come back via /api/internal/transcription/done
@@ -154,7 +135,8 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		JobID:    p.JobID,
 		VideoID:  p.VideoID,
 		UserID:   p.UserID,
-		AudioURL: audioURL,
+		AudioURL: mediaURL,
+		VideoURL: videoURL,
 		Language: "auto",
 	})
 	if err != nil {
@@ -247,6 +229,13 @@ func (h *TaskHandlers) HandleExportClip(ctx context.Context, t *asynq.Task) erro
 
 	style := styleFromEditSettings(clip.EditSettings)
 	callbackURL := h.cfg.BaseURL + "/api/internal/short/done"
+	if strings.Contains(h.cfg.EditServiceURL, "localhost") || strings.Contains(h.cfg.EditServiceURL, "127.0.0.1") {
+		port := h.cfg.Port
+		if port == "" {
+			port = "5050"
+		}
+		callbackURL = fmt.Sprintf("http://127.0.0.1:%s/api/internal/short/done", port)
+	}
 	captionWords := h.captionWordsForClip(ctx, video.ID.Hex(), clip.StartTime, clip.EndTime)
 	if len(captionWords) == 0 {
 		log.Warn().Str("captionSource", "none").Msg("rendering without spoken captions: no stored transcript words for clip")

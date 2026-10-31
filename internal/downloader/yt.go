@@ -68,6 +68,14 @@ func Download(ctx context.Context, youtubeVideoID string) (*Result, error) {
 			args = append(args, "--proxy", proxy)
 		}
 
+		cookieBrowser := strings.TrimSpace(os.Getenv("YOUTUBE_COOKIES_FROM_BROWSER"))
+		if cookieBrowser == "" {
+			cookieBrowser = "brave"
+		}
+		if cookieBrowser != "none" {
+			args = append(args, "--cookies-from-browser", cookieBrowser)
+		}
+
 		args = append(args, url)
 
 		cmd := exec.CommandContext(ctx, "yt-dlp", args...)
@@ -136,6 +144,14 @@ func DownloadAudio(ctx context.Context, youtubeVideoID string) (*Result, error) 
 
 		if proxy != "" {
 			args = append(args, "--proxy", proxy)
+		}
+
+		cookieBrowser := strings.TrimSpace(os.Getenv("YOUTUBE_COOKIES_FROM_BROWSER"))
+		if cookieBrowser == "" {
+			cookieBrowser = "brave"
+		}
+		if cookieBrowser != "none" {
+			args = append(args, "--cookies-from-browser", cookieBrowser)
 		}
 
 		args = append(args, url)

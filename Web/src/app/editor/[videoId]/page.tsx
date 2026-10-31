@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clapperboard } from "lucide-react";
-import { api, type EditSettings, type User, type Video } from "@/lib/api";
+import {
+  api,
+  type AutoComposeResult,
+  type EditSettings,
+  type HookVariation,
+  type User,
+  type Video,
+} from "@/lib/api";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell, LoadingState, EmptyState } from "@/components/Layout";
 import dynamic from "next/dynamic";
 import { EditorHeaderBanner } from "@/components/Editor/EditorHeaderBanner";
 import { EditorControlPanel } from "@/components/Editor/EditorControlPanel";
+import { AgenticDirector } from "@/components/Editor/AgenticDirector";
 
 const EditorPhonePreview = dynamic(
   () => import("@/components/Editor/EditorPhonePreview").then((m) => m.EditorPhonePreview),
@@ -33,6 +41,7 @@ export default function CustomShortEditor() {
   const [video, setVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
+  const [renderSuccess, setRenderSuccess] = useState(false);
   const [notice, setNotice] = useState("");
 
   const [start, setStart] = useState(0);
@@ -40,7 +49,9 @@ export default function CustomShortEditor() {
   const [hook, setHook] = useState("");
   const [previewStart, setPreviewStart] = useState(0);
   const [composing, setComposing] = useState(false);
-  const [composeReasoning, setComposeReasoning] = useState("");
+  const [composeResult, setComposeResult] = useState<AutoComposeResult | null>(null);
+  const [hookVariations, setHookVariations] = useState<HookVariation[]>([]);
+  const [activeTab, setActiveTab] = useState<"director" | "controls">("director");
 
   const [settings, setSettings] = useState<EditSettings>({
     backgroundStyle: "crop",
@@ -52,6 +63,7 @@ export default function CustomShortEditor() {
     removeFillers: true,
   });
 
+  // Load video + user in parallel
   useEffect(() => {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
@@ -73,12 +85,8 @@ export default function CustomShortEditor() {
           }
         }
       })
-      .catch(() => {
-        setNotice("We couldn't load this video.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch(() => setNotice("We couldn't load this video."))
+      .finally(() => setLoading(false));
   }, [params.videoId, router]);
 
   const duration = video?.durationSeconds ?? 0;
@@ -87,10 +95,7 @@ export default function CustomShortEditor() {
   const layout = settings.layout ?? "standard";
 
   function update<K extends keyof EditSettings>(key: K, value: EditSettings[K]) {
-    setSettings((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setSettings((curr) => ({ ...curr, [key]: value }));
   }
 
   function clamp(value: number, min: number, max: number) {
@@ -108,13 +113,17 @@ export default function CustomShortEditor() {
     setEnd(clamp(value, start + 0.1, duration || 60));
   }
 
+  // ── AI Agentic Director: auto-compose ──────────────────────────────────────
   async function handleAutoCompose() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !video) return;
     setComposing(true);
-    setNotice("AI Agent is analyzing footage, peak emotional moments, and viral hooks…");
+    setComposeResult(null);
+    setRenderSuccess(false);
+    setNotice("AI Agentic Director is analyzing your footage…");
     try {
       const res = await api.autoCompose(token, video.id);
+      // Apply all AI director settings to editor state
       setStart(res.startTime);
       setPreviewStart(res.startTime);
       setEnd(res.endTime);
@@ -124,9 +133,13 @@ export default function CustomShortEditor() {
       if (res.musicMood) update("musicMood", res.musicMood);
       if (res.backgroundStyle) update("backgroundStyle", res.backgroundStyle);
       if (res.layout) update("layout", res.layout);
-      setComposeReasoning(res.reasoning);
-      notify("AI Agent Tuned Short", res.reasoning, "success");
-      setNotice(`AI Agent tuned: ${Math.round(res.duration)}s short with "${res.hookText}"`);
+      setComposeResult(res);
+      notify("AI Director Complete", res.reasoning, "success");
+      setNotice(`Composed: ${Math.round(res.duration)}s · "${res.hookText}"`);
+
+      // Also fetch hook variations in background
+      const vars = await api.generateHooks(token, video.id, res.hookText).catch(() => []);
+      setHookVariations(vars ?? []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "AI auto-composition failed.";
       setNotice(msg);
@@ -139,14 +152,27 @@ export default function CustomShortEditor() {
   async function handleFetchHookVariations() {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !video) return [];
-    return await api.generateHooks(token, video.id, hook);
+    const vars = await api.generateHooks(token, video.id, hook);
+    setHookVariations(vars ?? []);
+    return vars ?? [];
   }
 
-  async function render() {
+  // ── Render / Create short ──────────────────────────────────────────────────
+  async function render(customOverrides?: {
+    start?: number;
+    end?: number;
+    hook?: string;
+    settings?: EditSettings;
+  }) {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token || !video) return;
 
-    if (start < 0 || end <= start || (duration && end > duration)) {
+    const finalStart = customOverrides?.start !== undefined ? customOverrides.start : start;
+    const finalEnd = customOverrides?.end !== undefined ? customOverrides.end : end;
+    const finalHook = customOverrides?.hook !== undefined ? customOverrides.hook : hook;
+    const finalSettings = customOverrides?.settings ?? settings;
+
+    if (finalStart < 0 || finalEnd <= finalStart || (duration && finalEnd > duration)) {
       const rangeErr = "Choose a valid in-video range.";
       setNotice(rangeErr);
       notify("Invalid Range", rangeErr, "error");
@@ -155,11 +181,12 @@ export default function CustomShortEditor() {
 
     setRendering(true);
     setNotice("");
-
+    setRenderSuccess(false);
     try {
-      await api.createManualShort(token, video.id, start, end, hook, settings);
-      const successMsg = "Render started. Your finished short will appear in Clips Review.";
+      await api.createManualShort(token, video.id, finalStart, finalEnd, finalHook, finalSettings);
+      const successMsg = "Render queued! Your short is being created with this approach and will appear in Clips Review.";
       setNotice(successMsg);
+      setRenderSuccess(true);
       notify("Short Rendering", successMsg, "success");
     } catch (error) {
       const err = error instanceof Error ? error.message : "We couldn't start the render.";
@@ -177,7 +204,7 @@ export default function CustomShortEditor() {
 
   return (
     <WorkspaceShell
-      title="Custom Short Studio"
+      title="AI Short Studio"
       subtitle={video?.title || "Timeline Editor"}
       user={user}
       refreshing={rendering}
@@ -197,7 +224,7 @@ export default function CustomShortEditor() {
         />
       ) : (
         <div className="ca-editor-workspace-stack">
-          {/* Top Banner with Video Details & Create Action */}
+          {/* Top Banner */}
           <EditorHeaderBanner
             title={video.title}
             duration={duration}
@@ -208,8 +235,9 @@ export default function CustomShortEditor() {
             onClearNotice={() => setNotice("")}
           />
 
-          {/* Two-Column Editor Grid: Preview on Left, Settings on Right */}
-          <div className="ca-editor-two-col-grid">
+          {/* Main Editor Grid */}
+          <div className="ca-editor-three-col-grid">
+            {/* Col 1: Phone Preview + Timeline */}
             <EditorPhonePreview
               video={video}
               hasPlayablePreview={hasPlayablePreview}
@@ -223,17 +251,58 @@ export default function CustomShortEditor() {
               onSetEndBound={setEndBound}
             />
 
-            <EditorControlPanel
-              settings={settings}
-              layout={layout}
-              hook={hook}
-              onUpdate={update}
-              onSetHook={setHook}
-              onAutoCompose={handleAutoCompose}
-              composing={composing}
-              composeReasoning={composeReasoning}
-              onFetchHookVariations={handleFetchHookVariations}
-            />
+            {/* Col 2+3: Tab-switched — AI Director | Manual Controls */}
+            <div className="ca-editor-right-panel">
+              {/* Tab switcher */}
+              <div className="ca-editor-tab-bar">
+                <button
+                  type="button"
+                  className={`ca-editor-tab ${activeTab === "director" ? "active" : ""}`}
+                  onClick={() => setActiveTab("director")}
+                >
+                  <span className="ca-tab-spark">✦</span> AI Director
+                </button>
+                <button
+                  type="button"
+                  className={`ca-editor-tab ${activeTab === "controls" ? "active" : ""}`}
+                  onClick={() => setActiveTab("controls")}
+                >
+                  Manual Controls
+                </button>
+              </div>
+
+              {/* Panel content */}
+              {activeTab === "director" ? (
+                <AgenticDirector
+                  composing={composing}
+                  rendering={rendering}
+                  renderSuccess={renderSuccess}
+                  result={composeResult}
+                  hookVariations={hookVariations}
+                  settings={settings}
+                  currentHook={hook}
+                  currentStart={start}
+                  currentEnd={end}
+                  onAutoCompose={handleAutoCompose}
+                  onApplyHook={(h) => setHook(h)}
+                  onUpdateSetting={update}
+                  onUseApproachAndRender={render}
+                  onSwitchToManual={() => setActiveTab("controls")}
+                  onResetSuccess={() => setRenderSuccess(false)}
+                />
+              ) : (
+                <EditorControlPanel
+                  settings={settings}
+                  layout={layout}
+                  hook={hook}
+                  onUpdate={update}
+                  onSetHook={setHook}
+                  composing={composing}
+                  composeReasoning={composeResult?.reasoning ?? ""}
+                  onFetchHookVariations={handleFetchHookVariations}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
