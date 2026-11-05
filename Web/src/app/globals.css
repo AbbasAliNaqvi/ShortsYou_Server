@@ -1363,31 +1363,43 @@ body {
   min-height: 440px;
 }
 
-/* Concentric Wireframe Orbit Rings */
-.ca-hero-rings {
+/* ── Dark hero card variant — matches reference dashboard ── */
+/* Subtle warm accent glow behind the character (light theme) */
+.ca-hero-glow {
   position: absolute;
-  top: -30px;
-  right: 10px;
-  width: 460px;
-  height: 460px;
+  top: -40px;
+  right: -20px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(
+    ellipse at 60% 40%,
+    rgba(245, 158, 11, 0.12) 0%,
+    rgba(234, 88, 12, 0.08) 40%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 1;
 }
 
-.ca-hero-rings-svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* ── Liquid Glass AI Visualizer ── */
+/* ── Hero Character Image ── */
 .ca-hero-visual-container {
   position: absolute;
-  top: 24px;
-  right: 28px;
-  width: 336px;
-  height: 270px;
+  top: 0;
+  right: 0;
+  width: 58%;
+  height: 100%;
   pointer-events: none;
   z-index: 2;
+}
+
+.ca-hero-character-img {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .ca-liquid-graphic-wrap {
@@ -1618,7 +1630,7 @@ body {
 /* Hero Typography & Form */
 .ca-hero-body {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   max-width: 360px;
 }
 
@@ -1634,6 +1646,11 @@ body {
   margin-bottom: 12px;
 }
 
+/* Light variant for dark hero card */
+.ca-hero-eyebrow--light {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
 .ca-hero-headline {
   margin: 0 0 10px;
   font-size: 48px;
@@ -1641,6 +1658,12 @@ body {
   line-height: 1.08;
   letter-spacing: -0.04em;
   color: #090d16 !important;
+}
+
+/* Light variant for dark hero card */
+.ca-hero-headline--light {
+  color: #ffffff !important;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
 }
 
 .ca-hero-subtext {
@@ -1698,13 +1721,13 @@ body {
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.40);
   cursor: pointer;
   padding: 4px;
 }
 
 .ca-ingest-copy-btn:hover {
-  color: #090d16;
+  color: #ffffff;
 }
 
 .ca-hero-start-btn {
@@ -1736,7 +1759,7 @@ body {
 .ca-hero-notice {
   margin: 6px 0 0;
   font-size: 11px;
-  color: #b45309;
+  color: rgba(245, 158, 11, 0.85);
   font-family: var(--font-mono);
 }
 
@@ -2755,9 +2778,8 @@ body {
     min-height: auto;
   }
   .ca-hero-visual-container {
-    position: static;
-    width: 100%;
-    margin-top: 24px;
+    width: 50%;
+    height: 100%;
   }
 }
 
