@@ -168,16 +168,16 @@ button { cursor: pointer; }
 @media (max-width:700px) { .video-grid { grid-template-columns:repeat(2,1fr); }.videos-page header { gap:12px; }.videos-page nav { gap:10px; } }
 
 /* ── Creator workspace refinement ──────────────────────────────────────────
-   Calm, high-contrast surfaces for dense creator workflows. Keep the signal
-   colors warm and reserve motion for meaningful state changes. */
-.workspace-page {
+   Clips workspace surfaces. Keep the signal colors warm and reserve motion
+   for meaningful state changes. */
+.workspace-page:has(.ca-clips-page-container) {
   position: relative;
   isolation: isolate;
   background: #0b0d10;
   background-image: radial-gradient(circle at 82% -12%, rgba(204, 87, 67, .16), transparent 34rem), linear-gradient(135deg, #0b0d10 0%, #101318 55%, #0b0d10 100%);
 }
 
-.workspace-page::before {
+.workspace-page:has(.ca-clips-page-container)::before {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -205,8 +205,8 @@ button { cursor: pointer; }
   mix-blend-mode: screen;
 }
 
-.ca-glass,
-.ca-glass-card {
+.ca-clips-page-container .ca-glass,
+.ca-clips-page-container .ca-glass-card {
   background: #15191e !important;
   border: 1px solid rgba(255,255,255,.095) !important;
   border-top-color: rgba(255,255,255,.15) !important;
@@ -216,7 +216,7 @@ button { cursor: pointer; }
   -webkit-backdrop-filter: none !important;
 }
 
-.ca-header-left {
+.workspace-page:has(.ca-clips-page-container) .ca-header-left {
   padding: 12px 16px;
   background: rgba(19, 23, 28, .88);
   border: 1px solid rgba(255,255,255,.09);
@@ -225,12 +225,12 @@ button { cursor: pointer; }
   backdrop-filter: none;
 }
 
-.ca-header-title { color: #f5f1ed !important; font: 650 25px/1.05 var(--font-hanken), sans-serif; letter-spacing: -.04em; }
-.ca-header-subtitle { color: #8f969f !important; font: 500 11px/1.3 var(--font-mono); }
-.ca-header-glass-cluster { padding: 5px 6px; background: rgba(19,23,28,.92) !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 14px; box-shadow: none; backdrop-filter: none !important; }
-.ca-glass-circle-btn { width: 36px; height: 36px; color: #aab0b7 !important; background: #1b2026 !important; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 10px; box-shadow: none; transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
-.ca-glass-circle-btn:hover { color: #fff1e9 !important; background: #252b32 !important; border-color: rgba(255, 171, 137, .5) !important; transform: none; }
-.ca-header-avatar-inner { border-radius: 10px !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-title { color: #f5f1ed !important; font: 650 25px/1.05 var(--font-hanken), sans-serif; letter-spacing: -.04em; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-subtitle { color: #8f969f !important; font: 500 11px/1.3 var(--font-mono); }
+.workspace-page:has(.ca-clips-page-container) .ca-header-glass-cluster { padding: 5px 6px; background: rgba(19,23,28,.92) !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 14px; box-shadow: none; backdrop-filter: none !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-glass-circle-btn { width: 36px; height: 36px; color: #aab0b7 !important; background: #1b2026 !important; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 10px; box-shadow: none; transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
+.workspace-page:has(.ca-clips-page-container) .ca-glass-circle-btn:hover { color: #fff1e9 !important; background: #252b32 !important; border-color: rgba(255, 171, 137, .5) !important; transform: none; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-avatar-inner { border-radius: 10px !important; }
 
 .ca-clips-page-container { max-width: none; gap: 18px; }
 .ca-clips-hero { overflow: hidden; padding: 30px 32px; background: linear-gradient(115deg, #171b20 0%, #14181d 58%, #20191b 100%) !important; border-color: rgba(255,255,255,.12) !important; border-radius: 22px !important; box-shadow: 0 24px 60px rgba(0,0,0,.25) !important; }
