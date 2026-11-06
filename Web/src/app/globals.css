@@ -227,10 +227,12 @@ button { cursor: pointer; }
 
 .workspace-page:has(.ca-clips-page-container) .ca-header-title { color: #f5f1ed !important; font: 650 25px/1.05 var(--font-hanken), sans-serif; letter-spacing: -.04em; }
 .workspace-page:has(.ca-clips-page-container) .ca-header-subtitle { color: #8f969f !important; font: 500 11px/1.3 var(--font-mono); }
-.workspace-page:has(.ca-clips-page-container) .ca-header-glass-cluster { padding: 5px 6px; background: rgba(19,23,28,.92) !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 14px; box-shadow: none; backdrop-filter: none !important; }
-.workspace-page:has(.ca-clips-page-container) .ca-glass-circle-btn { width: 36px; height: 36px; color: #aab0b7 !important; background: #1b2026 !important; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 10px; box-shadow: none; transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-glass-cluster { padding: 5px 6px; background: rgba(19,23,28,.92) !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 9999px; box-shadow: none; backdrop-filter: none !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-glass-circle-btn { width: 36px; height: 36px; color: #aab0b7 !important; background: #1b2026 !important; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 50%; box-shadow: none; transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
 .workspace-page:has(.ca-clips-page-container) .ca-glass-circle-btn:hover { color: #fff1e9 !important; background: #252b32 !important; border-color: rgba(255, 171, 137, .5) !important; transform: none; }
-.workspace-page:has(.ca-clips-page-container) .ca-header-avatar-inner { border-radius: 10px !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-user-badge { border-radius: 50% !important; overflow: visible !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-avatar-inner { border-radius: 50% !important; overflow: hidden !important; }
+.workspace-page:has(.ca-clips-page-container) .ca-header-avatar { border-radius: 50% !important; overflow: hidden !important; }
 
 .ca-clips-page-container { max-width: none; gap: 18px; }
 .ca-clips-hero { overflow: hidden; padding: 30px 32px; background: linear-gradient(115deg, #171b20 0%, #14181d 58%, #20191b 100%) !important; border-color: rgba(255,255,255,.12) !important; border-radius: 22px !important; box-shadow: 0 24px 60px rgba(0,0,0,.25) !important; }
@@ -1155,7 +1157,7 @@ body {
   border-radius: 24px !important;
 }
 
-/* ── 5. Header Bar & Frosted Action Cluster ── */
+/* ── 5. Header Bar & Frost Themed Glassmorphic Action Cluster ── */
 .ca-header-bar {
   display: flex;
   align-items: center;
@@ -1170,13 +1172,24 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.05);
+  padding: 8px 22px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(240, 246, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0.78) 100%
+  ) !important;
+  backdrop-filter: blur(36px) saturate(190%) contrast(102%) brightness(102%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(190%) contrast(102%) brightness(102%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.9) !important;
+  border-top: 2px solid #ffffff !important;
+  border-left: 1.8px solid rgba(255, 255, 255, 0.95) !important;
+  border-radius: 22px;
+  box-shadow: 
+    0 16px 36px -10px rgba(15, 23, 42, 0.05),
+    0 4px 12px -2px rgba(56, 189, 248, 0.04),
+    inset 0 1.5px 2px #ffffff,
+    inset 0 -1.5px 3px rgba(186, 230, 253, 0.22) !important;
 }
 
 .ca-header-title {
@@ -1201,40 +1214,61 @@ body {
   gap: 10px;
 }
 
+/* Frosted Glass Cluster Pill */
 .ca-header-glass-cluster {
+  position: relative;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.88) 0%,
-    rgba(240, 246, 255, 0.78) 100%
+    rgba(255, 255, 255, 0.84) 0%,
+    rgba(240, 247, 255, 0.68) 50%,
+    rgba(255, 255, 255, 0.8) 100%
   ) !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.95) !important;
-  border-top: 2px solid #ffffff !important;
-  border-radius: 99px;
-  padding: 6px 8px;
+  backdrop-filter: blur(40px) saturate(200%) contrast(104%) brightness(103%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) contrast(104%) brightness(103%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.92) !important;
+  border-top: 2.2px solid #ffffff !important;
+  border-left: 1.8px solid rgba(255, 255, 255, 0.95) !important;
+  border-radius: 9999px !important;
+  padding: 6px 10px;
   box-shadow: 
-    0 12px 30px -8px rgba(15, 23, 42, 0.06),
-    0 2px 8px rgba(15, 23, 42, 0.02),
-    inset 0 1.5px 1px #ffffff,
-    inset 0 -1px 2px rgba(186, 230, 253, 0.25);
+    0 20px 44px -10px rgba(15, 23, 42, 0.07),
+    0 8px 20px -4px rgba(56, 189, 248, 0.08),
+    inset 0 2px 2px #ffffff,
+    inset 0 -2px 4px rgba(186, 230, 253, 0.3) !important;
+}
+
+/* Subtle Crystalline Sheen Overlay */
+.ca-header-glass-cluster::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(224, 242, 254, 0.2) 100%
+  );
+  pointer-events: none;
 }
 
 .ca-glass-circle-btn {
   position: relative;
+  z-index: 2;
   display: grid;
   place-items: center;
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, #ffffff 0%, rgba(245, 248, 255, 0.85) 100%) !important;
-  backdrop-filter: blur(20px) !important;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(240, 247, 255, 0.88) 100%) !important;
+  backdrop-filter: blur(24px) !important;
   border: 1.5px solid rgba(255, 255, 255, 0.95) !important;
-  border-radius: 50%;
+  border-radius: 50% !important;
   color: #334155 !important;
   cursor: pointer;
   box-shadow: 
-    0 4px 12px rgba(15, 23, 42, 0.04),
-    inset 0 1.5px 1px #ffffff;
+    0 4px 14px rgba(15, 23, 42, 0.05),
+    inset 0 1.5px 1.5px #ffffff,
+    inset 0 -1px 2px rgba(186, 230, 253, 0.2);
   transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1242,13 +1276,14 @@ body {
   color: #090d16 !important;
   background: #ffffff !important;
   border-color: #ffffff !important;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08), inset 0 1px 1px #ffffff;
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.18), inset 0 1.5px 1.5px #ffffff;
+  transform: translateY(-1px);
 }
 
 /* Mail Button with Unread Dot */
 .ca-btn-mail:hover {
   color: #4f46e5 !important;
-  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.22), inset 0 1px 1px #ffffff !important;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25), inset 0 1.5px 1.5px #ffffff !important;
 }
 
 .ca-btn-dot {
@@ -1260,53 +1295,65 @@ body {
   background: #0ea5e9;
   border: 1.5px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 6px rgba(14, 165, 233, 0.8);
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.85);
 }
 
 /* Search Button */
 .ca-btn-search:hover {
   color: #0284c7 !important;
-  box-shadow: 0 8px 22px rgba(56, 189, 248, 0.22), inset 0 1px 1px #ffffff !important;
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.25), inset 0 1.5px 1.5px #ffffff !important;
 }
 
-/* User Avatar Badge ("My Image") */
+/* User Avatar Badge ("My Image") with Frost Border Ring */
 .ca-header-user-badge {
   position: relative;
+  z-index: 2;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  padding: 2.2px;
+  border-radius: 50% !important;
+  padding: 2.5px;
   background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #f59e0b 100%);
   box-shadow: 
-    0 6px 18px rgba(99, 102, 241, 0.28),
-    0 2px 6px rgba(15, 23, 42, 0.04);
+    0 6px 20px rgba(99, 102, 241, 0.32),
+    0 2px 8px rgba(15, 23, 42, 0.05);
   display: grid;
   place-items: center;
   cursor: pointer;
+  overflow: visible !important;
+  flex-shrink: 0;
   transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ca-header-user-badge:hover {
   box-shadow: 
-    0 10px 26px rgba(99, 102, 241, 0.4),
-    0 0 16px rgba(236, 72, 153, 0.3);
+    0 10px 28px rgba(99, 102, 241, 0.44),
+    0 0 20px rgba(236, 72, 153, 0.35);
+  transform: translateY(-1px);
 }
 
 .ca-header-avatar-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  overflow: hidden;
+  position: relative;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 1 / 1;
+  border-radius: 50% !important;
+  overflow: hidden !important;
   background: #ffffff;
   display: grid;
   place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
 }
 
 .ca-header-avatar {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  object-position: center !important;
   display: block;
+  overflow: hidden !important;
 }
 
 .ca-header-avatar-text {
@@ -1321,18 +1368,20 @@ body {
   letter-spacing: 0.04em;
   font-family: var(--font-body);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  border-radius: 50% !important;
 }
 
 .ca-avatar-online-dot {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 11px;
-  height: 11px;
+  bottom: 0px;
+  right: 0px;
+  width: 12px;
+  height: 12px;
   background: #10b981;
-  border: 2px solid #ffffff;
+  border: 2.2px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.85);
+  z-index: 3;
 }
 
 /* Logout Button */
@@ -1340,7 +1389,7 @@ body {
   color: #dc2626 !important;
   background: rgba(254, 242, 242, 0.95) !important;
   border-color: rgba(254, 202, 202, 0.9) !important;
-  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.25), inset 0 1px 1px #ffffff !important;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25), inset 0 1.5px 1.5px #ffffff !important;
 }
 
 /* ── 6. Bento Grid Upper Layout ── */
