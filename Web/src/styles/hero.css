@@ -1000,6 +1000,37 @@
   }
 }
 
+/* ── Ultra-Compact / Fold Displays (<= 360px) ────────────────────────────── */
+@media (max-width: 360px) {
+  .hx-nav {
+    padding: 8px 10px 2px;
+  }
+  .hx-brand {
+    font-size: 14.5px;
+    gap: 6px;
+  }
+  .hx-mark {
+    width: 26px;
+    height: 26px;
+  }
+  .hx-login {
+    display: none;
+  }
+  .hx-signup {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .hx-title {
+    font-size: 14px;
+    max-width: 240px;
+  }
+  .hx-chat,
+  .hx-doc {
+    width: calc(100% - 12px);
+    padding: 8px 10px 6px;
+  }
+}
+
 /* ── Short Viewports (e.g. 430 x 568 or landscape mobile) ─────────────────── */
 @media (max-width: 860px) and (max-height: 620px) {
   .hx-sky {

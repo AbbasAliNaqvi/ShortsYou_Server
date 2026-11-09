@@ -1428,15 +1428,42 @@ body {
   height: 100%;
 }
 
-/* ── Liquid Glass AI Visualizer ── */
+/* Subtle warm accent glow behind the character */
+.ca-hero-glow {
+  position: absolute;
+  top: -40px;
+  right: -20px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(
+    ellipse at 60% 40%,
+    rgba(245, 158, 11, 0.12) 0%,
+    rgba(234, 88, 12, 0.08) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Hero Character Image ── */
 .ca-hero-visual-container {
   position: absolute;
-  top: 24px;
-  right: 28px;
-  width: 336px;
-  height: 270px;
+  top: 0;
+  right: 0;
+  width: 58%;
+  height: 100%;
   pointer-events: none;
   z-index: 2;
+}
+
+.ca-hero-character-img {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .ca-liquid-graphic-wrap {
@@ -2815,9 +2842,8 @@ body {
     min-height: auto;
   }
   .ca-hero-visual-container {
-    position: static;
-    width: 100%;
-    margin-top: 24px;
+    width: 50%;
+    height: 100%;
   }
 }
 
