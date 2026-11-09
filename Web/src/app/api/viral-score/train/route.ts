@@ -32,6 +32,16 @@ export async function POST(req: Request) {
     const mlApiKey =
       process.env.ML_API_KEY || "md_live_qaXw0BOxaKIujBuwspZzGBpuTAm6nRUo";
 
+    // Format training data exactly to Mayank's API specification
+    const trainingData = historicalClips.map((c: any, index: number) => ({
+      clip_id: c.id || `c${index + 1}`,
+      emotion_score: Number((c.scores?.emotion ?? 0.25).toFixed(2)),
+      semantic_score: Number((c.scores?.semanticImpact ?? 0.35).toFixed(2)),
+      hook_score: Number((c.hookScore ?? 0.30).toFixed(2)),
+      duration_seconds: Math.round(c.durationSeconds ?? 25),
+      views_48h: c.views48h ?? 300,
+    }));
+
     try {
       const response = await fetch(`${mlServiceUrl}/train-cpep`, {
         method: "POST",
@@ -40,8 +50,9 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${mlApiKey}`,
         },
         body: JSON.stringify({
-          userId,
-          historicalClips,
+          job_id: `job-${userId}-${Date.now()}`,
+          user_id: userId,
+          training_data: trainingData,
         }),
         signal: AbortSignal.timeout(6000), // 6-second timeout for training phase
       });
@@ -53,7 +64,7 @@ export async function POST(req: Request) {
           data: data ?? {
             status: "trained",
             modelVersion: "xgb-cpep-v2.4",
-            samplesTrained: historicalClips.length,
+            samplesTrained: trainingData.length,
           },
         });
       }
@@ -67,7 +78,7 @@ export async function POST(req: Request) {
       data: {
         status: "trained",
         modelVersion: "xgb-cpep-v2.4",
-        samplesTrained: historicalClips.length,
+        samplesTrained: trainingData.length,
         pearsonR: 0.84,
         r2: 0.71,
         note: "Fallback to benchmark CPEP model weights",
