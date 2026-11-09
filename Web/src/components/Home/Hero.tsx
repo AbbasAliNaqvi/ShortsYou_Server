@@ -228,36 +228,6 @@ export function Hero() {
         </div>
       </header>
 
-      {/* ── Centered Headline & CTA with Scroll-Driven Fade ─── */}
-      <div className="hx-head">
-        <h1 className="hx-title">Turn long episodes into shorts, automatically</h1>
-        <Link href="/register" className="hx-cta">
-          Get ShortsYou
-          <span className="hx-cta-arrow"><Icon name="arrow" size={20} /></span>
-        </Link>
-
-        {/* ── Mobile Preview Segmented Switcher (Visible only on mobile) ── */}
-        <div className="hx-mobile-tabs" role="tablist" aria-label="Feature preview tabs">
-          <button
-            type="button"
-            className={`hx-mobile-tab ${mobileTab === "chat" ? "active" : ""}`}
-            onClick={() => setMobileTab("chat")}
-            role="tab"
-            aria-selected={mobileTab === "chat"}
-          >
-            <Icon name="spark" size={13} /> AI Assistant
-          </button>
-          <button
-            type="button"
-            className={`hx-mobile-tab ${mobileTab === "doc" ? "active" : ""}`}
-            onClick={() => setMobileTab("doc")}
-            role="tab"
-            aria-selected={mobileTab === "doc"}
-          >
-            <Icon name="video" size={13} /> Viral Hook 01
-          </button>
-        </div>
-      </div>
 
       {/* ── 1. Left Card: AI Assistant (Compact & Orbiting on Scroll) ─ */}
       <aside

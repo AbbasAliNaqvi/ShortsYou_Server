@@ -31,9 +31,10 @@ export const WorkspaceShell = memo(function WorkspaceShell({
 }: WorkspaceShellProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  // Authentication Guard: Ensure user cannot access any workspace screen without logging in
+  // Authentication Guard: Default true during SSR/initial hydrate to match server markup, then verify in effect
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlToken = new URLSearchParams(window.location.search).get("token");

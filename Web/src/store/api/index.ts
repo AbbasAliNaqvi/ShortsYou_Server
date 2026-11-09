@@ -5,3 +5,4 @@ export * from "./clipsApi";
 export * from "./jobsApi";
 export * from "./analyticsApi";
 export * from "./swipeApi";
+export * from "./viralScoreApi";
