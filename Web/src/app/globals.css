@@ -12359,3 +12359,41 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
+
+
+/* ── Pre-Upload Viral Score & Dual CTA Modal ─────────────────────────────── */
+.ca-pre-upload-modal {
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  border-radius: 28px !important;
+  padding: 24px 28px !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 
+    0 30px 90px -20px rgba(15, 23, 42, 0.22),
+    0 12px 36px -8px rgba(15, 23, 42, 0.12),
+    inset 0 2px 2px #ffffff !important;
+  z-index: 2000;
+}
+
+.ca-pre-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.ca-pre-upload-body {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .ca-pre-upload-modal {
+    padding: 18px 16px !important;
+    border-radius: 22px !important;
+  }
+}

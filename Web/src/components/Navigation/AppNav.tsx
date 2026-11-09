@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   BarChart3,
   Bell,
@@ -41,29 +40,24 @@ export const AppNav = memo(function AppNav() {
         (href !== "/dashboard" && pathname.startsWith(`${href}/`));
 
   return (
-    <aside className="app-nav">
+    <aside className="app-nav" aria-label="Main Navigation">
       {/* 4-circle clover brand mark */}
       <Link
         className="app-nav-brand-container"
         href="/dashboard"
         aria-label="Shorts home"
       >
-        <motion.div
-          className="app-nav-clover-mark"
-          whileHover={{ scale: 1.08, rotate: 90 }}
-          whileTap={{ scale: 0.96 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
+        <div className="app-nav-clover-mark">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
             <circle cx="8" cy="8" r="4.2" />
             <circle cx="16" cy="8" r="4.2" />
             <circle cx="8" cy="16" r="4.2" />
             <circle cx="16" cy="16" r="4.2" />
           </svg>
-        </motion.div>
+        </div>
       </Link>
 
-      <nav>
+      <nav aria-label="Primary Navigation">
         {links.map(([label, href, Icon]) => {
           const isActive = active(href);
           return (
@@ -72,15 +66,11 @@ export const AppNav = memo(function AppNav() {
               title={label}
               className={`app-nav-link ${isActive ? "active" : ""}`}
               href={href}
+              aria-current={isActive ? "page" : undefined}
             >
-              <motion.div
-                className="app-nav-icon-box"
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.96 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              >
+              <div className="app-nav-icon-box">
                 <Icon size={19} />
-              </motion.div>
+              </div>
               <span className="app-nav-tooltip">{label}</span>
             </Link>
           );
@@ -88,28 +78,25 @@ export const AppNav = memo(function AppNav() {
       </nav>
 
       <div className="app-nav-bottom">
-        <motion.button
+        <button
           type="button"
           className="app-nav-notif-btn"
           title="Notifications"
           aria-label="Notifications"
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.96 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
         >
           <Bell size={18} />
           <span className="app-nav-notif-dot" />
           <span className="app-nav-tooltip">Notifications</span>
-        </motion.button>
-        <Link title="Settings" href="/dashboard" className="app-nav-settings-link" aria-label="Settings">
-          <motion.div
-            className="app-nav-icon-box"
-            whileHover={{ scale: 1.08, rotate: 45 }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
+        </button>
+        <Link
+          title="Settings"
+          href="/dashboard"
+          className="app-nav-settings-link"
+          aria-label="Settings"
+        >
+          <div className="app-nav-icon-box">
             <Settings size={18} />
-          </motion.div>
+          </div>
           <span className="app-nav-tooltip">Settings</span>
         </Link>
       </div>
