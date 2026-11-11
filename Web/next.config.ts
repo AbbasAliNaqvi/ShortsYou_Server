@@ -36,6 +36,17 @@ const nextConfig: NextConfig = {
     ],
     formats: ["image/avif", "image/webp"],
   },
+
+  // ── Redirects: map /clip to /clips seamlessly ─────────────────────────────
+  async redirects() {
+    return [
+      {
+        source: "/clip",
+        destination: "/clips",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

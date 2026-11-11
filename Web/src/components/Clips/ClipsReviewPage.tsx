@@ -413,9 +413,11 @@ export function ClipsReviewPage() {
         <ClipPreviewModal
           clip={previewClip}
           video={previewClip ? videoMap.get(previewClip.videoId) : undefined}
+          pastClips={clips}
           onClose={() => setPreviewClip(null)}
           onDownload={(id) => void downloadClip(id)}
           onExport={(id) => void exportClip(id)}
+          onPublish={(id) => void publishClip(id)}
           busy={busy !== null}
         />
       </div>

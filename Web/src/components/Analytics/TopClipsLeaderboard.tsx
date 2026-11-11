@@ -11,7 +11,6 @@ import { formatDuration } from "@/lib/formatters";
 export interface TopClipsLeaderboardProps {
   clips: Clip[];
 }
-
 export const TopClipsLeaderboard = memo(function TopClipsLeaderboard({ clips }: TopClipsLeaderboardProps) {
   return (
     <motion.article
