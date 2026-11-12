@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type TelegramStatus } from "@/lib/api";
 
@@ -38,41 +38,65 @@ export default function SettingsPage() {
   }
 
   if (!token || loading) {
-    return <main className="workspace-page ca-canvas-container" style={{ padding: 48 }}>Loading settings...</main>;
+    return (
+      <main className="workspace-page settings-page ca-canvas-container">
+        <div className="settings-loading" role="status" aria-live="polite">
+          <Loader2 className="settings-spinner" size={20} aria-hidden />
+          <span>Loading your settings...</span>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="workspace-page ca-canvas-container">
+    <main className="workspace-page settings-page ca-canvas-container">
       <div className="workspace-main ca-main-viewport">
         <section className="workspace-content ca-dashboard-content" style={{ maxWidth: 760 }}>
-          <p className="eyebrow">ACCOUNT SETTINGS</p>
+          <p className="settings-eyebrow">ACCOUNT SETTINGS</p>
           <h1 className="ca-header-title">Connect your creator tools</h1>
-          <p className="ca-header-subtitle">
+          <p className="settings-subtitle">
             Receive Short progress updates and approve or reject AI-generated clips directly from Telegram.
           </p>
-          <article className="apple-card" style={{ marginTop: 28, padding: 28 }}>
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-              <MessageCircle size={30} aria-hidden />
-              <div style={{ flex: 1 }}>
-                <h2>Telegram Assistant</h2>
-                <p style={{ marginTop: 8 }}>
+          <article className="settings-card">
+            <div className="settings-card-icon" aria-hidden>
+              <MessageCircle size={24} />
+            </div>
+            <div className="settings-card-body">
+              <div className="settings-card-heading">
+                <div>
+                  <p className="settings-card-kicker">CREATOR TOOL</p>
+                  <h2>Telegram Assistant</h2>
+                </div>
+                {status?.connected && (
+                  <span className="settings-connected-badge">
+                    <CheckCircle2 size={15} aria-hidden />
+                    Connected
+                  </span>
+                )}
+              </div>
+              <p className="settings-card-description">
                   {status?.connected
                     ? `Connected${status.username ? ` as @${status.username}` : ""}.`
                     : "Connect Telegram to receive notifications and review Shorts without leaving the conversation."}
+              </p>
+              {!status?.connected && (
+                <button className="settings-connect-button" onClick={connectTelegram} disabled={connecting}>
+                  {connecting ? <Loader2 className="settings-spinner" size={17} aria-hidden /> : <MessageCircle size={17} aria-hidden />}
+                  {connecting ? "Opening Telegram..." : "Connect Telegram"}
+                </button>
+              )}
+              {status?.connected && (
+                <div className="settings-security-note">
+                  <ShieldCheck size={18} aria-hidden />
+                  <span>Account linked securely through a one-time connection link.</span>
+                </div>
+              )}
+              {error && (
+                <p className="settings-error" role="alert">
+                  <AlertCircle size={16} aria-hidden />
+                  {error}
                 </p>
-                {!status?.connected && (
-                  <button className="ca-primary-button" style={{ marginTop: 18 }} onClick={connectTelegram} disabled={connecting}>
-                    {connecting ? "Opening Telegram..." : "Connect Telegram"}
-                  </button>
-                )}
-                {status?.connected && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 18 }}>
-                    <ShieldCheck size={18} />
-                    <span>Account linked securely through a one-time connection link.</span>
-                  </div>
-                )}
-                {error && <p role="alert" style={{ color: "#b42318", marginTop: 16 }}>{error}</p>}
-              </div>
+              )}
             </div>
           </article>
         </section>
