@@ -37,6 +37,12 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		s.oauthCfg,
 		s.userRepo,
 	)
+	telegramHandler := handler.NewTelegramHandler(
+		s.cfg,
+		s.userRepo,
+		s.telegramLinks,
+		s.clipRepo,
+	)
 
 	r.GET(
 		"/api/v1/auth/google",
@@ -68,10 +74,12 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 		s.trendRepo,
 		s.transcriptRepo,
 		s.jobRepo,
+		s.userRepo,
 		s.llmRotator,
 		s.queueClient,
 		s.cfg,
 		s.log,
+		s.telegramClient,
 	)
 	internal := r.Group("/api/internal")
 
@@ -82,6 +90,8 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	)
 
 	{
+		internal.POST("/telegram/link", telegramHandler.Link)
+		internal.POST("/telegram/action", telegramHandler.Action)
 		internal.POST(
 			"/short/done",
 			internalHandler.ShortDone,
@@ -123,6 +133,8 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	protected.Use(
 		middleware.JWTAuth(s.cfg.JWTSecret),
 	)
+	protected.GET("/integrations/telegram", telegramHandler.Status)
+	protected.POST("/integrations/telegram/connect", telegramHandler.Connect)
 	editHandler := handler.NewEditHandler(s.cfg.EditServiceURL)
 
 	{

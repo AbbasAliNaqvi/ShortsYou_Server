@@ -41,6 +41,10 @@ type Config struct {
 	AllowedOrigins []string
 
 	MLAPIKey string
+
+	TelegramBotURL      string
+	TelegramBotUsername string
+	TelegramServiceKey  string
 }
 
 func Load() (*Config, error) {
@@ -84,8 +88,11 @@ func Load() (*Config, error) {
 		MLAudioServiceURL: v.GetString("ML_AUDIO_SERVICE_URL"),
 		EditServiceURL:    v.GetString("EDIT_SERVICE_URL"),
 
-		InternalAPIKey: v.GetString("INTERNAL_API_KEY"),
-		MLAPIKey:       v.GetString("ML_API_KEY"),
+		InternalAPIKey:      v.GetString("INTERNAL_API_KEY"),
+		MLAPIKey:            v.GetString("ML_API_KEY"),
+		TelegramBotURL:      v.GetString("TELEGRAM_BOT_URL"),
+		TelegramBotUsername: v.GetString("TELEGRAM_BOT_USERNAME"),
+		TelegramServiceKey:  v.GetString("TELEGRAM_SERVICE_KEY"),
 	}
 
 	for i := 1; i <= 5; i++ {

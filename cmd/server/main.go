@@ -18,6 +18,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/server"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/telegram"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/logger"
 )
 
@@ -98,6 +99,11 @@ func main() {
 	trendRepo := repository.NewTrendForecastRepository(mongo)
 	abRepo := repository.NewABExperimentRepository(mongo)
 	transcriptRepo := repository.NewTranscriptRepository(mongo)
+	telegramLinkRepo := repository.NewTelegramLinkRepository(mongo)
+	if err := telegramLinkRepo.EnsureIndexes(context.Background()); err != nil {
+		log.Fatal().Err(err).Msg("telegram link index creation failed")
+	}
+	telegramClient := telegram.NewClient(cfg)
 
 	// Services
 	oauthCfg := auth.NewOAuthConfig(cfg)
@@ -146,6 +152,8 @@ func main() {
 		supabase,
 		jobRepo,
 		transcriptRepo,
+		telegramLinkRepo,
+		telegramClient,
 	)
 
 	go func() {

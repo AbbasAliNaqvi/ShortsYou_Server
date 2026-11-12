@@ -21,6 +21,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/scoring"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/telegram"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/youtube"
 )
 
@@ -39,6 +40,7 @@ type TaskHandlers struct {
 	queue          *Client
 	editClient     *edit.Client
 	aiTools        *aitools.Engine
+	telegram       *telegram.Client
 }
 
 func NewTaskHandlers(
@@ -70,6 +72,25 @@ func NewTaskHandlers(
 		queue:          queue,
 		editClient:     edit.NewClient(cfg.EditServiceURL, cfg.InternalAPIKey),
 		aiTools:        aitools.NewEngine(llmRotator, log),
+		telegram:       telegram.NewClient(cfg),
+	}
+}
+
+func (h *TaskHandlers) notifyUser(ctx context.Context, userID, kind, title, message, jobID, clipID, videoURL string) {
+	user, err := h.userRepo.FindByID(ctx, userID)
+	if err != nil || user == nil || user.TelegramID == 0 {
+		return
+	}
+	if err := h.telegram.Notify(ctx, telegram.Notification{
+		TelegramID: user.TelegramID,
+		Type: kind,
+		Title: title,
+		Message: message,
+		JobID: jobID,
+		ClipID: clipID,
+		VideoURL: videoURL,
+	}); err != nil {
+		h.log.Warn().Err(err).Str("userId", userID).Msg("telegram notification failed")
 	}
 }
 
@@ -86,6 +107,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	}
 
 	log := h.log.With().Str("videoId", p.VideoID).Str("userId", p.UserID).Logger()
+	h.notifyUser(ctx, p.UserID, "processing_started", "ShortsYou processing started", "Your video is being analyzed. We will notify you when clips are ready.", p.JobID, "", "")
 
 	video, err := h.videoRepo.FindByID(ctx, videoID)
 	if err != nil {
@@ -106,6 +128,7 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 		if p.JobID != "" {
 			_ = h.jobRepo.Fail(ctx, p.JobID, err.Error())
 		}
+		h.notifyUser(ctx, p.UserID, "processing_failed", "ShortsYou processing failed", err.Error(), p.JobID, "", "")
 		if isPermanentSourceFailure(err) {
 			log.Warn().Msg("permanent source failure — skipping queue retry")
 			return nil

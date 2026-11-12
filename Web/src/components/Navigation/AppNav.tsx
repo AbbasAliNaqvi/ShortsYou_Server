@@ -90,7 +90,7 @@ export const AppNav = memo(function AppNav() {
         </button>
         <Link
           title="Settings"
-          href="/dashboard"
+          href="/settings"
           className="app-nav-settings-link"
           aria-label="Settings"
         >

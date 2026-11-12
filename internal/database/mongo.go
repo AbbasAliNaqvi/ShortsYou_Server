@@ -251,6 +251,13 @@ func (m *MongoDB) CreateIndexes(ctx context.Context) error {
 				Keys: bson.D{{Key: "clipId", Value: 1}},
 			},
 		},
+		{
+			collection: "users",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "telegramId", Value: 1}},
+				Options: options.Index().SetUnique(true).SetSparse(true).SetName("uniq_telegram_id"),
+			},
+		},
 	}
 
 	for _, idx := range indexes {

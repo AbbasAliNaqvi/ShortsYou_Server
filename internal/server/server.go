@@ -16,6 +16,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/storage"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/telegram"
 )
 
 type Server struct {
@@ -38,6 +39,8 @@ type Server struct {
 	supabase       *storage.SupabaseClient
 	jobRepo        *repository.JobRepository
 	transcriptRepo *repository.TranscriptRepository
+	telegramLinks  *repository.TelegramLinkRepository
+	telegramClient *telegram.Client
 }
 
 func New(
@@ -59,6 +62,8 @@ func New(
 	supabase *storage.SupabaseClient,
 	jobRepo *repository.JobRepository,
 	transcriptRepo *repository.TranscriptRepository,
+	telegramLinks *repository.TelegramLinkRepository,
+	telegramClient *telegram.Client,
 ) *Server {
 
 	if cfg.Env == "production" {
@@ -70,24 +75,26 @@ func New(
 	router := gin.New()
 
 	s := &Server{
-		cfg:         cfg,
-		log:         log,
-		mongo:       mongo,
-		redis:       redis,
-		oauthCfg:    oauthCfg,
-		userRepo:    userRepo,
-		videoRepo:   videoRepo,
-		clipRepo:    clipRepo,
-		fmRepo:      fmRepo,
-		dnaRepo:     dnaRepo,
-		personaRepo: personaRepo,
-		trendRepo:   trendRepo,
-		abRepo:      abRepo,
-		queueClient: queueClient,
-		llmRotator:  llmRotator,
-		supabase:    supabase,
-		jobRepo:     jobRepo,
+		cfg:            cfg,
+		log:            log,
+		mongo:          mongo,
+		redis:          redis,
+		oauthCfg:       oauthCfg,
+		userRepo:       userRepo,
+		videoRepo:      videoRepo,
+		clipRepo:       clipRepo,
+		fmRepo:         fmRepo,
+		dnaRepo:        dnaRepo,
+		personaRepo:    personaRepo,
+		trendRepo:      trendRepo,
+		abRepo:         abRepo,
+		queueClient:    queueClient,
+		llmRotator:     llmRotator,
+		supabase:       supabase,
+		jobRepo:        jobRepo,
 		transcriptRepo: transcriptRepo,
+		telegramLinks:  telegramLinks,
+		telegramClient: telegramClient,
 	}
 
 	s.registerRoutes(router)

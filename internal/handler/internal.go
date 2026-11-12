@@ -21,6 +21,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/scoring"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/telegram"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 	"github.com/rs/zerolog"
 )
@@ -34,10 +35,12 @@ type InternalHandler struct {
 	trendRepo      *repository.TrendForecastRepository
 	transcriptRepo *repository.TranscriptRepository
 	jobRepo        *repository.JobRepository
+	userRepo       *repository.UserRepository
 	llmRotator     *llm.Rotator
 	queueClient    *queue.Client
 	cfg            *config.Config
 	log            zerolog.Logger
+	telegram       *telegram.Client
 }
 
 func NewInternalHandler(
@@ -49,10 +52,12 @@ func NewInternalHandler(
 	trendRepo *repository.TrendForecastRepository,
 	transcriptRepo *repository.TranscriptRepository,
 	jobRepo *repository.JobRepository,
+	userRepo *repository.UserRepository,
 	llmRotator *llm.Rotator,
 	queueClient *queue.Client,
 	cfg *config.Config,
 	log zerolog.Logger,
+	telegramClient *telegram.Client,
 ) *InternalHandler {
 	return &InternalHandler{
 		clipRepo:       clipRepo,
@@ -63,10 +68,12 @@ func NewInternalHandler(
 		trendRepo:      trendRepo,
 		transcriptRepo: transcriptRepo,
 		jobRepo:        jobRepo,
+		userRepo:       userRepo,
 		llmRotator:     llmRotator,
 		queueClient:    queueClient,
 		cfg:            cfg,
 		log:            log,
+		telegram:       telegramClient,
 	}
 }
 
@@ -623,6 +630,18 @@ func (h *InternalHandler) AnalysisDone(c *gin.Context) {
 		"updatedAt":        time.Now(),
 	})
 	_ = h.jobRepo.UpdateByVideoID(c.Request.Context(), req.VideoID, models.JobStatusCompleted, "completed", 1, len(clips), "")
+	plural := "s"
+	if len(clips) == 1 {
+		plural = ""
+	}
+	if user, err := h.userRepo.FindByID(c.Request.Context(), req.UserID); err == nil && user != nil && user.TelegramID != 0 && h.telegram != nil {
+		_ = h.telegram.Notify(c.Request.Context(), telegram.Notification{
+			TelegramID: user.TelegramID,
+			Type:       "processing_completed",
+			Title:      "Your Shorts are ready",
+			Message:    fmt.Sprintf("%d AI-generated Short%s are ready to review in your dashboard.", len(clips), plural),
+		})
+	}
 
 	log.Info().Int("clips", len(clips)).Int("autoExported", autoExported).Msg("video processing completed with real ML data")
 
@@ -685,6 +704,17 @@ func (h *InternalHandler) ShortDone(c *gin.Context) {
 			response.InternalError(c)
 			return
 		}
+		if clip, err := h.clipRepo.FindByID(c.Request.Context(), id); err == nil && clip != nil && h.telegram != nil {
+			if user, err := h.userRepo.FindByID(c.Request.Context(), clip.UserID.Hex()); err == nil && user != nil && user.TelegramID != 0 {
+				_ = h.telegram.Notify(c.Request.Context(), telegram.Notification{
+					TelegramID: user.TelegramID,
+					Type:       "clip_export_failed",
+					Title:      "Short export failed",
+					Message:    req.Error,
+					ClipID:     req.ClipID,
+				})
+			}
+		}
 		response.OK(c, gin.H{"clipId": req.ClipID, "status": "failed"})
 		return
 	}
@@ -706,6 +736,18 @@ func (h *InternalHandler) ShortDone(c *gin.Context) {
 	if err := h.clipRepo.UpdateFields(c.Request.Context(), id, fields); err != nil {
 		response.InternalError(c)
 		return
+	}
+	if clip, err := h.clipRepo.FindByID(c.Request.Context(), id); err == nil && clip != nil && h.telegram != nil {
+		if user, err := h.userRepo.FindByID(c.Request.Context(), clip.UserID.Hex()); err == nil && user != nil && user.TelegramID != 0 {
+			_ = h.telegram.Notify(c.Request.Context(), telegram.Notification{
+				TelegramID: user.TelegramID,
+				Type:       "clip_exported",
+				Title:      "Your Short is ready",
+				Message:    "Your Short finished rendering and is ready to review or download.",
+				ClipID:     req.ClipID,
+				VideoURL:   req.OutputURL,
+			})
+		}
 	}
 
 	response.OK(c, gin.H{"clipId": req.ClipID, "status": "exported", "outputUrl": req.OutputURL})

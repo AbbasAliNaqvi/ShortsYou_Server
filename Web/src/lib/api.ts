@@ -41,6 +41,13 @@ export const api = {
   health: () => apiRequest<Health>("/health"),
   version: () => apiRequest<VersionInfo>("/version"),
   me: (token: string) => apiRequest<User>("/api/v1/auth/me", { token }),
+  telegramStatus: (token: string) =>
+    apiRequest<TelegramStatus>("/api/v1/integrations/telegram", { token }),
+  connectTelegram: (token: string) =>
+    apiRequest<{ url: string; expiresAt: string }>(
+      "/api/v1/integrations/telegram/connect",
+      { method: "POST", token },
+    ),
   videos: (token: string, sort?: string) =>
     apiRequest<Video[]>(`/api/v1/videos${sort ? `?sort=${encodeURIComponent(sort)}` : ""}`, { token }),
   searchVideos: (token: string, query: string) =>
@@ -307,6 +314,12 @@ export type User = {
   email: string;
   profilePicture?: string;
   channelName?: string;
+};
+export type TelegramStatus = {
+  connected: boolean;
+  telegramId?: number;
+  username?: string;
+  linkedAt?: string;
 };
 export type Video = {
   id: string;

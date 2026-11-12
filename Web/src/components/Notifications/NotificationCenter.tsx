@@ -52,6 +52,13 @@ export function NotificationCenter() {
           "success",
         );
       }
+      if (["queued", "downloading", "transcribing", "analyzing"].includes(job.status)) {
+        addNotice(
+          "ShortsYou is working",
+          job.stage ? `${job.stage.replaceAll("_", " ")} in progress.` : "Your video is being processed.",
+          "info",
+        );
+      }
       if (job.status === "failed") {
         addNotice(
           "Video processing needs attention",
