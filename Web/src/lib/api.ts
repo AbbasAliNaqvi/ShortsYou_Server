@@ -48,6 +48,11 @@ export const api = {
       "/api/v1/integrations/telegram/connect",
       { method: "POST", token },
     ),
+  disconnectTelegram: (token: string) =>
+    apiRequest<{ connected: false; message: string }>(
+      "/api/v1/integrations/telegram",
+      { method: "DELETE", token },
+    ),
   videos: (token: string, sort?: string) =>
     apiRequest<Video[]>(`/api/v1/videos${sort ? `?sort=${encodeURIComponent(sort)}` : ""}`, { token }),
   searchVideos: (token: string, query: string) =>

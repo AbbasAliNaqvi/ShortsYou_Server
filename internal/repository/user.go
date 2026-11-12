@@ -99,6 +99,29 @@ func (r *UserRepository) LinkTelegram(ctx context.Context, userID string, telegr
 	return nil
 }
 
+func (r *UserRepository) UnlinkTelegram(ctx context.Context, userID string) error {
+	oid, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("UnlinkTelegram invalid id: %w", err)
+	}
+	result, err := r.col.UpdateByID(ctx, oid, bson.M{
+		"$unset": bson.M{
+			"telegramId":       "",
+			"telegramUsername": "",
+			"telegramPhone":    "",
+			"telegramLinkedAt": "",
+		},
+		"$set": bson.M{"updatedAt": time.Now()},
+	})
+	if err != nil {
+		return fmt.Errorf("UnlinkTelegram: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}
+
 func (r *UserRepository) Upsert(ctx context.Context, googleID string, update models.User) (*models.User, error) {
 	now := time.Now()
 	setFields := bson.M{

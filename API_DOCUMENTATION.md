@@ -63,6 +63,7 @@ The browser never receives or stores the Telegram bot token.
 |---|---|---|---|
 | GET | `/api/v1/integrations/telegram` | JWT | Returns whether the current creator has a linked Telegram account. |
 | POST | `/api/v1/integrations/telegram/connect` | JWT | Creates a single-use connection link valid for 10 minutes. |
+| DELETE | `/api/v1/integrations/telegram` | JWT | Disconnects Telegram from the current creator account and invalidates pending link tokens. |
 | POST | `/api/internal/telegram/link` | Bot internal key | Consumes the connection token after the bot verifies the user's Telegram contact. |
 
 ### Connect response
@@ -106,7 +107,7 @@ X-Internal-API-Key: <service-key>
 ```json
 {
   "telegramId": 123456789,
-  "type": "processing_started|processing_failed|clip_exported|clip_export_failed",
+  "type": "processing_started|processing_completed|processing_failed|clip_exported|clip_export_failed",
   "title": "Your Short is ready",
   "message": "Your Short finished rendering and is ready to review or download.",
   "clipId": "<optional-clip-id>",
@@ -115,10 +116,13 @@ X-Internal-API-Key: <service-key>
 }
 ```
 
-The bot presents notification messages in Telegram and, when `clipId` is
-present, displays Approve/Reject actions. Notification delivery is best effort;
-the Go job state remains authoritative and visible through the website. IDs are
-URL-encoded by the frontend client.
+The Go API sends `processing_started` immediately after a real website
+generation request is queued and sends completion/failure events from actual
+processing callbacks. The bot presents these events in Telegram and, when a
+real exported clip includes `clipId`, displays Approve/Reject actions.
+Notification delivery is best effort; the Go job state remains authoritative
+and visible through the website. The bot-integrated flow never creates demo or
+simulated Shorts.
 
 ## 2. System and documentation endpoints
 

@@ -83,12 +83,12 @@ func (h *TaskHandlers) notifyUser(ctx context.Context, userID, kind, title, mess
 	}
 	if err := h.telegram.Notify(ctx, telegram.Notification{
 		TelegramID: user.TelegramID,
-		Type: kind,
-		Title: title,
-		Message: message,
-		JobID: jobID,
-		ClipID: clipID,
-		VideoURL: videoURL,
+		Type:       kind,
+		Title:      title,
+		Message:    message,
+		JobID:      jobID,
+		ClipID:     clipID,
+		VideoURL:   videoURL,
 	}); err != nil {
 		h.log.Warn().Err(err).Str("userId", userID).Msg("telegram notification failed")
 	}
@@ -107,8 +107,6 @@ func (h *TaskHandlers) HandleProcessVideo(ctx context.Context, t *asynq.Task) er
 	}
 
 	log := h.log.With().Str("videoId", p.VideoID).Str("userId", p.UserID).Logger()
-	h.notifyUser(ctx, p.UserID, "processing_started", "ShortsYou processing started", "Your video is being analyzed. We will notify you when clips are ready.", p.JobID, "", "")
-
 	video, err := h.videoRepo.FindByID(ctx, videoID)
 	if err != nil {
 		return fmt.Errorf("find video: %w", err)

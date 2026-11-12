@@ -59,6 +59,13 @@ func (r *TelegramLinkRepository) Consume(ctx context.Context, token string) (*mo
 	return &link, nil
 }
 
+func (r *TelegramLinkRepository) DeleteByUserID(ctx context.Context, userID primitive.ObjectID) error {
+	if _, err := r.col.DeleteMany(ctx, bson.M{"userId": userID}); err != nil {
+		return fmt.Errorf("TelegramLinkRepository.DeleteByUserID: %w", err)
+	}
+	return nil
+}
+
 func (r *TelegramLinkRepository) EnsureIndexes(ctx context.Context) error {
 	_, err := r.col.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "tokenHash", Value: 1}},

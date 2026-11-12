@@ -16,7 +16,7 @@ const openAPISpec = `{
     "/api/v1/auth/google":{"get":{"tags":["Authentication"],"summary":"Start Google sign-in","responses":{"302":{"description":"Google authorization redirect"}}}},
     "/api/v1/auth/google/callback":{"get":{"tags":["Authentication"],"summary":"Complete Google sign-in","responses":{"302":{"description":"Studio redirect"}}}},
     "/api/v1/auth/me":{"get":{"tags":["Authentication"],"summary":"Get the authenticated user","security":[{"bearerAuth":[]}],"responses":{"200":{"description":"Current user"}}}},
-    "/api/v1/integrations/telegram":{"get":{"tags":["Telegram"],"summary":"Get Telegram connection status","security":[{"bearerAuth":[]}],"responses":{"200":{"description":"Telegram status"}}}},
+    "/api/v1/integrations/telegram":{"get":{"tags":["Telegram"],"summary":"Get Telegram connection status","security":[{"bearerAuth":[]}],"responses":{"200":{"description":"Telegram status"}}},"delete":{"tags":["Telegram"],"summary":"Disconnect Telegram from the current account","security":[{"bearerAuth":[]}],"responses":{"200":{"description":"Telegram disconnected"}}}},
     "/api/v1/integrations/telegram/connect":{"post":{"tags":["Telegram"],"summary":"Create a one-time Telegram connection link","security":[{"bearerAuth":[]}],"responses":{"200":{"description":"Connection link"}}}},
     "/api/v1/channels/search":{"get":{"tags":["Channels"],"summary":"Search YouTube channels","parameters":[{"$ref":"#/components/parameters/query"}],"responses":{"200":{"description":"Matching channels"}}}},
     "/api/v1/channels/{channelId}/videos":{"get":{"tags":["Channels"],"summary":"List a channel's videos","parameters":[{"$ref":"#/components/parameters/channelId"}],"responses":{"200":{"description":"Channel videos"}}}},

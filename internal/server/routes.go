@@ -135,6 +135,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	)
 	protected.GET("/integrations/telegram", telegramHandler.Status)
 	protected.POST("/integrations/telegram/connect", telegramHandler.Connect)
+	protected.DELETE("/integrations/telegram", telegramHandler.Disconnect)
 	editHandler := handler.NewEditHandler(s.cfg.EditServiceURL)
 
 	{
@@ -161,6 +162,8 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 			s.oauthCfg,
 			s.jobRepo,
 			s.cfg,
+			s.telegramClient,
+			s.log,
 		)
 
 		protected.POST(

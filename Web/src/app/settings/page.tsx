@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<TelegramStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -34,6 +35,20 @@ export default function SettingsPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create Telegram connection link.");
       setConnecting(false);
+    }
+  }
+
+  async function disconnectTelegram() {
+    if (!token || !window.confirm("Disconnect Telegram from this ShortsYou account?")) return;
+    setDisconnecting(true);
+    setError("");
+    try {
+      await api.disconnectTelegram(token);
+      setStatus({ connected: false });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not disconnect Telegram.");
+    } finally {
+      setDisconnecting(false);
     }
   }
 
@@ -86,9 +101,19 @@ export default function SettingsPage() {
                 </button>
               )}
               {status?.connected && (
-                <div className="settings-security-note">
-                  <ShieldCheck size={18} aria-hidden />
-                  <span>Account linked securely through a one-time connection link.</span>
+                <div className="settings-connected-actions">
+                  <div className="settings-security-note">
+                    <ShieldCheck size={18} aria-hidden />
+                    <span>Account linked securely through a one-time connection link.</span>
+                  </div>
+                  <button
+                    className="settings-disconnect-button"
+                    onClick={disconnectTelegram}
+                    disabled={disconnecting}
+                  >
+                    {disconnecting && <Loader2 className="settings-spinner" size={15} aria-hidden />}
+                    {disconnecting ? "Disconnecting..." : "Disconnect Telegram"}
+                  </button>
                 </div>
               )}
               {error && (

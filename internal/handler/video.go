@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/oauth2"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/models"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/queue"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/repository"
+	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/telegram"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/internal/youtube"
 	"github.com/AbbasAliNaqvi/ShortsYou_Server/pkg/response"
 )
@@ -26,6 +30,8 @@ type VideoHandler struct {
 	queue     *queue.Client
 	cfg       *config.Config
 	oauthCfg  *oauth2.Config
+	telegram  *telegram.Client
+	log       zerolog.Logger
 }
 
 type ingestRequest struct {
@@ -45,6 +51,8 @@ func NewVideoHandler(
 	oauthCfg *oauth2.Config,
 	jobRepo *repository.JobRepository,
 	cfg *config.Config,
+	telegramClient *telegram.Client,
+	log zerolog.Logger,
 ) *VideoHandler {
 	return &VideoHandler{
 		videoRepo: videoRepo,
@@ -54,6 +62,23 @@ func NewVideoHandler(
 		queue:     queueClient,
 		cfg:       cfg,
 		oauthCfg:  oauthCfg,
+		telegram:  telegramClient,
+		log:       log,
+	}
+}
+
+func (h *VideoHandler) notifyTelegram(ctx context.Context, userID primitive.ObjectID, notification telegram.Notification) {
+	if h.telegram == nil || !h.telegram.Enabled() {
+		return
+	}
+	user, err := h.userRepo.FindByID(ctx, userID.Hex())
+	if err != nil || user == nil || user.TelegramID == 0 {
+		return
+	}
+	notification.TelegramID = user.TelegramID
+	if err := h.telegram.Notify(ctx, notification); err != nil {
+		h.log.Warn().Err(err).Str("userId", userID.Hex()).Str("type", notification.Type).
+			Msg("telegram notification failed")
 	}
 }
 
@@ -331,11 +356,22 @@ func (h *VideoHandler) GenerateVideo(c *gin.Context) {
 		return
 	}
 	task, err := queue.NewProcessVideoTask(video.ID.Hex(), userID.Hex(), jobID)
-	if err != nil || h.queue.Enqueue(task) != nil {
+	if err != nil {
 		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue processing job")
 		response.InternalError(c)
 		return
 	}
+	if err := h.queue.Enqueue(task); err != nil {
+		_ = h.jobRepo.Fail(c.Request.Context(), jobID, "could not enqueue processing job")
+		response.InternalError(c)
+		return
+	}
+	h.notifyTelegram(c.Request.Context(), userID, telegram.Notification{
+		Type:    "processing_started",
+		Title:   "Short creation started",
+		Message: fmt.Sprintf("We are creating Shorts from “%s”. We’ll notify you here when they are ready for review.", video.Title),
+		JobID:   jobID,
+	})
 	response.OK(c, gin.H{"jobId": jobID, "videoId": video.ID.Hex(), "status": "processing", "message": "AI generation queued"})
 }
 
@@ -472,6 +508,12 @@ func (h *VideoHandler) ProcessPublicVideo(c *gin.Context) {
 		response.InternalError(c)
 		return
 	}
+	h.notifyTelegram(c.Request.Context(), userID, telegram.Notification{
+		Type:    "processing_started",
+		Title:   "Short creation started",
+		Message: fmt.Sprintf("We are creating Shorts from “%s”. We’ll notify you here when they are ready for review.", meta.Title),
+		JobID:   jobID,
+	})
 
 	response.OK(c, gin.H{
 		"jobId":   jobID,

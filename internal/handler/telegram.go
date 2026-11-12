@@ -107,6 +107,36 @@ func (h *TelegramHandler) Connect(c *gin.Context) {
 	})
 }
 
+func (h *TelegramHandler) Disconnect(c *gin.Context) {
+	userID, ok := c.Get("userID")
+	if !ok {
+		response.Unauthorized(c)
+		return
+	}
+	userIDString, ok := userID.(string)
+	if !ok || userIDString == "" {
+		response.Unauthorized(c)
+		return
+	}
+	if err := h.users.UnlinkTelegram(c.Request.Context(), userIDString); err != nil {
+		response.InternalError(c)
+		return
+	}
+	userObjectID, err := primitive.ObjectIDFromHex(userIDString)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.links.DeleteByUserID(c.Request.Context(), userObjectID); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OK(c, gin.H{
+		"connected": false,
+		"message":   "Telegram disconnected successfully",
+	})
+}
+
 type telegramLinkRequest struct {
 	Token      string `json:"token" binding:"required"`
 	TelegramID int64  `json:"telegramId" binding:"required"`
