@@ -3,12 +3,14 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Channel, type PublicVideo, type User } from "@/lib/api";
+import { fetchPredictedTrends, type PredictTrendsData } from "@/lib/trendsApi";
 import { notify } from "@/components/Notifications/NotificationCenter";
 import { WorkspaceShell } from "@/components/Layout";
 import { DiscoverHero } from "./DiscoverHero";
 import { ChannelCandidates } from "./ChannelCandidates";
 import { ChannelBanner } from "./ChannelBanner";
 import { CreatorVideoCatalog } from "./CreatorVideoCatalog";
+import { TrendsIntelligenceRadar } from "./TrendsIntelligenceRadar";
 
 export function DiscoverPage() {
   const router = useRouter();
@@ -21,27 +23,50 @@ export function DiscoverPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Predicted Trends & Viral Intelligence Radar State
+  const [trendsData, setTrendsData] = useState<PredictTrendsData | null>(null);
+  const [trendsLoading, setTrendsLoading] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem("shortsyou_jwt");
     if (!token) {
       router.replace("/login");
       return;
     }
-    api.me(token).then(setUser).catch(() => {});
+    api.me(token).then((userData) => {
+      setUser(userData);
+      void loadTrends(userData.id);
+    }).catch(() => {
+      void loadTrends();
+    });
   }, [router]);
 
-  async function search(event?: FormEvent) {
+  async function loadTrends(userIdToUse?: string) {
+    setTrendsLoading(true);
+    try {
+      const effectiveId = userIdToUse || user?.id || "6a9881707a0426c73af163e5";
+      const data = await fetchPredictedTrends(effectiveId);
+      setTrendsData(data);
+    } catch (error) {
+      console.warn("Trends load error:", error);
+    } finally {
+      setTrendsLoading(false);
+    }
+  }
+
+  async function search(event?: FormEvent, targetQuery?: string) {
     event?.preventDefault();
-    if (!query.trim()) return;
+    const q = (targetQuery !== undefined ? targetQuery : query).trim();
+    if (!q) return;
     setBusy(true);
     setMessage("");
     try {
-      const results = await api.searchChannel(query.trim());
+      const results = await api.searchChannel(q);
       setChannels(results);
       if (results.length === 0) {
         setChannel(null);
         setVideos([]);
-        setMessage("No public channels matched that search.");
+        setMessage(`No public channels matched "${q}".`);
       } else {
         await selectChannel(results[0]);
       }
@@ -52,6 +77,12 @@ export function DiscoverPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleSelectSearchTopic(topic: string) {
+    setQuery(topic);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    void search(undefined, topic);
   }
 
   async function selectChannel(nextChannel?: Channel) {
@@ -142,14 +173,17 @@ export function DiscoverPage() {
     router.push("/login");
   }
 
+  const hasSearchResults = channels.length > 0 || channel !== null;
+
   return (
     <WorkspaceShell
       title="Discover Creators"
       subtitle="Creator Intelligence"
       user={user}
-      refreshing={busy}
+      refreshing={busy || trendsLoading}
       onRefresh={() => {
         if (query.trim()) void search();
+        void loadTrends();
       }}
       onSignOut={signOut}
     >
@@ -164,35 +198,50 @@ export function DiscoverPage() {
           onClearMessage={() => setMessage("")}
         />
 
-        {/* Search Results Channel Candidate Shelf */}
-        <ChannelCandidates
-          channels={channels}
-          selectedChannel={channel}
-          onSelectChannel={(c) => void selectChannel(c)}
-          busy={busy}
+        {/* ── CASE 1: When user searches for a channel ── */}
+        {hasSearchResults && (
+          <>
+            {/* Search Results Channel Candidate Shelf */}
+            <ChannelCandidates
+              channels={channels}
+              selectedChannel={channel}
+              onSelectChannel={(c) => void selectChannel(c)}
+              busy={busy}
+            />
+
+            {/* Selected Channel Showcase Banner */}
+            {channel && (
+              <ChannelBanner
+                channel={channel}
+                busy={busy}
+                onAddChannel={() => void addChannelAndQueue()}
+              />
+            )}
+
+            {/* Creator's Public Video Catalog */}
+            {channel && (
+              <CreatorVideoCatalog
+                videos={videos}
+                selected={selected}
+                busy={busy}
+                onToggleSelect={toggleSelectVideo}
+                onSelectAll={selectAllVideos}
+                onClearSelection={clearSelection}
+                onQueueVideos={(ids) => void queueVideos(ids)}
+              />
+            )}
+          </>
+        )}
+
+        {/* ── PREDICT TRENDS & VIRAL BLUEPRINTS RADAR ──
+            Shown prominently when no search is active, and also shown right after search results
+        */}
+        <TrendsIntelligenceRadar
+          data={trendsData}
+          loading={trendsLoading}
+          onRefresh={() => void loadTrends()}
+          onSelectSearchTopic={handleSelectSearchTopic}
         />
-
-        {/* Selected Channel Showcase Banner */}
-        {channel && (
-          <ChannelBanner
-            channel={channel}
-            busy={busy}
-            onAddChannel={() => void addChannelAndQueue()}
-          />
-        )}
-
-        {/* Creator's Public Video Catalog */}
-        {channel && (
-          <CreatorVideoCatalog
-            videos={videos}
-            selected={selected}
-            busy={busy}
-            onToggleSelect={toggleSelectVideo}
-            onSelectAll={selectAllVideos}
-            onClearSelection={clearSelection}
-            onQueueVideos={(ids) => void queueVideos(ids)}
-          />
-        )}
       </div>
     </WorkspaceShell>
   );
