@@ -13,6 +13,7 @@ import { ClipsMetricsOverview } from "./ClipsMetricsOverview";
 import { ClipsFilterBar } from "./ClipsFilterBar";
 import { ClipCard } from "./ClipCard";
 import { ClipPreviewModal } from "./ClipPreviewModal";
+import { Notch, type NotchItem } from "@/components/ui/notch";
 
 export function ClipsReviewPage() {
   const router = useRouter();
@@ -317,6 +318,36 @@ export function ClipsReviewPage() {
     setSortBy("viral_desc");
   }
 
+  const clipNotchItems: NotchItem[] = [
+    {
+      id: "view",
+      label: "View",
+      value: filter,
+      options: [
+        { id: "all", label: "All clips" },
+        { id: "ready", label: "Ready" },
+        { id: "rendering", label: "Rendering" },
+        { id: "detected", label: "Detected" },
+        { id: "viral", label: "Viral" },
+        { id: "narrative", label: "Narrative" },
+      ],
+      onChange: (id) => setFilter(id),
+    },
+    {
+      id: "sort",
+      label: "Sort",
+      value: sortBy,
+      options: [
+        { id: "viral_desc", label: "Viral score" },
+        { id: "viral_asc", label: "Lowest score" },
+        { id: "newest", label: "Recently created" },
+        { id: "duration_desc", label: "Longest duration" },
+        { id: "duration_asc", label: "Shortest duration" },
+      ],
+      onChange: (id) => setSortBy(id),
+    },
+  ];
+
   return (
     <WorkspaceShell
       title="Clips Review"
@@ -408,6 +439,15 @@ export function ClipsReviewPage() {
             )}
           </div>
         )}
+
+        <Notch
+          items={clipNotchItems}
+          position="bottom"
+          align="center"
+          offset={18}
+          accentColor="#38bdf8"
+          className="ca-clips-notch"
+        />
 
         {/* In-App Clip Video Preview Modal */}
         <ClipPreviewModal
