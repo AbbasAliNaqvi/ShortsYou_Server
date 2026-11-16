@@ -4,16 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
-  Bell,
   Clapperboard,
   Compass,
   Flame,
+  HeartHandshake,
   LayoutDashboard,
   Settings,
   ShoppingBag,
   WandSparkles,
 } from "lucide-react";
 import { memo } from "react";
+import { LiquidGlass } from "@/components/ui/liquid-glass";
 
 const links = [
   ["Studio", "/dashboard", BarChart3],
@@ -78,25 +79,42 @@ export const AppNav = memo(function AppNav() {
       </nav>
 
       <div className="app-nav-bottom">
-        <button
-          type="button"
-          className="app-nav-notif-btn"
-          title="Notifications"
-          aria-label="Notifications"
+        <Link
+          title="Support the Team"
+          href="/support"
+          className="app-nav-settings-link app-nav-liquid-action"
+          aria-label="Support the Team"
         >
-          <Bell size={18} />
-          <span className="app-nav-notif-dot" />
-          <span className="app-nav-tooltip">Notifications</span>
-        </button>
+          <LiquidGlass
+            radius={16}
+            scale={24}
+            aberration={6}
+            bevelDepth={10}
+            frost={0.4}
+            tint={0.16}
+            className="app-nav-liquid-surface"
+          >
+            <HeartHandshake size={18} />
+          </LiquidGlass>
+          <span className="app-nav-tooltip">Support the Team</span>
+        </Link>
         <Link
           title="Settings"
           href="/settings"
-          className="app-nav-settings-link"
+          className="app-nav-settings-link app-nav-liquid-action"
           aria-label="Settings"
         >
-          <div className="app-nav-icon-box">
+          <LiquidGlass
+            radius={16}
+            scale={24}
+            aberration={6}
+            bevelDepth={10}
+            frost={0.4}
+            tint={0.16}
+            className="app-nav-liquid-surface"
+          >
             <Settings size={18} />
-          </div>
+          </LiquidGlass>
           <span className="app-nav-tooltip">Settings</span>
         </Link>
       </div>

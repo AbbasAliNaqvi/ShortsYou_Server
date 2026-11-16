@@ -956,7 +956,6 @@ body {
 }
 
 .app-nav-link:hover .app-nav-tooltip,
-.app-nav-notif-btn:hover .app-nav-tooltip,
 .app-nav-settings-link:hover .app-nav-tooltip {
   opacity: 1 !important;
   visibility: visible !important;
@@ -982,8 +981,6 @@ body {
 }
 
 .app-nav-bottom a,
-.app-nav-bottom button,
-.app-nav-notif-btn,
 .app-nav-settings-link {
   position: relative !important;
   display: grid !important;
@@ -1000,7 +997,6 @@ body {
 }
 
 .app-nav-bottom a:hover,
-.app-nav-notif-btn:hover,
 .app-nav-settings-link:hover {
   color: #0f172a !important;
   background: #ffffff !important;
@@ -1008,16 +1004,28 @@ body {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08), inset 0 1px 1px #ffffff !important;
 }
 
-.app-nav-notif-dot {
-  position: absolute;
-  top: 10px;
-  right: 11px;
-  width: 8px;
-  height: 8px;
-  background: #f97316;
-  border: 1.5px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.9);
+.app-nav-bottom .app-nav-liquid-action {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.app-nav-liquid-surface {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  color: #475569 !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow:
+    0 6px 16px rgba(15, 23, 42, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85) !important;
+}
+
+.app-nav-liquid-action:hover .app-nav-liquid-surface {
+  color: #0f172a !important;
 }
 
 /* Ensure duplicate rails and obsolete menu toggles are completely hidden */
@@ -1207,6 +1215,206 @@ body {
   border: 1px solid #ffffff;
   border-radius: 50%;
   box-shadow: 0 0 5px rgba(2, 132, 199, 0.85);
+}
+
+/* ── Contributor Team Page ── */
+.support-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 32px 36px 72px 132px;
+  color: #f8fafc;
+  overflow: hidden;
+  background: #0c0a13;
+}
+
+.support-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.support-background::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 10, 19, 0.12), rgba(12, 10, 19, 0.78) 82%, #0c0a13);
+  content: "";
+}
+
+.support-page-inner {
+  position: relative;
+  z-index: 1;
+  width: min(1360px, 100%);
+  margin: 0 auto;
+}
+
+.support-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.support-back-link:hover {
+  color: #ffffff;
+}
+
+.support-hero {
+  display: flex;
+  align-items: center;
+  min-height: 280px;
+  margin-top: 24px;
+  padding: 72px 0 22px;
+}
+
+.support-hero-copy {
+  max-width: 700px;
+}
+
+.support-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a5d8ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.support-hero h1 {
+  max-width: 620px;
+  margin: 12px 0 10px;
+  color: #f8fafc;
+  font-size: clamp(32px, 5vw, 58px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.support-hero p {
+  max-width: 600px;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.support-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  padding: 10px 14px;
+  color: #e0f2fe;
+  background: rgba(15, 23, 42, 0.56);
+  border: 1px solid rgba(165, 216, 255, 0.32);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.support-team-section {
+  margin-top: 22px;
+}
+
+.support-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.support-section-heading h2 {
+  margin: 8px 0 0;
+  color: #f8fafc;
+  font-size: clamp(24px, 3vw, 38px);
+  letter-spacing: -0.045em;
+}
+
+.support-section-heading p {
+  margin: 0 0 4px;
+  color: rgba(226, 232, 240, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.support-team-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.support-team-member {
+  position: relative;
+  min-width: 0;
+  transition: transform 280ms ease;
+}
+
+.support-team-member:hover {
+  transform: translateY(-8px);
+}
+
+.support-lanyard {
+  height: 410px;
+  filter: drop-shadow(0 24px 22px rgba(0, 0, 0, 0.42));
+}
+
+.support-team-meta {
+  position: relative;
+  width: fit-content;
+  min-width: 170px;
+  margin: -4px auto 0;
+  padding: 10px 16px 12px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(165, 216, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(61, 76, 101, 0.08), inset 0 1px 1px #fff;
+  backdrop-filter: blur(14px);
+}
+
+.support-team-meta strong {
+  color: #f8fafc;
+  font-size: 15px;
+}
+
+@media (max-width: 1100px) {
+  .support-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .support-page {
+    padding: 22px 18px 48px 78px;
+  }
+
+  .support-hero {
+    min-height: 0;
+    padding: 30px 0;
+  }
+
+  .support-section-heading {
+    display: block;
+  }
+
+  .support-section-heading p {
+    margin-top: 8px;
+  }
+
+  .support-team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .support-lanyard {
+    height: 390px;
+  }
 }
 
 /* Luminous Elevated User Profile Pill Button (Photo + User Name) */
@@ -3048,7 +3256,6 @@ body {
     padding: 14px 6px !important;
   }
   .app-nav-link,
-  .app-nav-notif-btn,
   .app-nav-settings-link {
     width: 40px !important;
     height: 40px !important;
@@ -3163,7 +3370,6 @@ body {
     gap: 6px !important;
     margin-top: auto !important;
   }
-  .app-nav-notif-btn,
   .app-nav-settings-link {
     display: grid !important;
     place-items: center !important;
@@ -3374,6 +3580,30 @@ body {
 
 /* ── 4. Compact Mobile Devices (max-width: 480px) ── */
 @media (max-width: 480px) {
+  .support-page {
+    padding: 18px 12px 42px calc(clamp(34px, 10vw, 38px) + 16px);
+  }
+
+  .support-back-link {
+    font-size: 12px;
+  }
+
+  .support-team-section {
+    margin-top: 16px;
+  }
+
+  .support-section-heading h2 {
+    font-size: 26px;
+  }
+
+  .support-section-heading p {
+    font-size: 11px;
+  }
+
+  .support-lanyard {
+    height: 350px;
+  }
+
   .workspace-main,
   .ca-main-viewport,
   .clips-main,
@@ -3382,27 +3612,67 @@ body {
   .editor-page,
   .editor-picker,
   .discover-page {
-    width: calc(100% - 56px) !important;
-    margin-left: 56px !important;
+    width: calc(100% - clamp(34px, 10vw, 38px) - 16px) !important;
+    margin-left: calc(clamp(34px, 10vw, 38px) + 10px) !important;
     padding: 10px 6px 44px 6px !important;
   }
   .app-nav {
-    inset: 6px auto 6px 4px !important;
-    width: 46px !important;
-    height: calc(100vh - 12px) !important;
-    max-height: calc(100dvh - 12px) !important;
-    padding: 8px 2px !important;
-    border-radius: 22px !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 4px !important;
+    width: clamp(34px, 10vw, 38px) !important;
+    height: min(520px, calc(100dvh - 32px)) !important;
+    max-height: min(520px, calc(100dvh - 32px)) !important;
+    box-sizing: border-box !important;
+    padding: 5px 1px !important;
+    border-radius: 18px !important;
+    transform: translateY(-50%) !important;
   }
-  .app-nav-link,
-  .app-nav-notif-btn,
-  .app-nav-settings-link {
-    width: 34px !important;
-    height: 34px !important;
+  .app-nav nav {
+    gap: 3px !important;
+    margin: 4px 0 !important;
+    margin-bottom: 76px !important;
   }
-  .app-nav-icon-box svg {
+  .app-nav-tooltip {
+    display: none !important;
+  }
+  .app-nav-brand-container {
+    margin-bottom: 2px !important;
+  }
+  .app-nav-clover-mark {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 12px !important;
+  }
+  .app-nav-clover-mark svg {
     width: 16px !important;
     height: 16px !important;
+  }
+  .app-nav-link,
+  .app-nav-settings-link {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .app-nav-icon-box svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .app-nav-bottom {
+    flex-shrink: 0 !important;
+    gap: 8px !important;
+    position: absolute !important;
+    right: 0 !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    left: 0 !important;
+    margin-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .app-nav-bottom a,
+  .app-nav-settings-link {
+    flex-shrink: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 
   /* Header Bar */
