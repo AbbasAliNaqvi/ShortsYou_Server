@@ -23,7 +23,7 @@ export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({
   const insights = useMemo(() => {
     const list = [];
 
-    // 1. Content Gaps / Viral Blue Ocean
+    // 1. Content Gaps / Viral Opportunity
     if (contentGaps.length > 0) {
       const topGap = contentGaps[0];
       list.push({
@@ -31,15 +31,24 @@ export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({
         title: "Untapped Content Opportunity",
         value: `${Math.round(topGap.opportunityScore * 100)}% Opportunity Index`,
         text: `High audience demand detected for "${topGap.topic}" with ${Math.round(topGap.trendScore * 100)}% market trend velocity.`,
-        accent: "#10b981",
+        accent: "#059669",
+      });
+    } else if (clips.length > 0) {
+      const avgDuration = (clips.reduce((acc, c) => acc + c.durationSeconds, 0) / clips.length).toFixed(1);
+      list.push({
+        icon: Target,
+        title: "Library Average Duration",
+        value: `${avgDuration}s Average Pacing`,
+        text: `Calculated across ${clips.length} analyzed clips in your workspace library.`,
+        accent: "#d97706",
       });
     } else {
       list.push({
         icon: Target,
-        title: "Optimal Hook Cut Duration",
-        value: clips.length ? "1.8s - 3.2s Ideal Pacing" : "Awaiting Sample",
-        text: "Your retention baseline indicates front-loaded emotional hooks yield 42% stronger 3-second holds.",
-        accent: "#f59e0b",
+        title: "Content Gap Telemetry",
+        value: "Awaiting Clip Ingestion",
+        text: "Process your first video to enable algorithmic blue-ocean content gap detection.",
+        accent: "#d97706",
       });
     }
 
@@ -53,16 +62,16 @@ export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({
         icon: Calendar,
         title: `Algorithmic Trend Peak: ${topForecast.topic}`,
         value: `Surge Window: ${peakDate}`,
-        text: `Prophet time-series models project peak algorithmic distribution index (${Math.round((topForecast.peakPredictedScore || 0.9) * 100)} pts) for this category.`,
-        accent: "#38bdf8",
+        text: `Prophet time-series models project peak distribution score (${Math.round((topForecast.peakPredictedScore || 0.9) * 100)} pts) for this category.`,
+        accent: "#0284c7",
       });
     } else {
       list.push({
         icon: Calendar,
-        title: "Peak Publishing Window",
-        value: "Tue & Thu 6:00 PM EST",
-        text: "Audience activity density heatmaps project optimal organic algorithmic feed pickup during evening hours.",
-        accent: "#6366f1",
+        title: "Publishing Window Telemetry",
+        value: "Connect YouTube Channel",
+        text: "Audience activity heatmaps calibrate automatically from your YouTube Analytics token.",
+        accent: "#4f46e5",
       });
     }
 
@@ -74,7 +83,7 @@ export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({
         title: `Core Audience Cohort: ${topPersona.name}`,
         value: `${Math.round(topPersona.percentOfAudience * 100)}% Audience Density`,
         text: `Top engaged category: ${topPersona.topEngagedCategories?.[0] || "Viral Hooks"} with ${Math.round(topPersona.engagementRate * 100)}% active retention.`,
-        accent: "#ec4899",
+        accent: "#db2777",
       });
     } else if (accuracy && accuracy.modelReady) {
       list.push({
@@ -82,15 +91,15 @@ export const AnalyticsInsightsGrid = memo(function AnalyticsInsightsGrid({
         title: "Creator AI Calibration",
         value: `${accuracy.labeledSamples} Clips Trained`,
         text: "Neural scoring weights have adapted to your unique speech velocity, hook structure, and audience drop-off rates.",
-        accent: "#a855f7",
+        accent: "#7c3aed",
       });
     } else {
       list.push({
         icon: Sparkles,
-        title: "Kinetic Subtitle Impact",
-        value: "+24% Completion Lift",
-        text: "Auto-caption karaoke styling with keyword highlighting shows measurable lift on 30s-60s retention curves.",
-        accent: "#10b981",
+        title: "AI CPEP Model Training",
+        value: `${accuracy?.labeledSamples ?? 0} / 10 Labeled Samples`,
+        text: "Model calibration triggers automatically once 10 clips have measured 48h YouTube retention metrics.",
+        accent: "#059669",
       });
     }
 
