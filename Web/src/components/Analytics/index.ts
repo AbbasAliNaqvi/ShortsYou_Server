@@ -4,5 +4,6 @@ export * from "./AnalyticsKpiGrid";
 export * from "./RetentionCurvePanel";
 export * from "./PlatformMatrixPanel";
 export * from "./TopClipsLeaderboard";
+export * from "./CreatorDNAPanel";
 export * from "./AnalyticsInsightsGrid";
 export * from "./AnalyticsPage";
