@@ -149,38 +149,27 @@ export function SettingsPage() {
       user={user}
     >
       <div className="ca-settings-container">
-        {/* ── Top Bar: Segmented Tabs + Quick Telemetry ── */}
-        <div className="ca-settings-top-bar">
-          <div className="ca-settings-nav-wrapper">
-            <nav className="ca-settings-tabs" aria-label="Settings Categories">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`ca-settings-tab-btn ${isActive ? "active" : ""}`}
-                    aria-selected={isActive}
-                    role="tab"
-                  >
-                    <Icon size={15} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          {telegramStatus?.connected && (
-            <div className="ca-settings-quick-telemetry hidden sm:flex">
-              <span className="ca-settings-status-chip connected">
-                <CheckCircle2 size={13} />
-                <span>Telegram Active (@{telegramStatus.username || "Bot"})</span>
-              </span>
-            </div>
-          )}
+        {/* ── Segmented Navigation Tabs ── */}
+        <div className="ca-settings-nav-wrapper">
+          <nav className="ca-settings-tabs" aria-label="Settings Categories">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`ca-settings-tab-btn ${isActive ? "active" : ""}`}
+                  aria-selected={isActive}
+                  role="tab"
+                >
+                  <Icon size={15} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
         {/* ── Active Panel Display ── */}

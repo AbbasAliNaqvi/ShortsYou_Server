@@ -11,31 +11,31 @@ export interface EngineSettingsPanelProps {
 
 const AI_MODELS = [
   {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
     provider: "Google DeepMind",
-    badge: "⚡ 3.2s Fast",
-    description: "Best for high-volume ingest, instant hook extraction, and real-time viral scoring.",
+    badge: "Low-Latency",
+    description: "Ultra-fast multimodal ingest, instant hook extraction, and real-time viral scoring.",
   },
   {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
     provider: "Google DeepMind",
-    badge: "🧠 Deep Reasoning",
+    badge: "Reasoning",
     description: "Multi-hour video context analysis with nuanced comedic timing & psychological retention.",
   },
   {
-    id: "claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet",
+    id: "claude-3-7-sonnet",
+    name: "Claude 3.7 Sonnet",
     provider: "Anthropic",
-    badge: "✍️ Nuanced Dialogue",
+    badge: "Pacing",
     description: "Exceptional narrative pacing, punchline timing, and contextual humor recognition.",
   },
   {
     id: "gpt-4o",
     name: "GPT-4o",
     provider: "OpenAI",
-    badge: "👁️ Multimodal",
+    badge: "Multimodal",
     description: "Balanced reasoning across facial expression cues and voice intonation changes.",
   },
 ] as const;

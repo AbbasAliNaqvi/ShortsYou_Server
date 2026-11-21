@@ -8,19 +8,12 @@
   color: #090d16;
 }
 
-/* ── Top Segmented Controls & Telemetry Bar ── */
-.ca-settings-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
-
+/* ── Top Segmented Controls ── */
 .ca-settings-nav-wrapper {
+  display: flex;
+  justify-content: center;
   overflow-x: auto;
-  padding: 4px 2px 8px;
+  padding: 4px 2px 18px;
   scrollbar-width: none;
 }
 .ca-settings-nav-wrapper::-webkit-scrollbar {
@@ -70,33 +63,6 @@
   color: #ffffff;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
-}
-
-.ca-settings-quick-telemetry {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ca-settings-status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 750;
-  color: #334155;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.ca-settings-status-chip.connected {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #047857;
 }
 
 /* ── Panel Cards (Apple Frosted Glass) ── */
@@ -206,26 +172,26 @@
   padding: 11px 15px;
   font-size: 13.5px;
   font-family: inherit;
-  color: #090d16;
-  background: #ffffff;
-  border: 1.5px solid rgba(203, 213, 225, 0.85);
+  color: #090d16 !important;
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 13px;
   outline: none;
   transition: all 160ms ease;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
 }
 
 .ca-settings-input:focus,
 .ca-settings-select:focus,
 .ca-settings-textarea:focus {
-  border-color: #8f191d;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(143, 25, 29, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05);
+  border-color: #0f172a !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
 }
 
 .ca-settings-input::placeholder,
 .ca-settings-textarea::placeholder {
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 
 .ca-settings-textarea {

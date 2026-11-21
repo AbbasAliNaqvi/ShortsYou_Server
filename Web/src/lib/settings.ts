@@ -10,7 +10,7 @@ export interface CreatorSettings {
     defaultHashtags: string;
   };
   engine: {
-    aiModel: "gemini-1.5-flash" | "gemini-1.5-pro" | "claude-3-5-sonnet" | "gpt-4o";
+    aiModel: "gemini-2.5-flash" | "gemini-2.5-pro" | "claude-3-7-sonnet" | "gpt-4o";
     viralScoreThreshold: number;
     defaultDuration: 15 | 30 | 45 | 60;
     autoQueueViral: boolean;
@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: CreatorSettings = {
     defaultHashtags: "#Shorts #Viral #Tech #Coding #AI #Developer",
   },
   engine: {
-    aiModel: "gemini-1.5-flash",
+    aiModel: "gemini-2.5-flash",
     viralScoreThreshold: 78,
     defaultDuration: 30,
     autoQueueViral: true,
@@ -98,11 +98,17 @@ export function loadSettings(): CreatorSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+    const engineModel = parsed.engine?.aiModel;
+    let safeModel: CreatorSettings["engine"]["aiModel"] = "gemini-2.5-flash";
+    if (engineModel === "gemini-2.5-pro" || engineModel === "gemini-1.5-pro") safeModel = "gemini-2.5-pro";
+    else if (engineModel === "claude-3-7-sonnet" || engineModel === "claude-3-5-sonnet") safeModel = "claude-3-7-sonnet";
+    else if (engineModel === "gpt-4o") safeModel = "gpt-4o";
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
       profile: { ...DEFAULT_SETTINGS.profile, ...(parsed.profile || {}) },
-      engine: { ...DEFAULT_SETTINGS.engine, ...(parsed.engine || {}) },
+      engine: { ...DEFAULT_SETTINGS.engine, ...(parsed.engine || {}), aiModel: safeModel },
       captions: { ...DEFAULT_SETTINGS.captions, ...(parsed.captions || {}) },
       integrations: { ...DEFAULT_SETTINGS.integrations, ...(parsed.integrations || {}) },
       notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications || {}) },

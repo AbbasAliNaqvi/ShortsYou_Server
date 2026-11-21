@@ -264,28 +264,36 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
                 onClick={() => updateProfile("contentTone", tone.id)}
                 className={`flex flex-col text-left p-4 rounded-2xl border transition-all ${
                   isSelected
-                    ? "bg-rose-50/70 border-rose-600 shadow-sm ring-1 ring-rose-500/30"
-                    : "bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-xs"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]"
+                    : "bg-white text-slate-900 border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 shadow-2xs"
                 }`}
                 aria-pressed={isSelected}
               >
                 <div className="flex items-center justify-between w-full mb-2">
                   <div
                     className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                      isSelected ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
                     }`}
                   >
                     <Icon size={16} />
                   </div>
                   {isSelected && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">
                       Active
                     </span>
                   )}
                 </div>
-                <span className="font-extrabold text-sm text-slate-900">{tone.label}</span>
-                <span className="text-xs text-slate-600 mt-1 leading-relaxed">{tone.desc}</span>
-                <span className="text-[10.5px] font-mono text-slate-400 mt-2.5 pt-2 border-t border-slate-100">
+                <span className={`font-extrabold text-sm ${isSelected ? "text-white" : "text-slate-900"}`}>
+                  {tone.label}
+                </span>
+                <span className={`text-xs mt-1 leading-relaxed ${isSelected ? "text-slate-300" : "text-slate-600"}`}>
+                  {tone.desc}
+                </span>
+                <span
+                  className={`text-[10.5px] font-mono mt-2.5 pt-2 border-t ${
+                    isSelected ? "text-slate-400 border-white/10" : "text-slate-400 border-slate-100"
+                  }`}
+                >
                   {tone.sample}
                 </span>
               </button>
