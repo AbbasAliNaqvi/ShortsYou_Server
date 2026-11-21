@@ -188,6 +188,7 @@ export default function CustomShortEditor() {
       setNotice(successMsg);
       setRenderSuccess(true);
       notify("Short Rendering", successMsg, "success");
+      router.push("/clips");
     } catch (error) {
       const err = error instanceof Error ? error.message : "We couldn't start the render.";
       setNotice(err);

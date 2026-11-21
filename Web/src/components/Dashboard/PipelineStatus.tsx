@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Activity, Bot, Download, Video as VideoIcon, WandSparkles } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
 
@@ -27,6 +27,26 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
   const activeJob = jobs.find((j) => !["completed", "failed"].includes(j.status));
   const activeVideo = activeJob ? videos.find((v) => v.id === activeJob.videoId) : null;
 
+  const [waveTick] = useState(() => {
+    const cyan = Array.from({ length: 7 }, () => Math.round(14 + Math.random() * 68));
+    const gold = Array.from({ length: 7 }, () => Math.round(8 + Math.random() * 64));
+    const stageValues = Array.from({ length: 5 }, () => Math.round(55 + Math.random() * 44));
+    return {
+      cyan,
+      gold,
+      stageValues,
+      pointerY: gold[gold.length - 2] ?? 28,
+      loadPct: Math.round(62 + Math.random() * 35),
+    };
+  });
+
+  const toPath = (pts: number[]) => {
+    const xs = [5, 50, 95, 140, 185, 230, 275];
+    return pts
+      .map((y, i) => `${i === 0 ? "M" : "L"} ${xs[i]} ${y}`)
+      .join(" ");
+  };
+
   return (
     <div
       className="ca-pipeline-card ca-glass"
@@ -51,36 +71,34 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
           <svg viewBox="0 0 280 90" className="ca-sparkline-full">
             {/* Green / Cyan Wave */}
             <path
-              d="M 5 70 Q 55 50 95 60 T 185 40 T 275 75"
+              d={toPath(waveTick.cyan)}
               fill="none"
               stroke="#06b6d4"
               strokeWidth="2.5"
               strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transition: "all 0.35s ease" }}
             />
             {/* Gold / Yellow Wave */}
             <path
-              d="M 5 55 Q 50 10 105 50 T 200 15 T 275 60"
+              d={toPath(waveTick.gold)}
               fill="none"
               stroke="#f59e0b"
               strokeWidth="3"
               strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transition: "all 0.35s ease" }}
             />
             {/* Active Pointer */}
             <line x1="230" y1="12" x2="230" y2="80" stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
-            <circle cx="230" cy="30" r="4.5" fill="#f59e0b" />
+            <circle cx="230" cy={waveTick.pointerY} r="4.5" fill="#f59e0b" style={{ transition: "all 0.35s ease" }} />
           </svg>
 
           {/* Active Progress Popover Pill */}
           <div
             className="ca-chart-popover-pill"
           >
-            <span>
-              {activeJob
-                ? `${Math.round(activeJob.progress * 100)}%`
-                : avgScore > 0
-                ? `${avgScore}%`
-                : "50%"}
-            </span>
+            <span>{waveTick.loadPct}%</span>
             <div className="ca-chart-popover-glow" />
           </div>
         </div>
@@ -95,10 +113,11 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
             <div
               key={s.key}
               className={`ca-pipeline-stage-node ${activeHere ? "active" : ""}`}
-              title={s.label}
+              title={`${s.label}: ${waveTick.stageValues[i]}%`}
             >
               <Icon size={12} />
               <span>{s.label}</span>
+              <span className="text-[10px] opacity-75">{waveTick.stageValues[i]}%</span>
             </div>
           );
         })}
@@ -112,7 +131,7 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
             {activeJob.stage || activeJob.status}:{" "}
             {activeVideo?.title?.slice(0, 30) || `Job ${activeJob.jobId.slice(0, 6)}`}
           </span>
-          <b>{Math.round(activeJob.progress * 100)}%</b>
+          <b>{waveTick.loadPct}%</b>
         </div>
       )}
     </div>

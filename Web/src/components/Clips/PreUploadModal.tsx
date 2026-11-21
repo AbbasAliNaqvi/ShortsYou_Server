@@ -49,13 +49,12 @@ export function PreUploadModal({
   const [result, setResult] = useState<PredictViralScoreResponse | null>(null);
   const [publishing, setPublishing] = useState(false);
 
-  // Reset state when modal opens
+  // Auto-calculate virality when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setModalState("initial");
-      setProgress({ stage: "idle", progressPercent: 0, statusMessage: "" });
+    if (isOpen && clip) {
       setResult(null);
       setPublishing(false);
+      void handleStartViralCalculation();
     }
   }, [isOpen, clip?.id]);
 
@@ -219,29 +218,6 @@ export function PreUploadModal({
 
                 {/* Dual Option Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                  {/* Option 2: Check Viral Score */}
-                  <button
-                    type="button"
-                    className="p-4 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-b from-amber-50/60 to-white hover:border-amber-500 hover:shadow-lg transition-all text-left flex flex-col justify-between group cursor-pointer"
-                    onClick={handleStartViralCalculation}
-                  >
-                    <div>
-                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <Zap size={18} />
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900 mb-1">
-                        Check Viral Score
-                      </h4>
-                      <p className="text-[11.5px] text-slate-500 leading-normal">
-                        Simulate 4–10s personalized CPEP ML prediction, 3s hook retention, and SHAP vectors.
-                      </p>
-                    </div>
-                    <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-                      <span>Calculate virality</span>
-                      <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </button>
-
                   {/* Option 1: Upload on YouTube */}
                   <button
                     type="button"

@@ -94,9 +94,11 @@ export const ClipCard = memo(
           </label>
 
           {/* Viral Score Pill */}
-          <span className="ca-clip-score-pill">
-            {Math.round(clip.viralScore)} / 100
-          </span>
+          {clip.viralScore > 0 && (
+            <span className="ca-clip-score-pill">
+              {Math.round(clip.viralScore)} / 100
+            </span>
+          )}
 
           {/* Hover Play / Preview Overlay */}
           <div className="ca-clip-hover-overlay">
@@ -189,15 +191,6 @@ export const ClipCard = memo(
               <ArrowDownToLine size={13} />
               <span>Download</span>
             </button>
-
-            {/* Direct Timeline Editor Button */}
-            <Link
-              href={`/editor/${clip.videoId}?clipId=${clip.id}`}
-              className="ca-clip-editor-btn"
-              title="Open in Timeline Editor"
-            >
-              <SlidersHorizontal size={13} />
-            </Link>
 
             <button
               type="button"

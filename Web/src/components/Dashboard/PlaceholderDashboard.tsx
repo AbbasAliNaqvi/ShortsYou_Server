@@ -139,21 +139,16 @@ export function PlaceholderDashboard() {
       }
 
       setCreating(true);
-      setNotice("Starting your AI creation pipeline…");
+      setNotice("Opening AI Director…");
       try {
-        const result = await api.autoCreateIngest(token, sourceUrl.trim());
+        const result = await api.ingest(token, sourceUrl.trim());
         setSourceUrl("");
-        setNotice(`${result.title} — AI is creating your shorts! Check back in a few minutes.`);
-        notify(
-          "AI Auto-Create Started",
-          "Your shorts are being created automatically. AI will transcribe, find viral moments, generate hooks, and render your shorts.",
-          "success"
-        );
         void queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
         void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+        router.push(`/editor/${result.videoId}`);
       } catch (ingestError) {
         setNotice(
-          ingestError instanceof Error ? ingestError.message : "Unable to start AI Auto-Create."
+          ingestError instanceof Error ? ingestError.message : "Unable to open AI Director."
         );
       } finally {
         setCreating(false);
@@ -254,14 +249,6 @@ export function PlaceholderDashboard() {
         onExportClip={createShort}
       />
 
-      {/* Bottom Table: "Your top videos in this period" */}
-      <RecommendationsTable
-        clips={recommendations}
-        videos={videos}
-        exportingClip={exportingClip}
-        onCreateShort={createShort}
-      />
-
       {error && (
         <div className="dashboard-error ca-glass">
           {error} <Link href="/login">Return to sign in</Link>
@@ -272,7 +259,6 @@ export function PlaceholderDashboard() {
         <LoadingState />
       ) : (
         <div className="ca-secondary-shelves">
-          <JobsShelf jobs={jobs} videos={videos} />
           <ProductionShelf videos={displayedVideos} clips={clips} />
         </div>
       )}
