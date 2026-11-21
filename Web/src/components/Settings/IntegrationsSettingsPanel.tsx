@@ -9,8 +9,11 @@ import {
   Loader2,
   ShieldCheck,
   Send,
-  ExternalLink,
 } from "lucide-react";
+import type { CreatorSettings } from "@/lib/settings";
+import type { TelegramStatus } from "@/lib/api";
+import { api } from "@/lib/api";
+import { notify } from "@/components/Notifications/NotificationCenter";
 
 function YouTubeIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
@@ -19,10 +22,6 @@ function YouTubeIcon({ size = 20, className = "" }: { size?: number; className?:
     </svg>
   );
 }
-import type { CreatorSettings } from "@/lib/settings";
-import type { TelegramStatus } from "@/lib/api";
-import { api } from "@/lib/api";
-import { notify } from "@/components/Notifications/NotificationCenter";
 
 export interface IntegrationsSettingsPanelProps {
   settings: CreatorSettings;
@@ -103,7 +102,7 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
   return (
     <div className="ca-settings-panel">
       {/* ── Telegram Assistant ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="telegram-heading">
+      <section className="ca-settings-card" aria-labelledby="telegram-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div
@@ -111,18 +110,18 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
               style={{ background: "linear-gradient(135deg, #0284c7, #0369a1)" }}
               aria-hidden="true"
             >
-              <MessageCircle size={20} />
+              <MessageCircle size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 id="telegram-heading">Telegram Assistant &amp; Swipe Bot</h2>
                 {telegramStatus?.connected ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <CheckCircle2 size={13} />
                     Connected {telegramStatus.username ? `@${telegramStatus.username}` : ""}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                     Not Linked
                   </span>
                 )}
@@ -141,14 +140,14 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
           )}
 
           {/* Connection Actions */}
-          <div className="p-5 rounded-2xl bg-white/70 border border-slate-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <span className="font-extrabold text-sm text-slate-900 block">
                 {telegramStatus?.connected ? "Telegram Bot is Active" : "Link Your Telegram Account"}
               </span>
-              <span className="text-xs text-slate-500 mt-1 block">
+              <span className="text-xs text-slate-600 mt-1 block">
                 {telegramStatus?.connected
-                  ? `Linked securely. Commands: /status, /latest, /approve, /reject`
+                  ? `Linked securely. Available commands: /swipe, /status, /approve, /export`
                   : "Connect with one click via our official ShortsYou Telegram Bot."}
               </span>
             </div>
@@ -243,7 +242,7 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
       </section>
 
       {/* ── YouTube Channel Integration ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="youtube-heading">
+      <section className="ca-settings-card" aria-labelledby="youtube-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div
@@ -261,7 +260,7 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90 flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
                 <YouTubeIcon size={22} />
@@ -271,7 +270,7 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
                 <span className="text-xs text-slate-500">Connected with OAuth refresh credentials</span>
               </div>
             </div>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
               <CheckCircle2 size={13} />
               Active
             </span>
@@ -297,11 +296,11 @@ export const IntegrationsSettingsPanel = memo(function IntegrationsSettingsPanel
       </section>
 
       {/* ── Webhooks & Dispatch ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="webhook-heading">
+      <section className="ca-settings-card" aria-labelledby="webhook-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Webhook size={20} />
+              <Webhook size={22} />
             </div>
             <div>
               <h2 id="webhook-heading">Custom Webhooks (Discord / Slack / Zapier)</h2>

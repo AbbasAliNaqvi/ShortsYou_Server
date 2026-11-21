@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { User, AtSign, Mail, Sparkles, Hash } from "lucide-react";
+import { User, AtSign, Mail, Sparkles, Hash, Zap, BarChart2, BookOpen, Smile, Check } from "lucide-react";
 import type { CreatorSettings } from "@/lib/settings";
 
 export interface ProfileSettingsPanelProps {
@@ -21,10 +21,34 @@ const NICHES = [
 ];
 
 const TONES = [
-  { id: "high-energy", label: "High-Energy", desc: "Fast-paced, hook-driven, thrilling punchlines" },
-  { id: "analytical", label: "Analytical", desc: "Insightful, data-grounded, thought-provoking" },
-  { id: "storytelling", label: "Storytelling", desc: "Emotional build-up, narrative arc, relatable" },
-  { id: "humorous", label: "Humorous", desc: "Witty, ironic, engaging, meme-compatible" },
+  {
+    id: "high-energy",
+    label: "High-Energy",
+    icon: Zap,
+    desc: "Fast-paced, hook-driven, thrilling punchlines and dopamine retention cuts.",
+    sample: '"Wait, stop scrolling! Look at this..."',
+  },
+  {
+    id: "analytical",
+    label: "Analytical",
+    icon: BarChart2,
+    desc: "Insightful, data-grounded, thought-provoking framework breakdowns.",
+    sample: '"The exact 3-variable math behind virality..."',
+  },
+  {
+    id: "storytelling",
+    label: "Storytelling",
+    icon: BookOpen,
+    desc: "Emotional build-up, narrative arc, relatable real-world anecdotes.",
+    sample: '"In 2021, everyone laughed at this decision..."',
+  },
+  {
+    id: "humorous",
+    label: "Humorous",
+    icon: Smile,
+    desc: "Witty, ironic, engaging, meme-compatible timing and relatable irony.",
+    sample: '"When you deploy on a Friday afternoon..."',
+  },
 ] as const;
 
 const TEAM_AVATARS = [
@@ -50,11 +74,11 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
   return (
     <div className="ca-settings-panel">
       {/* ── Creator Profile Information ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="creator-identity-heading">
+      <section className="ca-settings-card" aria-labelledby="creator-identity-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <User size={20} />
+              <User size={22} />
             </div>
             <div>
               <h2 id="creator-identity-heading">Creator Identity &amp; Channel</h2>
@@ -65,33 +89,41 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
 
         <div className="flex flex-col gap-6">
           {/* Avatar Selector */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-4 rounded-2xl bg-white/60 border border-slate-200/80">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={profile.avatarUrl || "/hero-character-transparent.png"}
               alt={profile.displayName}
-              className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-800 shadow-md"
+              className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-900 shadow-md flex-shrink-0"
             />
             <div className="flex-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Avatar Selection</span>
-              <p className="text-xs text-slate-500 mt-0.5 mb-2.5">
-                Choose a studio avatar or enter a custom image URL.
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                Studio Avatar Selection
+              </span>
+              <p className="text-xs text-slate-600 mt-0.5 mb-2.5">
+                Choose a studio teammate avatar or link your custom creator photo.
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                {TEAM_AVATARS.map((av) => (
-                  <button
-                    key={av.name}
-                    type="button"
-                    onClick={() => updateProfile("avatarUrl", av.url)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
-                      profile.avatarUrl === av.url
-                        ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                        : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
-                    }`}
-                  >
-                    <span>{av.name}</span>
-                  </button>
-                ))}
+                {TEAM_AVATARS.map((av) => {
+                  const isSelected = profile.avatarUrl === av.url;
+                  return (
+                    <button
+                      key={av.name}
+                      type="button"
+                      onClick={() => updateProfile("avatarUrl", av.url)}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={av.url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                      <span>{av.name}</span>
+                      {isSelected && <Check size={12} className="text-emerald-400" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -101,16 +133,14 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
               <label htmlFor="settings-displayName" className="ca-settings-label">
                 <span>Display Name</span>
               </label>
-              <div className="relative">
-                <input
-                  id="settings-displayName"
-                  type="text"
-                  value={profile.displayName}
-                  onChange={(e) => updateProfile("displayName", e.target.value)}
-                  placeholder="e.g. Das Gajraj"
-                  className="ca-settings-input"
-                />
-              </div>
+              <input
+                id="settings-displayName"
+                type="text"
+                value={profile.displayName}
+                onChange={(e) => updateProfile("displayName", e.target.value)}
+                placeholder="e.g. Das Gajraj"
+                className="ca-settings-input"
+              />
             </div>
 
             <div className="ca-settings-field">
@@ -192,7 +222,7 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
           <div className="ca-settings-field">
             <label htmlFor="settings-hashtags" className="ca-settings-label">
               <span className="inline-flex items-center gap-1.5">
-                <Hash size={14} />
+                <Hash size={14} className="text-slate-500" />
                 <span>Default Hashtags</span>
               </span>
               <span className="ca-settings-hint">Appended to exported clip metadata</span>
@@ -203,18 +233,18 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
               value={profile.defaultHashtags}
               onChange={(e) => updateProfile("defaultHashtags", e.target.value)}
               placeholder="#Shorts #AI #Trending"
-              className="ca-settings-input"
+              className="ca-settings-input font-mono text-xs"
             />
           </div>
         </div>
       </section>
 
       {/* ── AI Voice & Script Tone ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="tone-heading">
+      <section className="ca-settings-card" aria-labelledby="tone-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Sparkles size={20} />
+              <Sparkles size={22} />
             </div>
             <div>
               <h2 id="tone-heading">Narrative &amp; Hook Tone</h2>
@@ -223,19 +253,41 @@ export const ProfileSettingsPanel = memo(function ProfileSettingsPanel({
           </div>
         </div>
 
-        <div className="ca-settings-preset-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {TONES.map((tone) => {
+            const Icon = tone.icon;
             const isSelected = profile.contentTone === tone.id;
             return (
               <button
                 key={tone.id}
                 type="button"
                 onClick={() => updateProfile("contentTone", tone.id)}
-                className={`ca-settings-preset-btn ${isSelected ? "selected" : ""}`}
+                className={`flex flex-col text-left p-4 rounded-2xl border transition-all ${
+                  isSelected
+                    ? "bg-rose-50/70 border-rose-600 shadow-sm ring-1 ring-rose-500/30"
+                    : "bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-xs"
+                }`}
                 aria-pressed={isSelected}
               >
-                <span className="ca-settings-preset-title">{tone.label}</span>
-                <span className="ca-settings-preset-desc">{tone.desc}</span>
+                <div className="flex items-center justify-between w-full mb-2">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      isSelected ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Icon size={16} />
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <span className="font-extrabold text-sm text-slate-900">{tone.label}</span>
+                <span className="text-xs text-slate-600 mt-1 leading-relaxed">{tone.desc}</span>
+                <span className="text-[10.5px] font-mono text-slate-400 mt-2.5 pt-2 border-t border-slate-100">
+                  {tone.sample}
+                </span>
               </button>
             );
           })}

@@ -42,11 +42,6 @@ export interface CreatorSettings {
     viralBreakoutAlert: boolean;
     jobCompletionAlert: boolean;
   };
-  advanced: {
-    geminiApiKey: string;
-    elevenLabsApiKey: string;
-    mlServiceUrl: string;
-  };
 }
 
 export const DEFAULT_SETTINGS: CreatorSettings = {
@@ -93,11 +88,6 @@ export const DEFAULT_SETTINGS: CreatorSettings = {
     viralBreakoutAlert: true,
     jobCompletionAlert: true,
   },
-  advanced: {
-    geminiApiKey: "",
-    elevenLabsApiKey: "",
-    mlServiceUrl: "https://shortsyou-server.onrender.com",
-  },
 };
 
 const SETTINGS_KEY = "shortsyou_creator_settings";
@@ -116,7 +106,6 @@ export function loadSettings(): CreatorSettings {
       captions: { ...DEFAULT_SETTINGS.captions, ...(parsed.captions || {}) },
       integrations: { ...DEFAULT_SETTINGS.integrations, ...(parsed.integrations || {}) },
       notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications || {}) },
-      advanced: { ...DEFAULT_SETTINGS.advanced, ...(parsed.advanced || {}) },
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Bell, Volume2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Bell, Volume2, Sparkles, CheckCircle2 } from "lucide-react";
 import type { CreatorSettings } from "@/lib/settings";
 import { notify } from "@/components/Notifications/NotificationCenter";
 
@@ -36,7 +36,7 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
     setPushStatus(perm);
     if (perm === "granted") {
       updateNotifications("browserPush", true);
-      notify("Notifications Enabled", "You will now receive desktop alerts for completed video jobs.", "success");
+      notify("Notifications Enabled", "Desktop alerts enabled for completed video jobs.", "success");
     } else {
       updateNotifications("browserPush", false);
     }
@@ -44,12 +44,13 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
 
   const playTestSound = () => {
     try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
       gain.gain.setValueAtTime(0.12, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
       osc.connect(gain);
@@ -63,11 +64,11 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
   return (
     <div className="ca-settings-panel">
       {/* ── Desktop & Browser Alerts ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="notification-heading">
+      <section className="ca-settings-card" aria-labelledby="notification-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Bell size={20} />
+              <Bell size={22} />
             </div>
             <div>
               <h2 id="notification-heading">Desktop &amp; In-App Alerts</h2>
@@ -78,18 +79,19 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
 
         <div className="flex flex-col gap-4">
           {/* Permission Card */}
-          <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm text-slate-900">Browser Push Notifications</span>
                 {pushStatus === "granted" && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                    <CheckCircle2 size={12} />
                     Granted
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-500 mt-0.5 block">
-                Receive alerts even when ShortsYou is running in background or minimized.
+              <span className="text-xs text-slate-600 mt-0.5 block">
+                Receive notifications when ShortsYou is minimized or running in background.
               </span>
             </div>
 
@@ -97,7 +99,7 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
               <button
                 type="button"
                 onClick={handleRequestPush}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all"
               >
                 Enable Push
               </button>
@@ -133,7 +135,7 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
           <div className="ca-settings-toggle-row">
             <div className="ca-settings-toggle-info">
               <div className="flex items-center gap-1.5">
-                <Sparkles size={16} className="text-rose-600" />
+                <Sparkles size={16} className="text-amber-500" />
                 <span className="ca-settings-toggle-title">Viral Breakout Alerts (&gt;85 Projected Score)</span>
               </div>
               <span className="ca-settings-toggle-sub">
@@ -157,7 +159,7 @@ export const NotificationsSettingsPanel = memo(function NotificationsSettingsPan
                 <button
                   type="button"
                   onClick={playTestSound}
-                  className="text-[11px] font-semibold text-rose-700 hover:underline flex items-center gap-1"
+                  className="text-[11px] font-semibold text-rose-700 hover:underline flex items-center gap-1 ml-1"
                 >
                   <Volume2 size={12} />
                   <span>Test Tone</span>

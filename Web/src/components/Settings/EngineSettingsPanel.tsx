@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Cpu, Flame, Clock, Music2, Wand2, Volume2 } from "lucide-react";
+import { Cpu, Flame, Clock, Wand2, Volume2 } from "lucide-react";
 import type { CreatorSettings } from "@/lib/settings";
 
 export interface EngineSettingsPanelProps {
@@ -14,28 +14,28 @@ const AI_MODELS = [
     id: "gemini-1.5-flash",
     name: "Gemini 1.5 Flash",
     provider: "Google DeepMind",
-    badge: "Ultra-Fast (3.2s)",
+    badge: "⚡ 3.2s Fast",
     description: "Best for high-volume ingest, instant hook extraction, and real-time viral scoring.",
   },
   {
     id: "gemini-1.5-pro",
     name: "Gemini 1.5 Pro",
     provider: "Google DeepMind",
-    badge: "Deep Reasoning",
+    badge: "🧠 Deep Reasoning",
     description: "Multi-hour video context analysis with nuanced comedic timing & psychological retention.",
   },
   {
     id: "claude-3-5-sonnet",
     name: "Claude 3.5 Sonnet",
     provider: "Anthropic",
-    badge: "Nuanced Dialogue",
+    badge: "✍️ Nuanced Dialogue",
     description: "Exceptional narrative pacing, punchline timing, and contextual humor recognition.",
   },
   {
     id: "gpt-4o",
     name: "GPT-4o",
     provider: "OpenAI",
-    badge: "Multimodal",
+    badge: "👁️ Multimodal",
     description: "Balanced reasoning across facial expression cues and voice intonation changes.",
   },
 ] as const;
@@ -66,21 +66,20 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
     }));
   };
 
-  // Color threshold indicator
   const getScoreColor = (score: number) => {
-    if (score >= 85) return "text-emerald-700 bg-emerald-100 border-emerald-300";
-    if (score >= 75) return "text-amber-700 bg-amber-100 border-amber-300";
-    return "text-rose-700 bg-rose-100 border-rose-300";
+    if (score >= 85) return "text-emerald-800 bg-emerald-50 border-emerald-300";
+    if (score >= 75) return "text-amber-800 bg-amber-50 border-amber-300";
+    return "text-rose-800 bg-rose-50 border-rose-300";
   };
 
   return (
     <div className="ca-settings-panel">
       {/* ── AI Model Engine ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="ai-model-heading">
+      <section className="ca-settings-card" aria-labelledby="ai-model-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Cpu size={20} />
+              <Cpu size={22} />
             </div>
             <div>
               <h2 id="ai-model-heading">AI Hook Detection Model</h2>
@@ -99,8 +98,8 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
                 onClick={() => updateEngine("aiModel", m.id)}
                 className={`flex flex-col text-left p-4 rounded-2xl border transition-all ${
                   isSelected
-                    ? "bg-slate-900 text-white border-slate-900 shadow-lg scale-[1.01]"
-                    : "bg-white/80 text-slate-800 border-slate-200/90 hover:border-slate-300 hover:bg-white"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]"
+                    : "bg-white text-slate-900 border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/80 shadow-2xs"
                 }`}
                 aria-pressed={isSelected}
               >
@@ -114,7 +113,7 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
                     {m.badge}
                   </span>
                 </div>
-                <span className={`text-xs ${isSelected ? "text-slate-300" : "text-slate-500"} leading-relaxed`}>
+                <span className={`text-xs ${isSelected ? "text-slate-300" : "text-slate-600"} leading-relaxed`}>
                   {m.description}
                 </span>
               </button>
@@ -124,11 +123,11 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
       </section>
 
       {/* ── Virality Threshold & Duration ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="virality-heading">
+      <section className="ca-settings-card" aria-labelledby="virality-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Flame size={20} />
+              <Flame size={22} />
             </div>
             <div>
               <h2 id="virality-heading">Viral Score Threshold &amp; Duration</h2>
@@ -139,16 +138,16 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
 
         <div className="flex flex-col gap-6">
           {/* Slider */}
-          <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <span className="text-sm font-bold text-slate-900">Minimum Viral Score Filter</span>
+                <span className="text-sm font-bold text-slate-900 block">Minimum Viral Score Filter</span>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Videos scoring below this threshold are marked as drafts and won&apos;t auto-queue.
+                  Clips scoring below this threshold are marked as drafts and won&apos;t auto-queue.
                 </p>
               </div>
               <span
-                className={`text-sm font-black px-3 py-1 rounded-full border shadow-xs ${getScoreColor(
+                className={`text-sm font-black px-3.5 py-1 rounded-full border shadow-2xs ${getScoreColor(
                   engine.viralScoreThreshold,
                 )}`}
               >
@@ -165,10 +164,10 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
               className="ca-settings-range"
               aria-label="Minimum viral score threshold"
             />
-            <div className="flex justify-between text-[11px] font-semibold text-slate-400 mt-2">
+            <div className="flex justify-between text-[11px] font-semibold text-slate-500 mt-2">
               <span>60 (Permissive)</span>
               <span>75 (Standard Recommended)</span>
-              <span>90+ (Ultra Viral Only)</span>
+              <span>90+ (Top 5% Virality Only)</span>
             </div>
           </div>
 
@@ -178,9 +177,9 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                 Default Target Short Length
               </span>
-              <span className="text-xs text-slate-500">
-                <Clock size={13} className="inline mr-1" />
-                Selected: {engine.defaultDuration} seconds
+              <span className="text-xs text-slate-500 font-medium">
+                <Clock size={13} className="inline mr-1 text-slate-400" />
+                Selected: {engine.defaultDuration}s
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -193,12 +192,12 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
                     onClick={() => updateEngine("defaultDuration", d.sec)}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
                       isSelected
-                        ? "bg-rose-950 text-white border-rose-900 shadow-md scale-[1.02]"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                        ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-2xs"
                     }`}
                   >
                     <span className="font-extrabold text-sm">{d.label}</span>
-                    <span className={`text-[10px] mt-1 ${isSelected ? "text-rose-200" : "text-slate-400"}`}>
+                    <span className={`text-[10px] mt-0.5 ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
                       {d.sec}s limit
                     </span>
                   </button>
@@ -228,11 +227,11 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
       </section>
 
       {/* ── Audio & B-Roll Polish ── */}
-      <section className="ca-settings-card ca-glass" aria-labelledby="audio-heading">
+      <section className="ca-settings-card" aria-labelledby="audio-heading">
         <div className="ca-settings-card-head">
           <div className="ca-settings-card-head-left">
             <div className="ca-settings-card-icon" aria-hidden="true">
-              <Volume2 size={20} />
+              <Volume2 size={22} />
             </div>
             <div>
               <h2 id="audio-heading">Audio Engineering &amp; B-Roll Flow</h2>
@@ -277,7 +276,7 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
           </div>
 
           {/* B-Roll Pills */}
-          <div className="p-4 rounded-2xl bg-white/70 border border-slate-200/90 mt-1">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-2xs mt-1">
             <div className="flex items-center gap-2 mb-2.5">
               <Wand2 size={15} className="text-slate-600" />
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -295,7 +294,7 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
                     className={`flex flex-col p-3 rounded-xl border text-left transition-all ${
                       isSelected
                         ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     <span className="font-bold text-xs">{opt.label}</span>
