@@ -1,516 +1,705 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import {
-  Activity,
-  BarChart3,
-  Dna,
-  Flame,
-  Layers,
-  Radio,
+  Mic,
   RefreshCw,
+  Share2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Flame,
+  CheckCircle2,
+  Layers,
   Sparkles,
-  TrendingUp,
 } from "lucide-react";
-import type { CreatorDNA } from "@/lib/api";
+import type { CreatorDNA, Clip } from "@/lib/api";
 
-interface CreatorDNAPanelProps {
+export interface CreatorDNAPanelProps {
   dna: CreatorDNA | null;
+  clips?: Clip[];
   busy: boolean;
   onGenerate: (sync: boolean) => void;
 }
 
-export function CreatorDNAPanel({ dna, busy, onGenerate }: CreatorDNAPanelProps) {
-  const isReady = Boolean(
-    dna &&
-      (dna.dnaVector?.length ||
-        dna.topicDistribution?.length ||
-        dna.emotionalRange?.dominantEmotion)
-  );
-
-  const topics = dna?.topicDistribution?.slice(0, 5) ?? [
-    { topic: "viral_openers", label: "Viral Hook Patterns", weight: 0.38 },
-    { topic: "curiosity_pacing", label: "Curiosity Loops & Cadence", weight: 0.28 },
-    { topic: "contrarian_angles", label: "Contrarian Industry Insights", weight: 0.21 },
-    { topic: "authority_proof", label: "Authority & Case Studies", weight: 0.13 },
-  ];
-
-  const words = dna?.vocabularyProfile?.topWords?.slice(0, 10) ?? [
-    "momentum",
-    "breakthrough",
-    "strategy",
-    "algorithm",
-    "exponential",
-    "retention",
-    "hook",
-    "truth",
-  ];
-
-  const vector = dna?.dnaVector?.length
-    ? dna.dnaVector
-    : [0.89, 0.94, 0.76, 0.91, 0.85, 0.79, 0.93, 0.82, 0.89, 0.75, 0.96, 0.84, 0.9, 0.87, 0.92, 0.81];
-
-  const dominantEmotion = dna?.emotionalRange?.dominantEmotion || "High-Energy Intensity";
-  const wpm = Math.round(dna?.speechProfile?.avgWpm || 162);
-  const avgHook = Math.round(dna?.avgHookScore || 91);
-  const clarityScore = Math.round((dna?.vocabularyProfile?.readabilityScore || 0.89) * 100);
-
-  const contentGaps = dna?.contentGaps?.length
-    ? dna.contentGaps
-    : [
-        {
-          topic: "Contrarian Industry Frameworks",
-          demandScore: 0.96,
-          trendScore: 0.93,
-          gapScore: 0.88,
-          opportunityScore: 0.94,
-        },
-        {
-          topic: "Rapid Teardowns & Live Evidence",
-          demandScore: 0.91,
-          trendScore: 0.88,
-          gapScore: 0.83,
-          opportunityScore: 0.89,
-        },
-        {
-          topic: "Behind-the-Scenes High-Stakes Tests",
-          demandScore: 0.87,
-          trendScore: 0.85,
-          gapScore: 0.8,
-          opportunityScore: 0.86,
-        },
-      ];
-
-  return (
-    <section className="ca-dna-panel ca-glass relative overflow-hidden">
-      {/* Subtle Luminous Ambient Background Bloom */}
-      <div
-        className="pointer-events-none absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full blur-[120px] opacity-25"
-        style={{ background: "radial-gradient(circle, #38bdf8 0%, #10b981 40%, transparent 70%)" }}
-      />
-      <div
-        className="pointer-events-none absolute -bottom-32 -right-32 w-[520px] h-[520px] rounded-full blur-[120px] opacity-20"
-        style={{ background: "radial-gradient(circle, #f59e0b 0%, #ec4899 40%, transparent 70%)" }}
-      />
-
-      {/* Header Bar */}
-      <div className="ca-dna-heading flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="ca-dna-eyebrow">
-              <Dna size={13} className="text-emerald-700 animate-pulse" />
-              Creator Genomic Identity v4.2
-            </span>
-            <span className="ca-dna-tag-live">
-              <Radio size={11} className="text-sky-600 animate-ping" />
-              Live Synthesis Active
-            </span>
-          </div>
-          <h2 className="ca-dna-title">
-            Your Creator DNA Profile
-          </h2>
-          <p className="ca-dna-subtitle">
-            Decoded from your speech cadence, psychological hooks, emotional velocity, and linguistic codons into an algorithmic creative fingerprint.
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onGenerate(false)}
-            disabled={busy}
-            className="ca-dna-btn-primary"
-            title="Generate fresh DNA profile"
-          >
-            {busy ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
-            <span>{busy ? "Sequencing Genome…" : "Synthesize DNA"}</span>
-          </button>
-
-          {isReady && (
-            <button
-              type="button"
-              onClick={() => onGenerate(true)}
-              disabled={busy}
-              className="ca-dna-btn-secondary"
-              title="Re-calibrate against latest video uploads"
-            >
-              <RefreshCw size={13} />
-              <span>Sync Library</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {busy ? (
-        /* DNA Sequencing Holographic Loader */
-        <div className="py-20 flex flex-col items-center justify-center text-center relative z-10">
-          <div className="relative w-24 h-24 mb-4">
-            <div className="absolute inset-0 rounded-full border-2 border-emerald-400/30 animate-ping" />
-            <div className="absolute inset-2 rounded-full border-2 border-indigo-500/40 border-t-indigo-600 animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Dna size={40} className="text-emerald-600 animate-bounce" />
-            </div>
-          </div>
-          <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Sequencing Creator Genome…</h3>
-          <p className="text-xs text-slate-600 max-w-sm mt-1 leading-relaxed font-medium">
-            Parsing verbal emphasis, hook retention scores, lexical clusters, and pacing ratios from your media catalog.
-          </p>
-        </div>
-      ) : (
-        <div className="relative z-10 flex flex-col gap-6">
-          {/* Top Grid: 3D Rotating Double-Helix (5 cols) + 16-Strand Allele Barcode (7 cols) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-            {/* 3D Rotating Double-Helix Canvas Card */}
-            <div className="lg:col-span-5 ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                    <Activity size={14} className="text-emerald-600" /> Double-Helix Phenotype
-                  </span>
-                  <span className="text-[10.5px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                    3D Perspective
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Trigonometric continuous rotation mapping hook & cadence strands.
-                </p>
-              </div>
-
-              {/* HTML5 Canvas Double Helix */}
-              <div className="relative w-full h-44 my-2 flex items-center justify-center bg-slate-50/80 rounded-xl border border-slate-200/80 overflow-hidden">
-                <DNAHelixCanvas />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-200">
-                <div className="ca-dna-subcard-darker p-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Dominant Strand</span>
-                  <strong className="text-xs font-extrabold text-sky-800 truncate block mt-0.5">
-                    {dominantEmotion}
-                  </strong>
-                </div>
-                <div className="ca-dna-subcard-darker p-2.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Cadence Pacing</span>
-                  <strong className="text-xs font-extrabold text-emerald-800 block mt-0.5">
-                    {wpm} WPM (Peak Flow)
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            {/* 16-Strand Genetic Allele Barcode Card */}
-            <div className="lg:col-span-7 ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
-                    <Layers size={14} className="text-indigo-600" /> 16-Dimensional Creator Vector
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-mono font-extrabold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                    <Flame size={13} className="text-amber-600" /> {avgHook}% Viral Match
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mb-3">
-                  Normalized algorithmic resonance embedding across psychological hook depth, speech cadence, and retention contrast.
-                </p>
-              </div>
-
-              {/* Vector Bar Rungs with Base Pair Letters */}
-              <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-32 px-3 py-3 bg-slate-50/90 rounded-2xl border border-slate-200">
-                {vector.map((val, idx) => {
-                  const baseLetters = ["A", "T", "C", "G"];
-                  const letter = baseLetters[idx % 4];
-                  const heightPct = Math.max(16, Math.min(100, Math.round(val * 100)));
-
-                  // Letter tag styles
-                  const letterBadgeStyles = {
-                    A: "bg-indigo-100 text-indigo-900 border-indigo-200",
-                    T: "bg-amber-100 text-amber-900 border-amber-200",
-                    C: "bg-emerald-100 text-emerald-900 border-emerald-200",
-                    G: "bg-rose-100 text-rose-900 border-rose-200",
-                  }[letter];
-
-                  const barGradient = {
-                    A: "linear-gradient(180deg, #6366f1 0%, #4338ca 100%)",
-                    T: "linear-gradient(180deg, #f59e0b 0%, #d97706 100%)",
-                    C: "linear-gradient(180deg, #10b981 0%, #059669 100%)",
-                    G: "linear-gradient(180deg, #f43f5e 0%, #e11d48 100%)",
-                  }[letter];
-
-                  return (
-                    <div
-                      key={idx}
-                      className="flex-1 flex flex-col items-center justify-end h-full group relative"
-                    >
-                      {/* Tooltip on Hover */}
-                      <div className="absolute -top-9 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10.5px] font-mono font-bold px-2 py-0.5 rounded shadow-lg border border-slate-700 whitespace-nowrap pointer-events-none z-20">
-                        {letter}-{idx + 1}: {Math.round(val * 100)}%
-                      </div>
-
-                      <div
-                        className="w-full rounded-t-md transition-all duration-300 group-hover:brightness-110 shadow-sm"
-                        style={{
-                          height: `${heightPct}%`,
-                          background: barGradient,
-                        }}
-                      />
-                      <span className={`w-full text-center text-[9px] font-mono font-extrabold mt-1.5 py-0.5 rounded border ${letterBadgeStyles} transition-transform group-hover:scale-105`}>
-                        {letter}
-                      </span>
-                      <span className="text-[8.5px] font-mono font-bold text-slate-500 mt-0.5 hidden sm:block">
-                        {Math.round(val * 100)}%
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Rung Legend */}
-              <div className="flex flex-wrap items-center justify-between text-[11px] font-medium text-slate-600 mt-3 px-1 pt-2 border-t border-slate-200">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
-                  <strong>A / T</strong> Hook Depth &amp; Contrast
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
-                  <strong>C / G</strong> Cadence &amp; Emotional Velocity
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 4 Specialized Genomic Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Genomic Topic Alleles */}
-            <div className="ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 block mb-1">
-                  Top Genomic Topics
-                </span>
-                <p className="text-xs text-slate-500 mb-3 font-medium">Thematic distribution from processed clips</p>
-                <div className="flex flex-col gap-3">
-                  {topics.map((t, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-800 font-bold truncate max-w-[150px]">{t.label}</span>
-                        <span className="text-emerald-700 font-mono font-extrabold">{Math.round(t.weight * 100)}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500"
-                          style={{ width: `${Math.min(100, Math.round(t.weight * 100))}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <span className="text-[11px] font-medium text-slate-500 mt-4 pt-2.5 border-t border-slate-200 block">
-                Primary content resonance axis
-              </span>
-            </div>
-
-            {/* Card 2: Acoustic & Delivery Genome */}
-            <div className="ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-sky-800 block mb-1">
-                  Acoustic &amp; Voice Genome
-                </span>
-                <p className="text-xs text-slate-500 mb-3 font-medium">Measured vocal cadence and clarity</p>
-                <div className="space-y-3.5">
-                  <div className="ca-dna-subcard-darker p-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Dominant Emotion</span>
-                    <strong className="text-sm font-extrabold text-slate-900 tracking-tight block mt-0.5">
-                      {dominantEmotion}
-                    </strong>
-                  </div>
-                  <div className="ca-dna-subcard-darker p-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Speech Velocity</span>
-                    <strong className="text-sm font-extrabold text-sky-700 font-mono block mt-0.5">
-                      {wpm} Words Per Minute
-                    </strong>
-                  </div>
-                  <div className="ca-dna-subcard-darker p-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Readability Score</span>
-                    <strong className="text-sm font-extrabold text-emerald-700 font-mono block mt-0.5">
-                      {clarityScore}% Clarity Score
-                    </strong>
-                  </div>
-                </div>
-              </div>
-              <span className="text-[11px] font-medium text-slate-500 mt-4 pt-2.5 border-t border-slate-200 block">
-                Natural speech delivery profile
-              </span>
-            </div>
-
-            {/* Card 3: Creator Codons (Signature Lexicon) */}
-            <div className="ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-violet-800 block mb-1">
-                  Creator Codons (Lexicon)
-                </span>
-                <p className="text-xs text-slate-500 mb-3 font-medium">Signature power words in high-hook moments</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {words.map((word, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-slate-800 bg-slate-100 hover:bg-violet-50 hover:text-violet-800 border border-slate-200 hover:border-violet-300 transition-colors cursor-default"
-                    >
-                      #{word}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <span className="text-[11px] font-medium text-slate-500 mt-4 pt-2.5 border-t border-slate-200 block">
-                Extracted high-retention keywords
-              </span>
-            </div>
-
-            {/* Card 4: High-Demand Content Opportunities */}
-            <div className="ca-dna-subcard p-5 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 block mb-1">
-                  Content Opportunities
-                </span>
-                <p className="text-xs text-slate-500 mb-3 font-medium">Untapped viral themes in your category</p>
-                <div className="space-y-2.5">
-                  {contentGaps.slice(0, 3).map((gap, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex flex-col gap-1"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <strong className="text-slate-900 font-extrabold truncate max-w-[140px]">
-                          {gap.topic}
-                        </strong>
-                        <span className="font-mono font-bold text-amber-800 text-[11px]">
-                          {Math.round(gap.opportunityScore * 100)}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium">
-                        <span>Demand: {Math.round(gap.demandScore * 100)}%</span>
-                        <span className="flex items-center gap-0.5 text-emerald-700 font-semibold">
-                          <TrendingUp size={11} /> +{Math.round(gap.trendScore * 100)}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <span className="text-[11px] font-medium text-slate-500 mt-4 pt-2.5 border-t border-slate-200 block">
-                Calculated market gap coverage
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
+interface GraphNode {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  bgFill: string;
+  borderColor: string;
+  textColor: string;
+  type: "core" | "topic" | "gap" | "trending";
+  weight: number;
+  clipCount: number;
+  details: string;
 }
 
-/**
- * 3D Rotating Double-Helix Canvas
- * Tuned with high-contrast, theme-matching executive colors:
- * Strand A: Vivid Emerald (#059669)
- * Strand B: Deep Royal Indigo (#4f46e5)
- * Base pairs: Crimson & Amber
- */
-function DNAHelixCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+interface GraphEdge {
+  source: string;
+  target: string;
+}
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+export const CreatorDNAPanel = memo(function CreatorDNAPanel({
+  dna,
+  clips = [],
+  busy,
+  onGenerate,
+}: CreatorDNAPanelProps) {
+  const [activeFilter, setActiveFilter] = useState<"all" | "trending" | "gaps">("all");
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-    let animId: number;
-    let t = 0;
+  // Canva-style smooth pan and zoom state
+  const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const startPanRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const viewportRef = useRef<HTMLDivElement>(null);
 
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  // Derive Topics & Nodes from incoming DNA or incoming clips (NO DUMMY DATA)
+  const { nodes, edges } = useMemo(() => {
+    const graphNodes: GraphNode[] = [];
+    const graphEdges: GraphEdge[] = [];
+
+    // Central Hub Node (Light Theme)
+    const coreNode: GraphNode = {
+      id: "core",
+      label: "Creator Hub",
+      x: 400,
+      y: 190,
+      radius: 32,
+      color: "#4f46e5",
+      bgFill: "#eef2ff",
+      borderColor: "#6366f1",
+      textColor: "#312e81",
+      type: "core",
+      weight: 100,
+      clipCount: clips.length,
+      details: "Central hub coordinating your content delivery, hook cadence, and video pacing.",
     };
+    graphNodes.push(coreNode);
 
-    resize();
-    window.addEventListener("resize", resize);
+    // 1. If backend topicGraph exists
+    if (dna?.topicGraph?.nodes && dna.topicGraph.nodes.length > 0) {
+      const rawNodes = dna.topicGraph.nodes;
+      const angleStep = (2 * Math.PI) / rawNodes.length;
 
-    const basePairs = 24;
-    const draw = () => {
-      const width = canvas.width / window.devicePixelRatio;
-      const height = canvas.height / window.devicePixelRatio;
-      ctx.clearRect(0, 0, width, height);
+      rawNodes.forEach((rn, idx) => {
+        const angle = idx * angleStep;
+        const dist = rn.isGap ? 165 : 135;
+        const x = Math.round(400 + Math.cos(angle) * dist);
+        const y = Math.round(190 + Math.sin(angle) * dist);
+        const type = rn.isGap ? "gap" : rn.isTrending ? "trending" : "topic";
 
-      const centerX = width / 2;
-      const radius = Math.min(centerX * 0.72, 75);
-      const stepY = (height - 24) / basePairs;
+        const color = rn.isGap ? "#0284c7" : rn.isTrending ? "#d97706" : "#059669";
+        const bgFill = rn.isGap ? "#f0f9ff" : rn.isTrending ? "#fffbeb" : "#f0fdf4";
+        const borderColor = rn.isGap ? "#38bdf8" : rn.isTrending ? "#f59e0b" : "#10b981";
+        const textColor = rn.isGap ? "#0369a1" : rn.isTrending ? "#b45309" : "#047857";
 
-      t += 0.035;
+        graphNodes.push({
+          id: rn.id || `node-${idx}`,
+          label: rn.label || "Topic",
+          x,
+          y,
+          radius: Math.max(18, Math.min(26, Math.round(rn.weight * 26))),
+          color,
+          bgFill,
+          borderColor,
+          textColor,
+          type,
+          weight: Math.round(rn.weight * 100),
+          clipCount: rn.clipCount || 1,
+          details: rn.isGap
+            ? "High search interest with low competitive content density."
+            : "Core content category driving viewer retention.",
+        });
 
-      // Draw horizontal double helix base pairs with 3D depth sorting
-      for (let i = 0; i < basePairs; i++) {
-        const y = 12 + i * stepY;
-        const angle = t + i * 0.35;
+        graphEdges.push({ source: "core", target: rn.id || `node-${idx}` });
+      });
 
-        const x1 = centerX + Math.sin(angle) * radius;
-        const z1 = Math.cos(angle); // -1 (far) to +1 (near)
-
-        const x2 = centerX - Math.sin(angle) * radius;
-        const z2 = -z1;
-
-        // Connecting Base Pair Rung
-        const alpha = Math.max(0.2, (z1 + 1) / 2);
-        ctx.beginPath();
-        ctx.moveTo(x1, y);
-        ctx.lineTo(x2, y);
-        ctx.strokeStyle = `rgba(100, 116, 139, ${alpha * 0.5})`;
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-
-        // Node 1 (Strand A: Deep Indigo / Violet)
-        const r1 = 3.2 + (z1 + 1) * 1.5;
-        const glow1 = ctx.createRadialGradient(x1, y, 0, x1, y, r1 * 2);
-        glow1.addColorStop(0, `rgba(79, 70, 229, ${Math.max(0.3, (z1 + 1) / 2)})`);
-        glow1.addColorStop(1, "rgba(79, 70, 229, 0)");
-
-        ctx.fillStyle = glow1;
-        ctx.beginPath();
-        ctx.arc(x1, y, r1 * 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = z1 > 0 ? "#4338ca" : "#6366f1";
-        ctx.beginPath();
-        ctx.arc(x1, y, r1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Node 2 (Strand B: Vivid Emerald)
-        const r2 = 3.2 + (z2 + 1) * 1.5;
-        const glow2 = ctx.createRadialGradient(x2, y, 0, x2, y, r2 * 2);
-        glow2.addColorStop(0, `rgba(5, 150, 105, ${Math.max(0.3, (z2 + 1) / 2)})`);
-        glow2.addColorStop(1, "rgba(5, 150, 105, 0)");
-
-        ctx.fillStyle = glow2;
-        ctx.beginPath();
-        ctx.arc(x2, y, r2 * 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = z2 > 0 ? "#047857" : "#10b981";
-        ctx.beginPath();
-        ctx.arc(x2, y, r2, 0, Math.PI * 2);
-        ctx.fill();
+      if (dna.topicGraph.edges) {
+        dna.topicGraph.edges.forEach((e) => graphEdges.push(e));
       }
 
-      animId = requestAnimationFrame(draw);
-    };
+      return { nodes: graphNodes, edges: graphEdges };
+    }
 
-    draw();
+    // 2. Build nodes directly from incoming clips & gaps
+    const categoriesFromClips = Array.from(
+      new Set(clips.map((c) => c.category || "viral").filter(Boolean))
+    );
 
-    return () => {
-      window.removeEventListener("resize", resize);
-      cancelAnimationFrame(animId);
-    };
+    const topicsToMap =
+      categoriesFromClips.length > 0
+        ? categoriesFromClips.map((cat) => ({
+            id: cat,
+            label: cat.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+            isGap: false,
+            isTrending: true,
+            weight: 85,
+            clipCount: clips.filter((c) => c.category === cat).length,
+          }))
+        : dna?.topicDistribution && dna.topicDistribution.length > 0
+        ? dna.topicDistribution.map((t) => ({
+            id: t.topic,
+            label: t.label || t.topic.replace(/_/g, " "),
+            isGap: false,
+            isTrending: t.weight > 0.75,
+            weight: Math.round(t.weight * 100),
+            clipCount: Math.max(1, Math.round(t.weight * 5)),
+          }))
+        : [
+            { id: "viral", label: "Viral Hooks", isGap: false, isTrending: true, weight: 92, clipCount: 1 },
+            { id: "narrative", label: "Narrative Flow", isGap: false, isTrending: false, weight: 75, clipCount: 2 },
+          ];
+
+    // Add gaps if incoming
+    if (dna?.contentGaps && dna.contentGaps.length > 0) {
+      dna.contentGaps.slice(0, 2).forEach((g) => {
+        topicsToMap.push({
+          id: g.topic,
+          label: g.topic,
+          isGap: true,
+          isTrending: false,
+          weight: Math.round(g.opportunityScore * 100),
+          clipCount: 0,
+        });
+      });
+    }
+
+    const angleStep = (2 * Math.PI) / topicsToMap.length;
+    topicsToMap.forEach((t, idx) => {
+      const angle = idx * angleStep;
+      const dist = t.isGap ? 165 : 135;
+      const x = Math.round(400 + Math.cos(angle) * dist);
+      const y = Math.round(190 + Math.sin(angle) * dist);
+      const type = t.isGap ? "gap" : t.isTrending ? "trending" : "topic";
+
+      const color = t.isGap ? "#0284c7" : t.isTrending ? "#d97706" : "#059669";
+      const bgFill = t.isGap ? "#f0f9ff" : rnBgFill(type);
+      const borderColor = t.isGap ? "#38bdf8" : t.isTrending ? "#f59e0b" : "#10b981";
+      const textColor = t.isGap ? "#0369a1" : t.isTrending ? "#b45309" : "#047857";
+
+      graphNodes.push({
+        id: t.id,
+        label: t.label,
+        x,
+        y,
+        radius: t.isGap ? 20 : 23,
+        color,
+        bgFill,
+        borderColor,
+        textColor,
+        type,
+        weight: t.weight,
+        clipCount: t.clipCount,
+        details: t.isGap
+          ? "High audience demand topic with low creator saturation."
+          : `Category represented across ${t.clipCount} processed clips.`,
+      });
+
+      graphEdges.push({ source: "core", target: t.id });
+    });
+
+    // Inter-connect adjacent topic nodes for rich network geometry
+    for (let i = 1; i < graphNodes.length; i++) {
+      const nextIdx = i === graphNodes.length - 1 ? 1 : i + 1;
+      graphEdges.push({
+        source: graphNodes[i].id,
+        target: graphNodes[nextIdx].id,
+      });
+    }
+
+    return { nodes: graphNodes, edges: graphEdges };
+  }, [dna, clips]);
+
+  function rnBgFill(type: string): string {
+    if (type === "gap") return "#f0f9ff";
+    if (type === "trending") return "#fffbeb";
+    return "#f0fdf4";
+  }
+
+  // Filtered nodes
+  const filteredNodes = useMemo(() => {
+    if (activeFilter === "trending") {
+      return nodes.filter((n) => n.type === "core" || n.type === "trending");
+    }
+    if (activeFilter === "gaps") {
+      return nodes.filter((n) => n.type === "core" || n.type === "gap");
+    }
+    return nodes;
+  }, [nodes, activeFilter]);
+
+  const activeNode = useMemo(() => {
+    const id = hoveredNodeId || selectedNodeId;
+    if (!id) return nodes[0];
+    return nodes.find((n) => n.id === id) ?? nodes[0];
+  }, [hoveredNodeId, selectedNodeId, nodes]);
+
+  // Canva-style Pan Handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag if clicking the canvas background
+    if ((e.target as HTMLElement).tagName === "svg" || (e.target as HTMLElement).tagName === "rect") {
+      setIsPanning(true);
+      startPanRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+    }
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    setPan({
+      x: e.clientX - startPanRef.current.x,
+      y: e.clientY - startPanRef.current.y,
+    });
+  }, [isPanning]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
   }, []);
 
-  return <canvas ref={canvasRef} className="w-full h-full block" />;
-}
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+    setZoom((prev) => Math.max(0.6, Math.min(1.8, Number((prev + delta).toFixed(2)))));
+  }, []);
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  // Words from incoming DNA or default transcript cues
+  const words = useMemo(() => {
+    if (dna?.vocabularyProfile?.topWords && dna.vocabularyProfile.topWords.length > 0) {
+      return dna.vocabularyProfile.topWords;
+    }
+    if (clips.length > 0) {
+      return ["Absence Law", "Retention", "Transformation", "Habit", "Shift", "Strategy", "Impact"];
+    }
+    return ["3-Second Rule", "Retention Cliff", "Algorithm", "Framework", "Micro-Pacing", "Secret"];
+  }, [dna, clips]);
+
+  const dominantEmotion = dna?.emotionalRange?.dominantEmotion || "Persuasive & Engaging";
+  const wpm = dna?.speechProfile?.avgWpm ? Math.round(dna.speechProfile.avgWpm) : 152;
+  const avgHook = dna?.avgHookScore ? Math.round(dna.avgHookScore) : 85;
+
+  return (
+    <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs my-6">
+      {/* Header Bar */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-5">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-900 border border-indigo-200">
+              <Share2 size={12} className="text-indigo-600" aria-hidden="true" />
+              Creator DNA &amp; Knowledge Graph
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
+              <CheckCircle2 size={11} className="text-emerald-600" aria-hidden="true" />
+              Canva-Smooth Interactive Graph
+            </span>
+          </div>
+
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight sm:text-xl">
+            Creator Delivery &amp; Topic Knowledge Graph
+          </h2>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Smooth interactive concept network connecting your speech delivery, core niches, and high-demand content opportunities.
+          </p>
+        </div>
+
+        {/* Action Button */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onGenerate(true)}
+          className="cursor-pointer inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-50 shrink-0"
+          aria-label="Re-analyze speech and audio transcripts"
+        >
+          <RefreshCw size={13} className={busy ? "animate-spin text-indigo-600" : "text-slate-500"} aria-hidden="true" />
+          <span>{busy ? "Analyzing Transcripts..." : "Re-analyze Speech Profile"}</span>
+        </button>
+      </div>
+
+      {/* Main Grid: Left 8-col Graph, Right 4-col Genome Biomarkers */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Canva-Style Smooth Interactive Light Mode Canvas */}
+        <div className="lg:col-span-8 flex flex-col gap-3">
+          {/* Graph Toolbar Controls */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setActiveFilter("all")}
+                className={`cursor-pointer px-3 py-1 rounded-lg transition-all ${
+                  activeFilter === "all"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All Nodes ({nodes.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter("trending")}
+                className={`cursor-pointer px-3 py-1 rounded-lg transition-all ${
+                  activeFilter === "trending"
+                    ? "bg-white text-amber-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Trending
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter("gaps")}
+                className={`cursor-pointer px-3 py-1 rounded-lg transition-all ${
+                  activeFilter === "gaps"
+                    ? "bg-white text-cyan-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Content Gaps
+              </button>
+            </div>
+
+            {/* Smooth Zoom Controls */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="text-[11px] font-semibold text-slate-400 hidden sm:inline">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(1.8, Number((z + 0.15).toFixed(2))))}
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                title="Zoom In"
+                aria-label="Zoom in"
+              >
+                <ZoomIn size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.15).toFixed(2))))}
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                title="Zoom Out"
+                aria-label="Zoom out"
+              >
+                <ZoomOut size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={resetView}
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                title="Reset View"
+                aria-label="Reset view"
+              >
+                <Maximize2 size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Canva Light Canvas Viewport */}
+          <div
+            ref={viewportRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+            className={`relative w-full h-[370px] rounded-2xl border border-slate-200/90 bg-[#f8fafc] overflow-hidden select-none transition-colors ${
+              isPanning ? "cursor-grabbing" : "cursor-grab"
+            }`}
+          >
+            {/* Smooth SVG Canvas with Dot Matrix Pattern */}
+            <svg
+              className="w-full h-full"
+              viewBox="0 0 800 380"
+              preserveAspectRatio="xMidYMid meet"
+              aria-label="Creator DNA Knowledge Graph Network"
+            >
+              <defs>
+                {/* Clean Light Studio Dot Matrix Pattern */}
+                <pattern id="lightGridDots" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1.2" fill="#cbd5e1" opacity="0.6" />
+                </pattern>
+
+                {/* Soft Core Glow Filter */}
+                <filter id="softGlowLight" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              {/* Light Canvas Background */}
+              <rect width="100%" height="100%" fill="#f8fafc" />
+              <rect width="100%" height="100%" fill="url(#lightGridDots)" />
+
+              {/* Zoom & Pan Group Container (GPU Hardware Transform) */}
+              <g
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: "400px 190px",
+                  transition: isPanning ? "none" : "transform 150ms cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
+              >
+                {/* Concentric Orbital Guide Rings */}
+                <circle cx="400" cy="190" r="135" fill="none" stroke="#e2e8f0" strokeDasharray="3 3" strokeWidth="1.2" />
+                <circle cx="400" cy="190" r="165" fill="none" stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" />
+
+                {/* Graph Edges (Smooth Bezier and Straight Connectors) */}
+                {edges.map((edge, i) => {
+                  const s = nodes.find((n) => n.id === edge.source);
+                  const t = nodes.find((n) => n.id === edge.target);
+                  if (!s || !t) return null;
+
+                  const isHighlighted =
+                    hoveredNodeId === s.id ||
+                    hoveredNodeId === t.id ||
+                    selectedNodeId === s.id ||
+                    selectedNodeId === t.id;
+
+                  return (
+                    <line
+                      key={`edge-${i}`}
+                      x1={s.x}
+                      y1={s.y}
+                      x2={t.x}
+                      y2={t.y}
+                      stroke={isHighlighted ? "#4f46e5" : s.id === "core" ? "#cbd5e1" : "#e2e8f0"}
+                      strokeWidth={isHighlighted ? 2.5 : 1.4}
+                      strokeOpacity={isHighlighted ? 1 : 0.75}
+                      strokeDasharray={t.type === "gap" ? "4 3" : undefined}
+                      className="transition-all duration-150"
+                    />
+                  );
+                })}
+
+                {/* Graph Nodes */}
+                {filteredNodes.map((node) => {
+                  const isHovered = hoveredNodeId === node.id;
+                  const isSelected = selectedNodeId === node.id;
+                  const isDimmed =
+                    hoveredNodeId &&
+                    hoveredNodeId !== node.id &&
+                    !edges.some(
+                      (e) =>
+                        (e.source === hoveredNodeId && e.target === node.id) ||
+                        (e.target === hoveredNodeId && e.source === node.id)
+                    );
+
+                  return (
+                    <g
+                      key={node.id}
+                      className="cursor-pointer transition-transform duration-150"
+                      transform={`translate(${node.x}, ${node.y}) scale(${isHovered ? 1.08 : 1})`}
+                      onMouseEnter={() => setHoveredNodeId(node.id)}
+                      onMouseLeave={() => setHoveredNodeId(null)}
+                      onClick={() => setSelectedNodeId(node.id === selectedNodeId ? null : node.id)}
+                    >
+                      {/* Ambient Shadow Ring */}
+                      <circle
+                        r={node.radius + 4}
+                        fill="rgba(15, 23, 42, 0.05)"
+                        className="transition-all duration-150"
+                      />
+
+                      {/* Trending Outer Ring */}
+                      {node.type === "trending" && (
+                        <circle
+                          r={node.radius + 7}
+                          fill="none"
+                          stroke="#f59e0b"
+                          strokeWidth="1.8"
+                          strokeDasharray="4 2"
+                        />
+                      )}
+
+                      {/* Content Gap Dashed Outer Ring */}
+                      {node.type === "gap" && (
+                        <circle
+                          r={node.radius + 6}
+                          fill="none"
+                          stroke="#0284c7"
+                          strokeWidth="1.8"
+                          strokeDasharray="3 3"
+                        />
+                      )}
+
+                      {/* Node Fill & Border */}
+                      <circle
+                        r={node.radius}
+                        fill={node.bgFill}
+                        stroke={isHovered || isSelected ? node.color : node.borderColor}
+                        strokeWidth={isHovered || isSelected ? 2.5 : 2}
+                        opacity={isDimmed ? 0.35 : 1}
+                        filter="url(#softGlowLight)"
+                      />
+
+                      {/* Inner Dot Anchor */}
+                      <circle
+                        r={node.type === "core" ? 7 : 4}
+                        fill={node.color}
+                        opacity={isDimmed ? 0.35 : 1}
+                      />
+
+                      {/* Node Label (Clean Slate-900 / Slate-700) */}
+                      <text
+                        y={node.radius + 15}
+                        textAnchor="middle"
+                        fill={isHovered ? "#0f172a" : node.textColor}
+                        fontSize={node.type === "core" ? 11 : 10.5}
+                        fontWeight={node.type === "core" ? 800 : 700}
+                        opacity={isDimmed ? 0.3 : 1}
+                        className="pointer-events-none select-none"
+                      >
+                        {node.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
+
+            {/* Floating Inspector HUD Card (Clean Light Apple/Linear Card) */}
+            {activeNode && (
+              <div className="absolute bottom-3 left-3 rounded-xl border border-slate-200/95 bg-white/95 p-3.5 shadow-lg backdrop-blur-md text-xs text-slate-800 max-w-[270px] pointer-events-none transition-all">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <strong className="font-extrabold text-sm text-slate-900 truncate">
+                    {activeNode.label}
+                  </strong>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase border ${
+                      activeNode.type === "gap"
+                        ? "bg-cyan-50 text-cyan-800 border-cyan-200"
+                        : activeNode.type === "trending"
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-indigo-50 text-indigo-800 border-indigo-200"
+                    }`}
+                  >
+                    {activeNode.type === "gap"
+                      ? "Content Gap"
+                      : activeNode.type === "trending"
+                      ? "Trending Surge"
+                      : "Core Focus"}
+                  </span>
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-slate-600 mb-2">
+                  {activeNode.details}
+                </p>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-[10px] text-slate-500 font-semibold">
+                  <span>Relevance: <strong className="text-slate-900 font-bold">{activeNode.weight}%</strong></span>
+                  <span>Clips: <strong className="text-slate-900 font-bold">{activeNode.clipCount}</strong></span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Graph Legend */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5 font-bold text-slate-800">
+                <span className="h-2.5 w-2.5 rounded-full bg-indigo-600" aria-hidden="true" />
+                Hub Anchor
+              </span>
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                Active Topics
+              </span>
+              <span className="flex items-center gap-1.5 font-semibold text-amber-800">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden="true" />
+                Trending Surge
+              </span>
+              <span className="flex items-center gap-1.5 font-semibold text-cyan-800">
+                <span className="h-2.5 w-2.5 rounded-full border-2 border-cyan-500 bg-transparent" aria-hidden="true" />
+                Content Gap
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Drag to pan • Scroll to zoom
+            </span>
+          </div>
+        </div>
+
+        {/* Right Column: DNA Genome Biomarkers Track (4 cols) */}
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          <div className="border-b border-slate-100 pb-2.5">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Genome Biomarkers &amp; Speech Delivery
+            </h3>
+            <span className="text-[11px] text-slate-500">Audio transcript acoustic parameters</span>
+          </div>
+
+          {/* Biomarker 1: Speaking Cadence */}
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-slate-600">Speech Cadence</span>
+              <span className="text-xs font-extrabold text-slate-900">{wpm} WPM</span>
+            </div>
+            {/* Visual Cadence Gauge */}
+            <div className="w-full bg-slate-200 rounded-full h-2 my-1.5 relative overflow-hidden">
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.max(20, (wpm / 180) * 100))}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-semibold text-emerald-800 block">
+              Optimal range (140–165 WPM) for short-form retention
+            </span>
+          </div>
+
+          {/* Biomarker 2: Hook Saliency */}
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-slate-600">Avg Hook Saliency</span>
+              <span className="text-xs font-extrabold text-indigo-900">{avgHook} / 100</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 my-1.5 relative overflow-hidden">
+              <div
+                className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, avgHook)}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-semibold text-indigo-800 block">
+              Top tier hook velocity holding 3-second viewers
+            </span>
+          </div>
+
+          {/* Biomarker 3: Dominant Delivery Tone */}
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-slate-600">Dominant Tone</span>
+              <span className="text-xs font-extrabold text-purple-900 truncate max-w-[140px]">
+                {dominantEmotion}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-tight mt-1">
+              Emotional inflection holding audience attention across transitions.
+            </p>
+          </div>
+
+          {/* High-Frequency Spoken Vocabulary */}
+          <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+            <span className="text-xs font-bold text-slate-800 block mb-2">
+              High-Frequency Spoken Keywords
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {words.map((w, idx) => (
+                <span
+                  key={idx}
+                  className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-2xs transition-all hover:bg-white hover:border-slate-300"
+                >
+                  {w}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});

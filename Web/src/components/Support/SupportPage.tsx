@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ArrowLeft, HeartHandshake, Sparkles } from "lucide-react";
-import Lanyard from "./Lanyard";
-import GradientASCII from "./GradientASCII";
+
+const Lanyard = dynamic(() => import("./Lanyard"), { ssr: false });
+const GradientASCII = dynamic(() => import("./GradientASCII"), { ssr: false });
 
 const team = [
   { name: "Abbas Ali", image: "/team/abbas-ali.png" },
