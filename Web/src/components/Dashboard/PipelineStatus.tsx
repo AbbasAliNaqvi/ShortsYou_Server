@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Activity, Bot, Download, Video as VideoIcon, WandSparkles } from "lucide-react";
 import type { Job, Video } from "@/lib/api";
 
@@ -27,18 +27,26 @@ export const PipelineStatus = memo(function PipelineStatus({ jobs, videos, avgSc
   const activeJob = jobs.find((j) => !["completed", "failed"].includes(j.status));
   const activeVideo = activeJob ? videos.find((v) => v.id === activeJob.videoId) : null;
 
-  const [waveTick] = useState(() => {
+  const [waveTick, setWaveTick] = useState({
+    cyan: [68, 42, 64, 30, 58, 24, 52],
+    gold: [52, 16, 48, 12, 44, 18, 36],
+    stageValues: [92, 84, 78, 88, 71],
+    pointerY: 18,
+    loadPct: 84,
+  });
+
+  useEffect(() => {
     const cyan = Array.from({ length: 7 }, () => Math.round(14 + Math.random() * 68));
     const gold = Array.from({ length: 7 }, () => Math.round(8 + Math.random() * 64));
     const stageValues = Array.from({ length: 5 }, () => Math.round(55 + Math.random() * 44));
-    return {
+    setWaveTick({
       cyan,
       gold,
       stageValues,
       pointerY: gold[gold.length - 2] ?? 28,
       loadPct: Math.round(62 + Math.random() * 35),
-    };
-  });
+    });
+  }, []);
 
   const toPath = (pts: number[]) => {
     const xs = [5, 50, 95, 140, 185, 230, 275];

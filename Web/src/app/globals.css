@@ -8367,7 +8367,7 @@ body {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 5;
+  z-index: 30;
   padding: 3px 8px;
   border-radius: 99px;
   font-size: 10px;
