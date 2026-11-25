@@ -13,10 +13,12 @@ export interface PixelRevealLoaderProps {
 const ROWS = 36;
 
 /**
- * Google-level 60fps pixel-by-pixel, left-to-right, row-by-row AI image reveal:
+ * 60fps Google-level pixel-by-pixel AI image generation loader:
  * - Blurry base layer underneath
  * - Sharp image revealed row-by-row left-to-right via 6-vertex raster clip-path
- * - 60fps Canvas glowing raster write-head + crystallizing micro-pixels
+ * - Additive-blended glowing fire/plasma raster write-head & firing pixel embers
+ * - Live neural pixel-ignition grid across the unrevealed region
+ * - Interactive pointer-move ember burst
  */
 export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,31 +41,68 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
     let width = 0;
     let height = 0;
     let rafId = 0;
+    const start = performance.now();
 
-    type Spark = {
-      dx: number;
-      dy: number;
-      size: number;
-      phase: number;
-      speed: number;
-      colorIdx: number;
+    const pointer = { x: -999, y: -999, active: false };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = parent.getBoundingClientRect();
+      pointer.x = e.clientX - rect.left;
+      pointer.y = e.clientY - rect.top;
+      pointer.active = true;
+    };
+    const onPointerLeave = () => {
+      pointer.active = false;
     };
 
-    const sparks: Spark[] = Array.from({ length: 48 }, (_, i) => ({
-      dx: ((i * 37) % 56) - 28,
-      dy: ((i * 53) % 24) - 12,
-      size: 2 + (i % 3),
-      phase: (i * 0.61) % (Math.PI * 2),
-      speed: 0.7 + ((i * 29) % 100) / 100,
-      colorIdx: i % 4,
-    }));
+    parent.addEventListener("pointermove", onPointerMove);
+    parent.addEventListener("pointerleave", onPointerLeave);
 
-    const COLORS = [
-      [56, 189, 248],  // sky-400
-      [99, 102, 241],  // indigo-500
-      [168, 85, 247],  // purple-500
-      [251, 191, 36],  // amber-400
+    type Ember = {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      maxLife: number;
+      size: number;
+      palette: number;
+    };
+
+    const embers: Ember[] = [];
+    const PALETTE = [
+      [255, 255, 255], // hot white core
+      [251, 191, 36],  // amber fire
+      [249, 115, 22],  // orange blaze
+      [244, 63, 94],   // rose ember
+      [56, 189, 248],  // cyan AI spark
     ] as const;
+
+    const spawnEmber = (originX: number, originY: number, burst = false) => {
+      if (embers.length > 160) return;
+      const angle = burst ? Math.random() * Math.PI * 2 : -Math.PI * 0.5 + (Math.random() - 0.5) * 2.2;
+      const speed = (burst ? 1.4 : 0.6) + Math.random() * 1.8;
+      embers.push({
+        x: originX + (Math.random() - 0.5) * 14,
+        y: originY + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.35,
+        life: 0,
+        maxLife: 24 + Math.random() * 28,
+        size: 2 + Math.floor(Math.random() * 3),
+        palette: Math.floor(Math.random() * PALETTE.length),
+      });
+    };
+
+    // Background neural pixel grid cells that continuously fire/shimmer
+    const gridNodes = Array.from({ length: 75 }, (_, i) => ({
+      xNorm: ((i * 137 + 41) % 1000) / 1000,
+      yNorm: ((i * 293 + 83) % 1000) / 1000,
+      phase: (i * 0.79) % (Math.PI * 2),
+      speed: 1.5 + ((i * 19) % 100) / 40,
+      size: 3 + (i % 3) * 2,
+      palette: i % PALETTE.length,
+    }));
 
     const resize = () => {
       const rect = parent.getBoundingClientRect();
@@ -76,7 +115,6 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
     };
 
     const render = (now: number) => {
-      // Smoothly interpolate toward target progress for 60fps raster motion
       const target = targetProgressRef.current;
       const current = smoothProgressRef.current;
       const next = current + (target - current) * 0.08;
@@ -84,6 +122,7 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
       setSmoothProgress(smoothProgressRef.current);
 
       ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "lighter";
 
       const clamped = Math.max(0, Math.min(99.9, smoothProgressRef.current));
       const rowFloat = (clamped / 100) * ROWS;
@@ -94,42 +133,82 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
       const headX = colFrac * width;
       const headY = (rowIdx + 0.5) * rowH;
 
-      // Subtle glowing horizontal trail on the active row behind the write-head
-      const trailGrad = ctx.createLinearGradient(Math.max(0, headX - 90), headY, headX + 12, headY);
-      trailGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
-      trailGrad.addColorStop(0.6, "rgba(99, 102, 241, 0.28)");
-      trailGrad.addColorStop(1, "rgba(255, 255, 255, 0.85)");
-      ctx.fillStyle = trailGrad;
-      ctx.fillRect(Math.max(0, headX - 90), headY - rowH * 0.45, Math.min(headX + 12, 102), rowH * 0.9);
+      // 1. Continuous 60fps sweeping AI energy wave across the card so it's always alive
+      const waveCycle = ((now - start) % 2600) / 2600;
+      const waveY = -40 + waveCycle * (height + 80);
+      const waveGrad = ctx.createLinearGradient(0, waveY - 36, 0, waveY + 36);
+      waveGrad.addColorStop(0, "rgba(249, 115, 22, 0)");
+      waveGrad.addColorStop(0.45, "rgba(249, 115, 22, 0.14)");
+      waveGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.28)");
+      waveGrad.addColorStop(0.55, "rgba(56, 189, 248, 0.16)");
+      waveGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = waveGrad;
+      ctx.fillRect(0, waveY - 36, width, 72);
 
-      // Luminous radial bloom at the raster write-head
-      const bloom = ctx.createRadialGradient(headX, headY, 1, headX, headY, 26);
-      bloom.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-      bloom.addColorStop(0.3, "rgba(56, 189, 248, 0.55)");
-      bloom.addColorStop(0.65, "rgba(168, 85, 247, 0.22)");
-      bloom.addColorStop(1, "rgba(168, 85, 247, 0)");
-      ctx.fillStyle = bloom;
-      ctx.beginPath();
-      ctx.arc(headX, headY, 26, 0, Math.PI * 2);
-      ctx.fill();
+      // 2. Firing neural pixels across the frame (stronger in unrevealed region)
+      for (const g of gridNodes) {
+        const gx = g.xNorm * width;
+        const gy = g.yNorm * height;
+        const pulse = Math.pow((Math.sin(now * 0.004 * g.speed + g.phase) + 1) / 2, 3);
+        const waveBoost = Math.max(0, 1 - Math.abs(gy - waveY) / 48) * 0.7;
+        const alpha = Math.min(0.85, pulse * 0.45 + waveBoost);
+        if (alpha < 0.08) continue;
 
-      // Pixel-crystallization sparks around the active write-head
-      for (const s of sparks) {
-        const px = headX + s.dx + Math.sin(now * 0.004 * s.speed + s.phase) * 4;
-        const py = headY + s.dy + Math.cos(now * 0.003 * s.speed + s.phase) * 3;
-        if (px < 0 || px > width || py < 0 || py > height) continue;
-
-        const twinkle = 0.25 + 0.75 * ((Math.sin(now * 0.01 * s.speed + s.phase) + 1) / 2);
-        const dist = Math.hypot(px - headX, py - headY);
-        const falloff = Math.max(0, 1 - dist / 34);
-        const alpha = twinkle * falloff * 0.95;
-        if (alpha <= 0.03) continue;
-
-        const [r, g, b] = COLORS[s.colorIdx];
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        ctx.fillRect(Math.round(px), Math.round(py), s.size, s.size);
+        const [r, gr, b] = PALETTE[g.palette];
+        ctx.fillStyle = `rgba(${r}, ${gr}, ${b}, ${alpha})`;
+        ctx.fillRect(Math.round(gx), Math.round(gy), g.size, g.size);
       }
 
+      // 3. Hot fire-glow trail along the active raster row
+      const trailLen = 110;
+      const trailGrad = ctx.createLinearGradient(Math.max(0, headX - trailLen), headY, headX + 16, headY);
+      trailGrad.addColorStop(0, "rgba(244, 63, 94, 0)");
+      trailGrad.addColorStop(0.4, "rgba(249, 115, 22, 0.35)");
+      trailGrad.addColorStop(0.8, "rgba(251, 191, 36, 0.75)");
+      trailGrad.addColorStop(1, "rgba(255, 255, 255, 0.95)");
+      ctx.fillStyle = trailGrad;
+      ctx.fillRect(Math.max(0, headX - trailLen), headY - rowH * 0.55, Math.min(headX + 16, trailLen + 16), rowH * 1.1);
+
+      // 4. Fire-bloom at the raster write-head
+      const flicker = 0.85 + 0.3 * Math.sin(now * 0.02);
+      const bloomR = 32 * flicker;
+      const bloom = ctx.createRadialGradient(headX, headY, 1, headX, headY, bloomR);
+      bloom.addColorStop(0, "rgba(255, 255, 255, 1)");
+      bloom.addColorStop(0.25, "rgba(251, 191, 36, 0.85)");
+      bloom.addColorStop(0.55, "rgba(249, 115, 22, 0.45)");
+      bloom.addColorStop(0.85, "rgba(244, 63, 94, 0.15)");
+      bloom.addColorStop(1, "rgba(244, 63, 94, 0)");
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(headX, headY, bloomR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 5. Spawn firing pixel embers from write-head & interactive pointer
+      spawnEmber(headX, headY, false);
+      if (Math.random() > 0.45) spawnEmber(headX, headY, false);
+      if (pointer.active) {
+        spawnEmber(pointer.x, pointer.y, true);
+        spawnEmber(pointer.x, pointer.y, true);
+      }
+
+      // Update & draw embers
+      for (let i = embers.length - 1; i >= 0; i--) {
+        const e = embers[i];
+        e.x += e.vx;
+        e.y += e.vy;
+        e.vy -= 0.025; // slight upward fire buoyancy
+        e.life += 1;
+        if (e.life >= e.maxLife) {
+          embers.splice(i, 1);
+          continue;
+        }
+        const t = 1 - e.life / e.maxLife;
+        const [r, g, b] = PALETTE[e.palette];
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(t * 0.95).toFixed(2)})`;
+        ctx.fillRect(Math.round(e.x), Math.round(e.y), e.size, e.size);
+      }
+
+      ctx.globalCompositeOperation = "source-over";
       rafId = requestAnimationFrame(render);
     };
 
@@ -141,6 +220,8 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
+      parent.removeEventListener("pointermove", onPointerMove);
+      parent.removeEventListener("pointerleave", onPointerLeave);
     };
   }, []);
 
@@ -168,7 +249,7 @@ export function PixelRevealLoader({ image, progress }: PixelRevealLoaderProps) {
           }}
         />
       )}
-      {/* 60fps Raster Write-Head & Pixel Crystallization Canvas */}
+      {/* 60fps Fire-Glow & Firing Pixel Embers Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 size-full" />
     </div>
   );

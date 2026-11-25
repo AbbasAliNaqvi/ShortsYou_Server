@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { Clip, Video } from "@/lib/api";
 import { formatDuration } from "@/lib/formatters";
-import { PixelRevealLoader } from "@/components/ui/PixelRevealLoader";
+import { ImageGeneration, type ImageGenerationStatus } from "@/components/agents/image-generation";
 
 const RENDER_STEPS = [
   "Fetching source video…",
@@ -87,6 +87,14 @@ export const ClipCard = memo(
       Math.floor((renderProgress / 100) * RENDER_STEPS.length)
     );
 
+    const genStatus: ImageGenerationStatus = !isRendering
+      ? "complete"
+      : renderProgress < 20
+      ? "queued"
+      : renderProgress < 75
+      ? "generating"
+      : "refining";
+
     return (
       <article
         className={`ca-clip-card ca-glass ${selected ? "is-selected" : ""}`}
@@ -99,20 +107,34 @@ export const ClipCard = memo(
           tabIndex={0}
           title={isRendered ? "Click to preview short" : "Click to view details"}
         >
-          {image ? (
+          {isRendering ? (
+            <div className="absolute inset-0 z-10">
+              <ImageGeneration
+                status={genStatus}
+                progress={renderProgress}
+                size="fluid"
+                aspectRatio="9 / 14"
+                resolution=""
+                interactive
+                showStatus={false}
+                className="size-full"
+                mediaClassName="size-full rounded-none border-0"
+              >
+                {image ? (
+                  <img src={image} alt="" className="size-full object-cover" loading="lazy" />
+                ) : (
+                  <div className={`ca-clip-art-fallback art-${index % 4}`}>
+                    <Play size={28} />
+                  </div>
+                )}
+              </ImageGeneration>
+            </div>
+          ) : image ? (
             <img
               src={image}
               alt=""
               className="ca-clip-poster-img"
               loading="lazy"
-              style={
-                isRendering
-                  ? {
-                      filter: "blur(18px) saturate(1.15) brightness(0.78)",
-                      transform: "scale(1.06)",
-                    }
-                  : undefined
-              }
             />
           ) : (
             <div className={`ca-clip-art-fallback art-${index % 4}`}>
@@ -153,9 +175,6 @@ export const ClipCard = memo(
               </div>
             </div>
           )}
-
-          {/* Custom 60fps Pixel-by-Pixel Reveal Loader */}
-          {isRendering && <PixelRevealLoader image={image} progress={renderProgress} />}
 
           {/* Poster Caption Overlay */}
           <div className="ca-clip-caption-overlay">
