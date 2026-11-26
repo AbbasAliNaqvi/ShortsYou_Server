@@ -95,16 +95,37 @@ export function PlaceholderDashboard() {
     [jobs]
   );
 
-  const avgViralScore = useMemo(
-    () =>
+  const [savedAvgScore, setSavedAvgScore] = useState(0);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("shortsyou_viral_scores");
+      if (!raw) return;
+      const map = JSON.parse(raw) as Record<string, number>;
+      const vals = Object.values(map).filter((v) => typeof v === "number" && v > 0);
+      if (vals.length > 0) {
+        setSavedAvgScore(Math.round(vals.reduce((s, v) => s + v, 0) / vals.length));
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [clips, dailyReels]);
+
+  const avgViralScore = useMemo(() => {
+    const backendAvg =
       clips.length > 0
-        ? Math.round(clips.reduce((s, c) => s + c.viralScore, 0) / clips.length)
-        : 0,
-    [clips]
-  );
+        ? Math.round(clips.reduce((s, c) => s + (c.viralScore || 0), 0) / clips.length)
+        : 0;
+    return backendAvg > 0 ? backendAvg : savedAvgScore;
+  }, [clips, savedAvgScore]);
 
   const totalClipsRendered = useMemo(
-    () => clips.filter((c) => ["exported", "published"].includes(c.status)).length,
+    () =>
+      clips.filter(
+        (c) =>
+          ["exported", "published", "completed", "rendered", "ready"].includes(c.status) ||
+          Boolean(c.supabaseShortUrl)
+      ).length,
     [clips]
   );
 
@@ -190,8 +211,40 @@ export function PlaceholderDashboard() {
       setExportingClip(clipId);
       setNotice("Creating your short...");
       try {
-        await exportMutation.mutateAsync(clipId);
-        setNotice("Short rendering started. It will appear as downloadable when ready.");
+        const reel = dailyReels.find((r) => r.id === clipId);
+        if (reel) {
+          const res = await api.createManualShort(
+            token,
+            reel.videoId,
+            reel.startTime,
+            reel.endTime,
+            reel.hookText || "",
+            {
+              backgroundStyle: "crop",
+              colorGrade: "vibrant",
+              musicMood: "energetic",
+              captionStyle: "karaoke",
+              layout: "standard",
+              removeSilences: true,
+              removeFillers: true,
+            }
+          );
+          if (res?.clipId) {
+            try {
+              const saved = JSON.parse(localStorage.getItem("shortsyou_viral_scores") || "{}") as Record<string, number>;
+              if (saved[reel.id] > 0) {
+                saved[res.clipId] = saved[reel.id];
+                localStorage.setItem("shortsyou_viral_scores", JSON.stringify(saved));
+              }
+            } catch {
+              // ignore storage errors
+            }
+          }
+        } else {
+          await exportMutation.mutateAsync(clipId);
+        }
+        setNotice("Short rendering started.");
+        router.push("/clips");
       } catch (createError) {
         setNotice(
           createError instanceof Error ? createError.message : "Unable to create this short."
@@ -200,7 +253,7 @@ export function PlaceholderDashboard() {
         setExportingClip(null);
       }
     },
-    [token, exportMutation]
+    [token, dailyReels, exportMutation, router]
   );
 
   const clearVideoResults = useCallback(() => setVideoResults([]), []);

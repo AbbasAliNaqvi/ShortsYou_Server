@@ -37,8 +37,8 @@ export default function VideosPage() {
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Top Tabs State: Your Videos vs Targeted Videos vs All
-  const [activeTopTab, setActiveTopTab] = useState<VideosTopTab>("your_videos");
+  // Top Tabs State: All vs Your Videos vs Targeted Videos
+  const [activeTopTab, setActiveTopTab] = useState<VideosTopTab>("all");
 
   // Sub-filters & Search State
   const [searchQuery, setSearchQuery] = useState("");

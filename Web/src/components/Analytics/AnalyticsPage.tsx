@@ -188,45 +188,69 @@ export function AnalyticsPage() {
     router.push("/login");
   }, [router]);
 
-  // Real JSON file export of analytics
+  // CSV file export of analytics summary, chart telemetry, and clips
   const handleExportReport = useCallback(() => {
-    const reportData = {
-      exportedAt: new Date().toISOString(),
-      range,
-      user: {
-        id: user?.id || "usr-studio",
-        name: user?.name || "Creator",
-        email: user?.email || "",
-      },
-      summary: {
-        totalClips: filteredClips.length,
-        averageHookScore: averageScore,
-        totalRecordedViews: totalViews,
-        pearsonCorrelation: performance?.pearsonR ?? null,
-      },
-      clips: filteredClips.map((c) => ({
-        id: c.id,
-        hook: c.selectedHook || c.originalHook,
-        score: getScore(c),
-        duration: c.durationSeconds,
-        status: c.status,
-        category: c.category,
-      })),
+    const esc = (val: unknown) => {
+      const str = val === null || val === undefined ? "" : String(val);
+      return `"${str.replace(/"/g, '""')}"`;
     };
 
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
+    const rows: string[] = [];
+    rows.push(["Section", "Metric / ID", "Label / Hook", "Value / Score", "Duration (s)", "Status", "Category", "Extra"].map(esc).join(","));
+
+    // Summary rows
+    rows.push(["Summary", "Exported At", "", new Date().toISOString(), "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Range", "", range, "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Creator", user?.name || "Creator", user?.email || "", "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Total Clips", "", filteredClips.length, "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Average Hook Score", "", averageScore, "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Total Recorded Views", "", totalViews, "", "", "", ""].map(esc).join(","));
+    rows.push(["Summary", "Pearson Correlation", "", performance?.pearsonR ?? "N/A", "", "", "", ""].map(esc).join(","));
+
+    // Chart / Performance Points rows
+    if (performance?.points?.length) {
+      performance.points.forEach((pt) => {
+        rows.push([
+          "Chart Telemetry",
+          pt.clipId,
+          pt.category || "General",
+          pt.predictedScore,
+          "",
+          "",
+          pt.category || "",
+          `Actual Views: ${pt.actualViews}`,
+        ].map(esc).join(","));
+      });
+    }
+
+    // Clips breakdown rows
+    filteredClips.forEach((c) => {
+      rows.push([
+        "Clip",
+        c.id,
+        c.selectedHook || c.originalHook || "",
+        getScore(c),
+        c.durationSeconds ?? 0,
+        c.status,
+        c.category || "",
+        c.createdAt || "",
+      ].map(esc).join(","));
+    });
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `shortsyou_analytics_${range}_${Date.now()}.json`;
+    link.download = `shortsyou_analytics_${range}_${Date.now()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
     notify(
-      "Report Downloaded",
-      `Full analytics telemetry report exported for ${range}.`,
+      "CSV Report Downloaded",
+      `Analytics & chart telemetry CSV exported for ${range}.`,
       "info"
     );
   }, [range, user, filteredClips, averageScore, totalViews, performance]);
