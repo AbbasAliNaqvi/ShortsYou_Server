@@ -4,3 +4,5 @@ export * from "./EditorHeaderBanner";
 export * from "./EditorPhonePreview";
 export * from "./EditorControlPanel";
 export * from "./AgenticDirector";
+export * from "./StudioTimeline";
+export * from "./RenderProgressDrawer";
