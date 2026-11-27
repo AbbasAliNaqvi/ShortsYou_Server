@@ -76,7 +76,7 @@ export const SwipeInsightsModal = memo(function SwipeInsightsModal({
                 <span className="swipe-stat-label">Viral Index</span>
                 <div className="swipe-stat-value text-amber-400">
                   <Flame size={18} />
-                  <span>{item.viralScore}/100</span>
+                  <span>{item.viralScore}</span>
                 </div>
               </div>
               <div className="swipe-stat-card">

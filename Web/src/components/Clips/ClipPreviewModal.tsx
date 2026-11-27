@@ -126,7 +126,7 @@ export function ClipPreviewModal({
                 <div className="ca-preview-stat-card">
                   <span className="ca-preview-stat-label">Viral Score</span>
                   <strong className="ca-preview-stat-value text-amber-500">
-                    {Math.round(clip.viralScore)} / 100
+                    {clip.viralScore > 0 ? `${Math.round(clip.viralScore)}` : "Calculating…"}
                   </strong>
                 </div>
 
@@ -153,16 +153,6 @@ export function ClipPreviewModal({
 
                 {/* Action Buttons */}
                 <div className="ca-preview-actions-column">
-                  {/* Pre-Upload Dual Option Trigger */}
-                  <button
-                    type="button"
-                    className="ca-preview-action-btn bg-gradient-to-r from-amber-500 to-rose-600 text-white font-semibold shadow-md hover:shadow-lg hover:brightness-105 transition-all"
-                    onClick={() => setPreUploadOpen(true)}
-                  >
-                    <Zap size={14} />
-                    <span>Check Virality & Publish</span>
-                  </button>
-
                   {isRendered && (
                     <button
                       type="button"
@@ -174,15 +164,6 @@ export function ClipPreviewModal({
                       <span>Download MP4</span>
                     </button>
                   )}
-
-                  <Link
-                    href={`/editor/${clip.videoId}?clipId=${clip.id}`}
-                    className="ca-preview-action-btn btn-secondary"
-                    onClick={onClose}
-                  >
-                    <SlidersHorizontal size={14} />
-                    <span>Open in Timeline Editor</span>
-                  </Link>
                 </div>
               </div>
             </div>

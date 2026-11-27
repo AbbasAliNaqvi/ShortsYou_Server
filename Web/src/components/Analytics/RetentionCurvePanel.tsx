@@ -104,11 +104,27 @@ export const RetentionCurvePanel = memo(function RetentionCurvePanel({
 
   const activeScore = activeClip ? getScore(activeClip) : avgScore;
 
-  // Calculate realistic retention decay curve from incoming scores
+  // Per-clip randomized curve offsets (client-only to avoid hydration mismatch)
+  const [clipJitter, setClipJitter] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  useEffect(() => {
+    setClipJitter(
+      Array.from({ length: 6 }, () => Math.round((Math.random() - 0.5) * 14))
+    );
+  }, [activeClip?.id]);
+
+  // Calculate realistic retention decay curve from incoming scores + per-clip randomness
   const chartData = useMemo(() => {
     if (!hasData) return [];
     const hookHoldAvg = Math.min(94, Math.max(50, Math.round(avgScore * 0.90)));
     const hookHoldActive = Math.min(96, Math.max(52, Math.round(activeScore * 0.91)));
+    const clampPct = (v: number, maxPrev: number) => Math.min(maxPrev, Math.max(12, v));
+
+    const s3 = clampPct(hookHoldActive + clipJitter[0], 98);
+    const s10 = clampPct(Math.round(hookHoldActive * 0.86) + clipJitter[1], s3 - 2);
+    const s20 = clampPct(Math.round(hookHoldActive * 0.74) + clipJitter[2], s10 - 2);
+    const s30 = clampPct(Math.round(hookHoldActive * 0.63) + clipJitter[3], s20 - 2);
+    const s45 = clampPct(Math.round(hookHoldActive * 0.53) + clipJitter[4], s30 - 2);
+    const s60 = clampPct(Math.round(hookHoldActive * 0.44) + clipJitter[5], s45 - 2);
 
     return [
       {
@@ -119,42 +135,42 @@ export const RetentionCurvePanel = memo(function RetentionCurvePanel({
       },
       {
         second: "3s Hook",
-        "Selected Clip": hookHoldActive,
+        "Selected Clip": s3,
         "Channel Average": hookHoldAvg,
         "Platform Baseline": 64,
       },
       {
         second: "10s",
-        "Selected Clip": Math.round(hookHoldActive * 0.86),
+        "Selected Clip": s10,
         "Channel Average": Math.round(hookHoldAvg * 0.83),
         "Platform Baseline": 51,
       },
       {
         second: "20s",
-        "Selected Clip": Math.round(hookHoldActive * 0.74),
+        "Selected Clip": s20,
         "Channel Average": Math.round(hookHoldAvg * 0.70),
         "Platform Baseline": 40,
       },
       {
         second: "30s Mid",
-        "Selected Clip": Math.round(hookHoldActive * 0.63),
+        "Selected Clip": s30,
         "Channel Average": Math.round(hookHoldAvg * 0.58),
         "Platform Baseline": 33,
       },
       {
         second: "45s",
-        "Selected Clip": Math.round(hookHoldActive * 0.53),
+        "Selected Clip": s45,
         "Channel Average": Math.round(hookHoldAvg * 0.48),
         "Platform Baseline": 26,
       },
       {
         second: "60s End",
-        "Selected Clip": Math.round(hookHoldActive * 0.44),
+        "Selected Clip": s60,
         "Channel Average": Math.round(hookHoldAvg * 0.39),
         "Platform Baseline": 21,
       },
     ];
-  }, [hasData, avgScore, activeScore]);
+  }, [hasData, avgScore, activeScore, clipJitter]);
 
   const hookHold3s = chartData.length > 1 ? chartData[1]["Selected Clip"] : 0;
   const midHold30s = chartData.length > 4 ? chartData[4]["Selected Clip"] : 0;

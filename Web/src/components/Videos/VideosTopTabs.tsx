@@ -22,6 +22,14 @@ export function VideosTopTabs({
 }: VideosTopTabsProps) {
   const tabs = [
     {
+      id: "all" as const,
+      label: "All Videos",
+      subtitle: "Complete Studio Library",
+      icon: Layers,
+      count: allCount,
+      color: "#10b981",
+    },
+    {
       id: "your_videos" as const,
       label: "Your Videos",
       subtitle: "Connected YouTube Channel",
@@ -36,14 +44,6 @@ export function VideosTopTabs({
       icon: Target,
       count: targetedCount,
       color: "#6366f1",
-    },
-    {
-      id: "all" as const,
-      label: "All Videos",
-      subtitle: "Complete Studio Library",
-      icon: Layers,
-      count: allCount,
-      color: "#10b981",
     },
   ];
 

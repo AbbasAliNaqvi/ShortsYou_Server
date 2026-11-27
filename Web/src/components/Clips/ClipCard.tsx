@@ -2,7 +2,7 @@
 /* External creator and Supabase assets are intentionally rendered without Next's image proxy. */
 /* eslint-disable @next/next/no-img-element */
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDownToLine,
@@ -16,6 +16,17 @@ import {
 } from "lucide-react";
 import type { Clip, Video } from "@/lib/api";
 import { formatDuration } from "@/lib/formatters";
+import { ImageGeneration, type ImageGenerationStatus } from "@/components/agents/image-generation";
+
+const RENDER_STEPS = [
+  "Fetching source video…",
+  "Transcribing audio…",
+  "Analyzing viral moments…",
+  "Generating hook & captions…",
+  "Editing & framing 9:16…",
+  "Rendering 4K short…",
+  "Finalizing & syncing…",
+];
 
 export interface ClipCardProps {
   clip: Clip;
@@ -55,6 +66,35 @@ export const ClipCard = memo(
       ["exported", "published"].includes(clip.status) || Boolean(clip.supabaseShortUrl);
     const isRendering = ["editing", "queued", "processing"].includes(clip.status);
 
+    const [renderProgress, setRenderProgress] = useState(2);
+
+    useEffect(() => {
+      if (!isRendering) return;
+      const durationMs = Math.round((240 + Math.random() * 30) * 1000); // 4:00 - 4:30 min
+      const startedAt = clip.createdAt ? new Date(clip.createdAt).getTime() : Date.now();
+      const update = () => {
+        const elapsed = Math.max(0, Date.now() - startedAt);
+        const pct = Math.min(95, Math.max(2, Math.round((elapsed / durationMs) * 95)));
+        setRenderProgress(pct);
+      };
+      update();
+      const id = setInterval(update, 1000);
+      return () => clearInterval(id);
+    }, [isRendering, clip.createdAt]);
+
+    const stepIndex = Math.min(
+      RENDER_STEPS.length - 1,
+      Math.floor((renderProgress / 100) * RENDER_STEPS.length)
+    );
+
+    const genStatus: ImageGenerationStatus = !isRendering
+      ? "complete"
+      : renderProgress < 20
+      ? "queued"
+      : renderProgress < 75
+      ? "generating"
+      : "refining";
+
     return (
       <article
         className={`ca-clip-card ca-glass ${selected ? "is-selected" : ""}`}
@@ -67,8 +107,35 @@ export const ClipCard = memo(
           tabIndex={0}
           title={isRendered ? "Click to preview short" : "Click to view details"}
         >
-          {image ? (
-            <img src={image} alt="" className="ca-clip-poster-img" loading="lazy" />
+          {isRendering ? (
+            <div className="absolute inset-0 z-10">
+              <ImageGeneration
+                status={genStatus}
+                progress={renderProgress}
+                size="fluid"
+                aspectRatio="9 / 14"
+                resolution=""
+                interactive
+                showStatus={false}
+                className="size-full"
+                mediaClassName="size-full rounded-none border-0"
+              >
+                {image ? (
+                  <img src={image} alt="" className="size-full object-cover" loading="lazy" />
+                ) : (
+                  <div className={`ca-clip-art-fallback art-${index % 4}`}>
+                    <Play size={28} />
+                  </div>
+                )}
+              </ImageGeneration>
+            </div>
+          ) : image ? (
+            <img
+              src={image}
+              alt=""
+              className="ca-clip-poster-img"
+              loading="lazy"
+            />
           ) : (
             <div className={`ca-clip-art-fallback art-${index % 4}`}>
               <Play size={28} />
@@ -94,16 +161,20 @@ export const ClipCard = memo(
           </label>
 
           {/* Viral Score Pill */}
-          <span className="ca-clip-score-pill">
-            {Math.round(clip.viralScore)} / 100
-          </span>
+          {clip.viralScore > 0 && (
+            <span className="ca-clip-score-pill z-30">
+              {Math.round(clip.viralScore)}
+            </span>
+          )}
 
           {/* Hover Play / Preview Overlay */}
-          <div className="ca-clip-hover-overlay">
-            <div className="ca-clip-hover-play-btn">
-              {isRendered ? <Play size={20} fill="currentColor" /> : <Eye size={18} />}
+          {!isRendering && (
+            <div className="ca-clip-hover-overlay">
+              <div className="ca-clip-hover-play-btn">
+                {isRendered ? <Play size={20} fill="currentColor" /> : <Eye size={18} />}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Poster Caption Overlay */}
           <div className="ca-clip-caption-overlay">
@@ -137,6 +208,26 @@ export const ClipCard = memo(
               {clip.category || "Viral"}
             </span>
           </div>
+
+          {/* Progress Bar Below Video & Above Details */}
+          {isRendering && (
+            <div className="pb-2.5">
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span className="font-medium text-slate-700 dark:text-slate-200 truncate pr-2">
+                  {RENDER_STEPS[stepIndex]}
+                </span>
+                <span className="font-bold text-amber-500 shrink-0">
+                  {renderProgress}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 transition-all duration-700 ease-out"
+                  style={{ width: `${renderProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <h3 className="ca-clip-headline-text" title={title}>
             {title.slice(0, 100)}
@@ -189,15 +280,6 @@ export const ClipCard = memo(
               <ArrowDownToLine size={13} />
               <span>Download</span>
             </button>
-
-            {/* Direct Timeline Editor Button */}
-            <Link
-              href={`/editor/${clip.videoId}?clipId=${clip.id}`}
-              className="ca-clip-editor-btn"
-              title="Open in Timeline Editor"
-            >
-              <SlidersHorizontal size={13} />
-            </Link>
 
             <button
               type="button"
