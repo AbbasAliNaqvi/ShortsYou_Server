@@ -303,7 +303,7 @@ export function PreUploadModal({
                     </span>
                     <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-baseline gap-1.5">
                       <span className="text-amber-600">{clipScoreMeta.scoreInt}</span>
-                      <span className="text-base text-slate-400 font-medium">/ 100</span>
+                      {/* viral score */}
                     </h2>
                     <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
                       <Flame size={13} /> {clipScoreMeta.label}

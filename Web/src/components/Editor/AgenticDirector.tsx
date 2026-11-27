@@ -230,7 +230,7 @@ export function AgenticDirector({
         if (s.id === "analyze") return { ...s, status: "done", result: "3 peak moments found" };
         if (s.id === "hook") return { ...s, status: "done", result: `${result.startTime.toFixed(1)}s → ${result.endTime.toFixed(1)}s` };
         if (s.id === "reframe") return { ...s, status: "done", result: result.layout ?? "standard" };
-        if (s.id === "score") return { ...s, status: "done", result: `${viralScore}/100` };
+        if (s.id === "score") return { ...s, status: "done", result: `${viralScore}` };
         if (s.id === "grade") return { ...s, status: "done", result: `${result.colorGrade} · ${result.musicMood}` };
         if (s.id === "compose") return { ...s, status: "done", result: `${result.captionStyle} captions` };
         return s;
@@ -386,7 +386,7 @@ export function AgenticDirector({
               </div>
               <div className="ca-kpi-body">
                 <span className="ca-kpi-val">{viralScore}</span>
-                <span className="ss-meta-mono" style={{ marginLeft: 6 }}>/ 100</span>
+                <span className="ss-meta-mono" style={{ marginLeft: 6 }} />
               </div>
               <div className="ss-reason-row">
                 <span className="ss-neutral-chip">Strong hook</span>

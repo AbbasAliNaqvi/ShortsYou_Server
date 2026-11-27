@@ -8270,8 +8270,8 @@ body {
 /* Clips Grid — Proportional 9:16 Shorts Grid */
 .ca-clips-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
 }
 
 /* Clip Card */
@@ -8281,11 +8281,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1.5px solid rgba(15, 23, 42, 0.12) !important;
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.05) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 6px 20px -4px rgba(15, 23, 42, 0.06) !important;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
   position: relative;
+}
+
+.ca-clip-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(15, 23, 42, 0.2) !important;
+  box-shadow: 0 14px 32px -6px rgba(15, 23, 42, 0.12) !important;
 }
 
 .ca-clip-card.is-selected {
@@ -8295,7 +8301,7 @@ body {
 
 .ca-clip-media-box {
   width: 100%;
-  aspect-ratio: 9 / 13.5;
+  aspect-ratio: 9 / 14;
   border-radius: 14px;
   overflow: hidden;
   position: relative;
@@ -8303,6 +8309,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  cursor: pointer;
 }
 
 .ca-clip-poster-img {

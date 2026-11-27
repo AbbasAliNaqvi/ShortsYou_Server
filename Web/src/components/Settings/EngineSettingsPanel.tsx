@@ -151,7 +151,7 @@ export const EngineSettingsPanel = memo(function EngineSettingsPanel({
                   engine.viralScoreThreshold,
                 )}`}
               >
-                {engine.viralScoreThreshold} / 100
+                {engine.viralScoreThreshold}
               </span>
             </div>
             <input

@@ -656,7 +656,7 @@ export const CreatorDNAPanel = memo(function CreatorDNAPanel({
           <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-slate-600">Avg Hook Saliency</span>
-              <span className="text-xs font-extrabold text-indigo-900">{avgHook} / 100</span>
+              <span className="text-xs font-extrabold text-indigo-900">{avgHook}</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2 my-1.5 relative overflow-hidden">
               <div

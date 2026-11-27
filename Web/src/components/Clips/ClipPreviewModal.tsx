@@ -126,7 +126,7 @@ export function ClipPreviewModal({
                 <div className="ca-preview-stat-card">
                   <span className="ca-preview-stat-label">Viral Score</span>
                   <strong className="ca-preview-stat-value text-amber-500">
-                    {clip.viralScore > 0 ? `${Math.round(clip.viralScore)} / 100` : "Calculating…"}
+                    {clip.viralScore > 0 ? `${Math.round(clip.viralScore)}` : "Calculating…"}
                   </strong>
                 </div>
 

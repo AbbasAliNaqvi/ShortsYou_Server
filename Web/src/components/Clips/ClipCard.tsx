@@ -163,7 +163,7 @@ export const ClipCard = memo(
           {/* Viral Score Pill */}
           {clip.viralScore > 0 && (
             <span className="ca-clip-score-pill z-30">
-              {Math.round(clip.viralScore)} / 100
+              {Math.round(clip.viralScore)}
             </span>
           )}
 

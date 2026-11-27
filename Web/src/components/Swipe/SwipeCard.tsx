@@ -423,7 +423,7 @@ export const SwipeCard = memo(function SwipeCard({
           <div className="swipe-chips-row">
             <span className="swipe-chip-score">
               <Flame size={13} />
-              <span>{item.viralScore}/100 VIRAL INDEX</span>
+              <span>{item.viralScore} VIRAL INDEX</span>
             </span>
             <span className="swipe-chip-dur">
               <Clock size={12} />
