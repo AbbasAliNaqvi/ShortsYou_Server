@@ -344,7 +344,18 @@ export default function CustomShortEditor() {
       setRenderSuccess(false);
       try {
         // TODO: Backend API call to queue manual/directed short render
-        await api.createManualShort(token, video.id, finalStart, finalEnd, finalHook, finalSettings);
+        const created = await api.createManualShort(token, video.id, finalStart, finalEnd, finalHook, finalSettings);
+        if (created?.clipId) {
+          try {
+            const vMap = JSON.parse(localStorage.getItem("shortsyou_video_viral_scores") || "{}") as Record<string, number>;
+            const cMap = JSON.parse(localStorage.getItem("shortsyou_viral_scores") || "{}") as Record<string, number>;
+            const score = vMap[video.id];
+            if (score > 0) {
+              cMap[created.clipId] = score;
+              localStorage.setItem("shortsyou_viral_scores", JSON.stringify(cMap));
+            }
+          } catch {}
+        }
         const successMsg = "Short queued! Track progress or open Clips.";
         setNotice(successMsg);
         setRenderSuccess(true);
@@ -498,6 +509,7 @@ export default function CustomShortEditor() {
               >
                 {activeTab === "director" ? (
                   <AgenticDirector
+                    videoId={video.id}
                     composing={composing}
                     composeError={composeError}
                     rendering={rendering}

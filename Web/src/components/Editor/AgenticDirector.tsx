@@ -119,6 +119,7 @@ export const APPROACH_FLAVORS: ApproachFlavor[] = [
 const HOOK_TYPES = ["Curiosity gap", "Controversial", "Story", "Direct"] as const;
 
 export interface AgenticDirectorProps {
+  videoId?: string;
   composing: boolean;
   composeError?: string | null;
   rendering?: boolean;
@@ -145,6 +146,7 @@ export interface AgenticDirectorProps {
 }
 
 export function AgenticDirector({
+  videoId,
   composing,
   composeError = null,
   result,
@@ -171,9 +173,24 @@ export function AgenticDirector({
 
   const viralScore = useMemo(() => {
     if (!result) return 91;
+    if (videoId) {
+      try {
+        const vMap = JSON.parse(localStorage.getItem("shortsyou_video_viral_scores") || "{}") as Record<string, number>;
+        if (vMap[videoId] > 0) return vMap[videoId];
+      } catch {}
+    }
     const seed = (result.hookText?.length ?? 12) + Math.round(result.startTime * 3 + result.endTime);
     return 86 + (seed % 12);
-  }, [result]);
+  }, [result, videoId]);
+
+  useEffect(() => {
+    if (!result || !videoId) return;
+    try {
+      const vMap = JSON.parse(localStorage.getItem("shortsyou_video_viral_scores") || "{}") as Record<string, number>;
+      vMap[videoId] = viralScore;
+      localStorage.setItem("shortsyou_video_viral_scores", JSON.stringify(vMap));
+    } catch {}
+  }, [result, videoId, viralScore]);
 
   useEffect(() => {
     if (composing && !wasComposing.current) {

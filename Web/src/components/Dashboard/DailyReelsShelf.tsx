@@ -55,11 +55,15 @@ export function DailyReelsShelf({
   useEffect(() => {
     if (!reels || reels.length === 0) return;
     let saved: Record<string, number> = {};
+    let videoScores: Record<string, number> = {};
     try {
       const raw = localStorage.getItem("shortsyou_viral_scores");
       if (raw) saved = JSON.parse(raw) as Record<string, number>;
+      const rawV = localStorage.getItem("shortsyou_video_viral_scores");
+      if (rawV) videoScores = JSON.parse(rawV) as Record<string, number>;
     } catch {
       saved = {};
+      videoScores = {};
     }
 
     const top5 = reels.slice(0, 5);
@@ -74,11 +78,16 @@ export function DailyReelsShelf({
     const nextMap: Record<string, number> = {};
     top5.forEach((r, idx) => {
       const apiScore = r.viralScore > 0 ? Math.round(r.viralScore > 1 ? r.viralScore : r.viralScore * 100) : 0;
+      const existing = saved[r.id] || videoScores[r.videoId];
       const [min, max] = tierRanges[idx] ?? [80, 84];
-      const score = apiScore > 0 ? apiScore : Math.floor(min + Math.random() * (max - min + 1));
+      const score = apiScore > 0 ? apiScore : existing > 0 ? existing : Math.floor(min + Math.random() * (max - min + 1));
       nextMap[r.id] = score;
       if (saved[r.id] !== score) {
         saved[r.id] = score;
+        updated = true;
+      }
+      if (r.videoId && videoScores[r.videoId] !== score) {
+        videoScores[r.videoId] = score;
         updated = true;
       }
     });
@@ -86,6 +95,7 @@ export function DailyReelsShelf({
     if (updated) {
       try {
         localStorage.setItem("shortsyou_viral_scores", JSON.stringify(saved));
+        localStorage.setItem("shortsyou_video_viral_scores", JSON.stringify(videoScores));
       } catch {
         // ignore storage quota errors
       }

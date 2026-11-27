@@ -36,11 +36,15 @@ export function ClipsReviewPage() {
   useEffect(() => {
     if (clips.length === 0) return;
     let savedScores: Record<string, number> = {};
+    let videoScores: Record<string, number> = {};
     try {
       const raw = localStorage.getItem("shortsyou_viral_scores");
       if (raw) savedScores = JSON.parse(raw) as Record<string, number>;
+      const rawV = localStorage.getItem("shortsyou_video_viral_scores");
+      if (rawV) videoScores = JSON.parse(rawV) as Record<string, number>;
     } catch {
       savedScores = {};
+      videoScores = {};
     }
 
     const needsScore = clips.some((c) => !c.viralScore || c.viralScore <= 0);
@@ -48,18 +52,28 @@ export function ClipsReviewPage() {
 
     let updated = false;
     const nextScores: Record<string, number> = { ...savedScores };
+    const nextVideoScores: Record<string, number> = { ...videoScores };
     const scoredClips = clips.map((c) => {
       if (c.viralScore && c.viralScore > 0) return c;
-      if (!(nextScores[c.id] > 0)) {
-        nextScores[c.id] = Math.floor(85 + Math.random() * 14);
+      let score = nextScores[c.id] || nextVideoScores[c.videoId];
+      if (!(score > 0)) {
+        score = Math.floor(85 + Math.random() * 14);
+      }
+      if (nextScores[c.id] !== score) {
+        nextScores[c.id] = score;
         updated = true;
       }
-      return { ...c, viralScore: nextScores[c.id] };
+      if (c.videoId && nextVideoScores[c.videoId] !== score) {
+        nextVideoScores[c.videoId] = score;
+        updated = true;
+      }
+      return { ...c, viralScore: score };
     });
 
     if (updated) {
       try {
         localStorage.setItem("shortsyou_viral_scores", JSON.stringify(nextScores));
+        localStorage.setItem("shortsyou_video_viral_scores", JSON.stringify(nextVideoScores));
       } catch {
         // ignore storage quota errors
       }
